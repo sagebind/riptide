@@ -1,5 +1,7 @@
+extern crate lua;
 extern crate rustyline;
 
+mod builtins;
 mod runtime;
 
 use rustyline::error::ReadlineError;
@@ -13,7 +15,7 @@ fn main() {
     let mut editor = rustyline::Editor::<()>::new();
 
     loop {
-        let prompt = runtime.get_prompt().unwrap_or(DEFAULT_PROMPT).to_owned();
+        let prompt = runtime.get_prompt().unwrap_or(DEFAULT_PROMPT.to_string());
 
         match editor.readline(&prompt) {
             Ok(line) => {

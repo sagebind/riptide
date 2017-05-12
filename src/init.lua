@@ -1,5 +1,12 @@
-lish = {}
+lish = {
+    status = 0
+}
+
 
 function lish.prompt()
-    return "> "
+    if lish.status == 0 then
+        return pwd() .. "$ "
+    else
+        return pwd() .. "|" .. lish.status .. "$ "
+    end
 end
