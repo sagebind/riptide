@@ -1,0 +1,3 @@
+# lish
+
+Lua Interactive SHell

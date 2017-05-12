@@ -1,0 +1,8 @@
+[package]
+name = "lish"
+version = "0.1.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+
+[dependencies]
+lua = "0.0.10"
+rustyline = "1.0.0"
