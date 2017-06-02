@@ -10,7 +10,7 @@ use std::process::exit;
 
 
 fn main() {
-    println!("ies init");
+    println!("crush init");
 
     exit(shell::Shell::new().run());
 }

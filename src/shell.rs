@@ -53,7 +53,7 @@ impl Shell {
         let parser = parser::Parser::new(&mut scanner);
 
         // Parse the command line as a script.
-        let expression = match parser.parse_script() {
+        let expression = match parser.parse() {
             Ok(e) => e,
             Err(e) => {
                 println!("{}", e);

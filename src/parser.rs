@@ -33,25 +33,41 @@ impl fmt::Display for Expression {
 }
 
 
+#[derive(Clone, Copy, Default, Debug)]
+pub struct Pos {
+    pub line: u32,
+    pub column: u32,
+}
+
+impl Pos {
+    fn new() -> Self {
+        Self {
+            line: 1,
+            column: 1,
+        }
+    }
+}
+
+
+/// Parses a source input into an expression tree.
 pub struct Parser<'r> {
     scanner: &'r mut Scanner,
     next_char: Option<char>,
-    line: u32,
-    col: u32,
+    pos: Pos,
 }
 
 #[derive(Debug)]
 pub struct ParseError {
     pub kind: ParseErrorKind,
-    pub line: u32,
-    pub col: u32,
+    pub pos: Pos,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ParseErrorKind {
+    InvalidEscape,
+    TrailingParenthesis,
     UnclosedList,
     UnclosedString,
-    TrailingParenthesis,
 }
 
 impl Error for ParseError {
@@ -59,17 +75,25 @@ impl Error for ParseError {
         use self::ParseErrorKind::*;
 
         match self.kind {
+            InvalidEscape => "invalid escape character",
+            TrailingParenthesis => "extra trailing parenthesis",
             UnclosedList => "unclosed list",
             UnclosedString => "unclosed string",
-            TrailingParenthesis => "extra trailing parenthesis",
         }
     }
 }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}: {}", self.line, self.col, self.description())
+        write!(f, "error: {}\n    {}:{}", self.description(), self.pos.line, self.pos.column)
     }
+}
+
+macro_rules! parse_error {
+    ($parser:expr, $kind:expr) => (Err(ParseError {
+        kind: $kind,
+        pos: $parser.pos,
+    }))
 }
 
 impl<'r> Parser<'r> {
@@ -77,14 +101,23 @@ impl<'r> Parser<'r> {
         Self {
             scanner: scanner,
             next_char: None,
-            line: 1,
-            col: 1,
+            pos: Pos::new(),
         }
     }
 
-    // <script> := <expr_list>
-    pub fn parse_script(mut self) -> Result<Expression, ParseError> {
-        let items = self.parse_expr_list()?;
+    /// Attempt to parse all input into an expression tree.
+    pub fn parse(mut self) -> Result<Expression, ParseError> {
+        let mut items = Vec::new();
+
+        loop {
+            self.skip_whitespace();
+
+            if self.peek().is_some() {
+                items.push(self.parse_expr()?);
+            } else {
+                break;
+            }
+        }
 
         Ok(Expression::List(items))
     }
@@ -92,15 +125,10 @@ impl<'r> Parser<'r> {
     // <expr> := <list> | <string> | <symbol>
     pub fn parse_expr(&mut self) -> Result<Expression, ParseError> {
         match self.peek() {
-            Some('(') => {
-                return self.parse_list();
-            }
-            Some('"') | Some('\'') => {
-                return self.parse_string();
-            }
-            Some(_) => {
-                return self.parse_symbol();
-            }
+            Some('(') => self.parse_list(),
+            Some(')') => parse_error!(self, ParseErrorKind::TrailingParenthesis),
+            Some('"') | Some('\'') => self.parse_string(),
+            Some(_) => self.parse_symbol(),
             None => {
                 panic!("unexpected eof, expected expression");
             }
@@ -109,39 +137,23 @@ impl<'r> Parser<'r> {
 
     // <list> := ( <expr_list> )
     fn parse_list(&mut self) -> Result<Expression, ParseError> {
-        if self.next() != Some('(') {
-            panic!("expected char: (");
-        }
-
-        let items = self.parse_expr_list()?;
-
-        self.skip_whitespace();
-
-        if self.next() != Some(')') {
-            panic!("expected char: )");
-        }
-
-        Ok(Expression::List(items))
-    }
-
-    // <expr_list> := <expr> <expr_list> | EPSILON
-    fn parse_expr_list(&mut self) -> Result<Vec<Expression>, ParseError> {
-        let mut exprs = Vec::new();
+        assert!(self.next() != Some('('));
+        let mut items = Vec::new();
 
         loop {
             self.skip_whitespace();
 
             match self.peek() {
-                Some(')') | None => {
+                Some(')') => {
+                    self.next();
                     break;
                 }
-                Some(_) => {
-                    exprs.push(self.parse_expr()?);
-                }
+                Some(_) => items.push(self.parse_expr()?),
+                None => return parse_error!(self, ParseErrorKind::UnclosedList)
             }
         }
 
-        Ok(exprs)
+        Ok(Expression::List(items))
     }
 
     // <symbol> := <identifier>
@@ -164,11 +176,10 @@ impl<'r> Parser<'r> {
         Ok(Expression::Atom(string))
     }
 
-    // <string> := " <literals> "
     fn parse_string(&mut self) -> Result<Expression, ParseError> {
         let delimiter = match self.next() {
             Some(c) if c == '"' || c == '\'' => c,
-            _ => panic!("expected string"),
+            _ => panic!("invalid string delimiter"),
         };
         let mut string = String::new();
 
@@ -186,58 +197,54 @@ impl<'r> Parser<'r> {
                 Some(c) => {
                     string.push(c);
                 },
-                None => return Err(self.error(ParseErrorKind::UnclosedString)),
+                None => return parse_error!(self, ParseErrorKind::UnclosedString),
             }
         }
 
         Ok(Expression::Atom(string))
     }
 
+    /// Consume and skip over any whitespace and comments.
     fn skip_whitespace(&mut self) {
         loop {
-            if let Some(c) = self.peek() {
-                if c.is_whitespace() {
+            match self.peek() {
+                Some(';') => {
+                    while self.next() != Some('\n') {}
+                },
+                Some(c) if c.is_whitespace() => {
                     self.next();
-                    continue;
-                }
+                },
+                _ => break,
             }
-            break;
         }
     }
 
+    /// Get the next character of input.
+    fn next(&mut self) -> Option<char> {
+        match self.peek() {
+            Some('\n') => {
+                self.pos.line += 1;
+                self.pos.column = 1;
+            },
+            Some(_) => {
+                self.pos.column += 1;
+            },
+            None => {},
+        }
+
+        self.next_char.take()
+    }
+
+    /// Peek ahead one character.
     fn peek(&mut self) -> Option<char> {
         if self.next_char.is_none() {
             self.next_char = match self.scanner.read_char() {
-                Ok(Some('\n')) => {
-                    self.line += 1;
-                    self.col = 1;
-                    Some('\n')
-                },
-                Ok(Some(c)) => {
-                    Some(c)
-                },
-                Ok(None) => {
-                    None
-                },
-                Err(_) => {
-                    None
-                },
+                Ok(Some(c)) => Some(c),
+                Ok(None) => None,
+                Err(_) => None,
             };
         }
 
         self.next_char.clone()
-    }
-
-    fn next(&mut self) -> Option<char> {
-        self.peek();
-        self.next_char.take()
-    }
-
-    fn error(&self, kind: ParseErrorKind) -> ParseError {
-        ParseError {
-            kind: kind,
-            line: self.line,
-            col: self.col,
-        }
     }
 }
