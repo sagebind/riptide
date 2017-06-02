@@ -1,4 +1,5 @@
 use builtins;
+use execute;
 use parser;
 use rustyline;
 use rustyline::error::ReadlineError;
@@ -9,12 +10,14 @@ const DEFAULT_PROMPT: &str = "$ ";
 
 
 pub struct Shell {
+    filename: String,
     editor: rustyline::Editor<()>,
 }
 
 impl Shell {
     pub fn new() -> Self {
         Self {
+            filename: "<stdin>".into(),
             editor: rustyline::Editor::new()
         }
     }
@@ -31,7 +34,6 @@ impl Shell {
                 }
                 Err(ReadlineError::Interrupted) => {
                     println!("CTRL-C");
-                    builtins::exit::exit(None);
                 }
                 Err(ReadlineError::Eof) => {
                     println!("CTRL-D");
@@ -56,12 +58,12 @@ impl Shell {
         let expression = match parser.parse() {
             Ok(e) => e,
             Err(e) => {
-                println!("{}", e);
+                println!("error: {}\n    {}:{}:{}", e.kind.description(), self.filename, e.pos.line, e.pos.column);
                 return;
             },
         };
 
-        println!("{}", expression);
+        execute::execute(&expression);
 
         self.editor.add_history_entry(line.as_ref());
     }

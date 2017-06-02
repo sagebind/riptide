@@ -1,6 +1,13 @@
+use parser::Expression;
+
+
 static mut EXIT_FLAG: bool = false;
 static mut EXIT_CODE: i32 = 0;
 
+
+pub fn main(args: &[Expression]) {
+    exit(None);
+}
 
 /// Get the currently set exit code for the current shell.
 #[inline]

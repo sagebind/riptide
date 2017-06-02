@@ -1,20 +1,33 @@
 use scanner::Scanner;
-use std::error::Error;
 use std::fmt;
 
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 /// Abstract representation of an expression. An expression can either be an atom (string), or a list of expressions
 /// surrounded by parenthesis.
 pub enum Expression {
-    Atom(String),
+    /// A list of expressions.
     List(Vec<Expression>),
+    /// A value.
+    Atom(String),
+    /// An empty list. This is equivalent to List with no expressions.
+    Nil,
+}
+
+impl Expression {
+    /// If this is an atom expression, get its value.
+    pub fn atom(&self) -> Option<&str> {
+        if let &Expression::Atom(ref s) = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
 }
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Expression::Atom(ref s) => write!(f, "'{}'", s),
             &Expression::List(ref v) => {
                 write!(f, "(")?;
                 let mut first = true;
@@ -28,6 +41,8 @@ impl fmt::Display for Expression {
                 }
                 write!(f, ")")
             },
+            &Expression::Atom(ref s) => write!(f, "\"{}\"", s),
+            &Expression::Nil => write!(f, "()"),
         }
     }
 }
@@ -50,6 +65,8 @@ impl Pos {
 
 
 /// Parses a source input into an expression tree.
+///
+/// Since the grammar is so simple, this performs the role of both lexing and parsing.
 pub struct Parser<'r> {
     scanner: &'r mut Scanner,
     next_char: Option<char>,
@@ -64,28 +81,18 @@ pub struct ParseError {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ParseErrorKind {
-    InvalidEscape,
     TrailingParenthesis,
     UnclosedList,
     UnclosedString,
 }
 
-impl Error for ParseError {
-    fn description(&self) -> &str {
-        use self::ParseErrorKind::*;
-
-        match self.kind {
-            InvalidEscape => "invalid escape character",
-            TrailingParenthesis => "extra trailing parenthesis",
-            UnclosedList => "unclosed list",
-            UnclosedString => "unclosed string",
+impl ParseErrorKind {
+    pub fn description(&self) -> &str {
+        match self {
+            &ParseErrorKind::TrailingParenthesis => "extra trailing parenthesis",
+            &ParseErrorKind::UnclosedList => "unclosed list",
+            &ParseErrorKind::UnclosedString => "unclosed string",
         }
-    }
-}
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "error: {}\n    {}:{}", self.description(), self.pos.line, self.pos.column)
     }
 }
 
@@ -122,7 +129,6 @@ impl<'r> Parser<'r> {
         Ok(Expression::List(items))
     }
 
-    // <expr> := <list> | <string> | <symbol>
     pub fn parse_expr(&mut self) -> Result<Expression, ParseError> {
         match self.peek() {
             Some('(') => self.parse_list(),
@@ -135,9 +141,8 @@ impl<'r> Parser<'r> {
         }
     }
 
-    // <list> := ( <expr_list> )
     fn parse_list(&mut self) -> Result<Expression, ParseError> {
-        assert!(self.next() != Some('('));
+        assert!(self.next() == Some('('));
         let mut items = Vec::new();
 
         loop {
@@ -156,7 +161,6 @@ impl<'r> Parser<'r> {
         Ok(Expression::List(items))
     }
 
-    // <symbol> := <identifier>
     fn parse_symbol(&mut self) -> Result<Expression, ParseError> {
         let mut string = String::new();
 
@@ -165,12 +169,18 @@ impl<'r> Parser<'r> {
 
         // Read any remaining characters that are part of the symbol.
         while let Some(c) = self.peek() {
-            if c == '(' || c == ')' || c == '"' || c.is_whitespace() {
-                break;
+            match c {
+                '(' | ')' | '"' | '\'' => break,
+                c if c.is_whitespace() => break,
+                c => {
+                    self.next();
+                    string.push(if c == '\\' {
+                        self.next().map(translate_escape).unwrap_or('\\')
+                    } else {
+                        c
+                    });
+                },
             }
-
-            self.next();
-            string.push(c);
         }
 
         Ok(Expression::Atom(string))
@@ -185,18 +195,11 @@ impl<'r> Parser<'r> {
 
         loop {
             match self.next() {
-                Some('\\') => {
-                    string.push(match self.peek() {
-                        Some(c) if c == '"' || c == '\'' => c,
-                        _ => '\\',
-                    });
-                },
-                Some(c) if c == delimiter => {
-                    break;
-                },
-                Some(c) => {
-                    string.push(c);
-                },
+                Some('\\') => string.push(self.next()
+                    .map(translate_escape)
+                    .unwrap_or('\\')),
+                Some(c) if c == delimiter => break,
+                Some(c) => string.push(c),
                 None => return parse_error!(self, ParseErrorKind::UnclosedString),
             }
         }
@@ -246,5 +249,15 @@ impl<'r> Parser<'r> {
         }
 
         self.next_char.clone()
+    }
+}
+
+/// Get the value corresponding to a given escape character.
+fn translate_escape(c: char) -> char {
+    match c {
+        'n' => '\n',
+        'r' => '\r',
+        't' => '\t',
+        _ => c, // interpret all other chars as their literal
     }
 }

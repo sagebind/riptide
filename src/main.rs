@@ -2,6 +2,7 @@ extern crate rustyline;
 extern crate utf8parse;
 
 mod builtins;
+mod execute;
 mod parser;
 mod scanner;
 mod shell;
