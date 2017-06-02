@@ -1,0 +1,11 @@
+[package]
+name = "crush"
+version = "0.1.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+
+[dependencies]
+atty = "0.2.2"
+nix = "0.8.1"
+rustyline = "1.0.0"
+term = "0.4"
+utf8parse = "0.1.0"
