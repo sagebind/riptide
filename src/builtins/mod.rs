@@ -2,6 +2,7 @@ use parser::Expression;
 
 pub mod command;
 pub mod exit;
+pub mod pipe;
 pub mod print;
 
 
@@ -15,6 +16,7 @@ pub fn get(name: &str) -> Option<Builtin> {
     match name {
         "command" => Some(command::main),
         "exit" => Some(exit::main),
+        "pipe" | "|" => Some(pipe::main),
         "print" | "echo" => Some(print::main),
         _ => None,
     }

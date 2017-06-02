@@ -1,4 +1,5 @@
-extern crate rustyline;
+extern crate nix;
+extern crate termion;
 extern crate utf8parse;
 
 mod builtins;
@@ -11,7 +12,8 @@ use std::process::exit;
 
 
 fn main() {
-    println!("crush init");
+    let mut shell = shell::Shell::default();
+    let status = shell.run();
 
-    exit(shell::Shell::new().run());
+    exit(status);
 }
