@@ -1,7 +1,9 @@
 use parser::Expression;
 
 pub mod command;
+pub mod exec;
 pub mod exit;
+pub mod help;
 pub mod pipe;
 pub mod print;
 
@@ -15,7 +17,9 @@ pub type Builtin = fn(&[Expression]);
 pub fn get(name: &str) -> Option<Builtin> {
     match name {
         "command" => Some(command::main),
+        "exec" => Some(exec::main),
         "exit" => Some(exit::main),
+        "help" => Some(help::main),
         "pipe" | "|" => Some(pipe::main),
         "print" | "echo" => Some(print::main),
         _ => None,

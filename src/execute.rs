@@ -28,6 +28,9 @@ pub fn reduce(expr: &Expression) -> Expression {
                 // Try to execute a builtin first.
                 if let Some(func) = builtins::get(name) {
                     func(&atoms[1..]);
+                } else {
+                    // Execute a command.
+                    builtins::command::main(atoms);
                 }
             }
 
