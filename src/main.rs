@@ -6,8 +6,8 @@ extern crate utf8parse;
 
 mod builtins;
 mod editor;
-mod execute;
 mod functions;
+mod interpreter;
 mod io;
 mod parser;
 mod scanner;
@@ -40,6 +40,13 @@ pub mod exit {
 fn main() {
     let mut io = io::IO::inherited();
 
+    // Source the internal init script.
+    let script = parser::parse_string(include_str!("init.crush"))
+        .expect("error in internal init script");
+    if let Some(items) = script.items() {
+        interpreter::execute_multiple(items, &mut io);
+    }
+
     // If stdin is interactive, use the editor.
     if io.is_tty() {
         loop {
@@ -48,12 +55,8 @@ fn main() {
                 editor.read_line()
             };
 
-            // Build a parser.
-            let mut scanner = scanner::StringScanner::new(&line);
-            let parser = parser::Parser::new(&mut scanner);
-
             // Parse the command line as a script.
-            let expression = match parser.parse() {
+            let expression = match parser::parse_string(&line) {
                 Ok(e) => e,
                 Err(e) => {
                     println!("error: {}\n    <stdin>:{}:{}",
@@ -64,7 +67,7 @@ fn main() {
                 }
             };
 
-            execute::execute(&expression, &mut io);
+            interpreter::execute(&expression, &mut io);
 
             if *exit::flag() {
                 break;
@@ -74,14 +77,7 @@ fn main() {
 
     // Stdin isn't interactive, so treat it is just a script input file.
     else {
-        let result = {
-            let mut scanner = scanner::ReaderScanner::new(&mut io.stdin);
-            let parser = parser::Parser::new(&mut scanner);
-
-            parser.parse()
-        };
-
-        match result {
+        match parser::parse_stream(&mut io.stdin) {
             Ok(expr) => {
                 println!("{}", expr);
             }

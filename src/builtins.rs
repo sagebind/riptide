@@ -1,35 +1,53 @@
-use execute;
 use functions;
+use interpreter;
+use interpreter::Expression;
 use io::{self, IO};
-use parser::Expression;
+use parser;
 
 
 /// Lookup a builtin function by name.
 pub fn lookup(name: &str) -> Option<functions::Builtin> {
     match name {
+        "and" => Some(builtin_and),
+        "begin" => Some(builtin_begin),
         "builtin" => Some(builtin),
+        "=" => Some(builtin_equal),
         "capture" | "$" => Some(capture),
         "car" => Some(car),
         "cd" => Some(cd),
         "cdr" => Some(cdr),
         "command" => Some(command),
+        "crush" => Some(builtin_crush),
         "def" => Some(def),
-        "do" => Some(do_builtin),
         "exec" => Some(exec),
         "exit" => Some(exit),
         "help" => Some(help),
+        "if" => Some(builtin_if),
         "list" => Some(list),
+        "not" => Some(builtin_not),
         "pipe" | "|" => Some(pipe),
         "print" | "echo" => Some(print),
         "pwd" => Some(pwd),
+        "source" => Some(source),
         _ => None,
     }
+}
+
+/// Test if all arguments are truthy.
+pub fn builtin_and(args: &[Expression], io: &mut IO) -> Expression {
+    for arg in args {
+        if !interpreter::reduce(arg, io).is_truthy() {
+            return Expression::Atom("false".into());
+        }
+    }
+
+    Expression::Atom("true".into())
 }
 
 /// Executes a builtin command.
 pub fn builtin(args: &[Expression], io: &mut IO) -> Expression {
     if let Some(name_expr) = args.first() {
-        if let Some(name) = execute::reduce(name_expr, io).atom() {
+        if let Some(name) = interpreter::reduce(name_expr, io).atom() {
             if let Some(builtin) = lookup(name) {
                 return builtin(&args[1..], io);
             }
@@ -52,7 +70,7 @@ pub fn capture(args: &[Expression], io: &mut IO) -> Expression {
     // Execute the arguments as an expression in the background.
     let expr = Expression::List(args.to_vec());
     thread::spawn(move || {
-        execute::execute(&expr, &mut captured_io);
+        interpreter::execute(&expr, &mut captured_io);
     });
 
     // Read the first line of output and return it as an atom.
@@ -65,14 +83,14 @@ pub fn capture(args: &[Expression], io: &mut IO) -> Expression {
         line.pop();
     }
 
-    Expression::Atom(line)
+    Expression::Atom(line.into())
 }
 
 /// Return the first element of a list.
 pub fn car(args: &[Expression], io: &mut IO) -> Expression {
     if let Some(&Expression::List(ref items)) = args.first() {
         if let Some(item) = items.first() {
-            return execute::reduce(item, io);
+            return interpreter::reduce(item, io);
         }
     }
 
@@ -84,7 +102,7 @@ pub fn cd(args: &[Expression], io: &mut IO) -> Expression {
     use std::env;
 
     if let Some(expr) = args.first() {
-        if let Some(path) = execute::reduce(expr, io).atom() {
+        if let Some(path) = interpreter::reduce(expr, io).atom() {
             env::set_current_dir(path).unwrap();
         }
     }
@@ -103,9 +121,13 @@ pub fn cdr(args: &[Expression], _: &mut IO) -> Expression {
 
 /// Executes an external command.
 pub fn command(args: &[Expression], io: &mut IO) -> Expression {
-    if let Some(mut command) = execute::build_external_command(args, io) {
+    if let Some(mut command) = interpreter::build_external_command(args, io) {
         // Start running the command in a child process.
-        command.status();
+        let status = command.status().expect("error running external command");
+
+        // Return the exit code.
+        let status_string = format!("{}", status.code().unwrap_or(0));
+        return Expression::Atom(status_string.into());
     }
 
     Expression::Nil
@@ -119,7 +141,7 @@ pub fn def(args: &[Expression], io: &mut IO) -> Expression {
     }
 
     // First argument is the function name.
-    if let Some(name) = execute::reduce(args.first().unwrap(), io).atom() {
+    if let Some(name) = interpreter::reduce(args.first().unwrap(), io).atom() {
         // Second argument is the body. If body wasn't given, just use Nil as the body.
         let body = args.get(1).cloned().unwrap_or(Expression::Nil);
 
@@ -130,27 +152,51 @@ pub fn def(args: &[Expression], io: &mut IO) -> Expression {
     Expression::Nil
 }
 
-/// Execute expressions in a sequence and return all results in a list.
-pub fn do_builtin(args: &[Expression], io: &mut IO) -> Expression {
-    // If no arguments are given, do nothing.
-    if args.is_empty() {
-        return Expression::Nil;
-    }
-
-    let mut results = Vec::new();
+/// Execute expressions in a sequence and returns the result of the last expression.
+pub fn builtin_begin(args: &[Expression], io: &mut IO) -> Expression {
+    let mut result = Expression::Nil;
 
     for expr in args {
-        results.push(execute::reduce(expr, io));
+        result = interpreter::reduce(expr, io);
     }
 
-    Expression::List(results)
+    result
+}
+
+pub fn builtin_crush(args: &[Expression], io: &mut IO) -> Expression {
+    use std::env;
+
+    if let Ok(path) = env::current_exe() {
+        let mut args = args.to_vec();
+        args.insert(0, Expression::Atom(path.to_string_lossy().into_owned().into()));
+        command(&args, io)
+    } else {
+        Expression::Nil
+    }
+}
+
+/// Test if all arguments are equal.
+pub fn builtin_equal(args: &[Expression], io: &mut IO) -> Expression {
+    // If less than two arguments are given, just return true.
+    if args.len() < 2 {
+        return Expression::True();
+    }
+
+    let expr_to_compare_to = &args[0];
+    for expr in &args[1..] {
+        if expr != expr_to_compare_to {
+            return Expression::False();
+        }
+    }
+
+    return Expression::True();
 }
 
 /// Replace the current process with a new command.
 pub fn exec(args: &[Expression], io: &mut IO) -> Expression {
     use std::os::unix::process::CommandExt;
 
-    if let Some(mut command) = execute::build_external_command(args, io) {
+    if let Some(mut command) = interpreter::build_external_command(args, io) {
         command.exec();
     }
 
@@ -174,9 +220,40 @@ pub fn help(args: &[Expression], io: &mut IO) -> Expression {
     Expression::Nil
 }
 
+/// If the first argument is truthy, the second argument is executed. Otherwise the third argument is executed.
+pub fn builtin_if(args: &[Expression], io: &mut IO) -> Expression {
+    // If no arguments are given, do nothing.
+    if args.is_empty() {
+        return Expression::Nil;
+    }
+
+    // Determine if the first argument is truthy.
+    let condition_expr = interpreter::reduce(&args[0], io);
+    let truthy = condition_expr.is_truthy();
+
+    // Evaluate the appropriate expression arm.
+    if truthy {
+        if let Some(expr) = args.get(1) {
+            interpreter::reduce(expr, io)
+        } else {
+            Expression::Nil
+        }
+    } else {
+        if let Some(expr) = args.get(2) {
+            interpreter::reduce(expr, io)
+        } else {
+            Expression::Nil
+        }
+    }
+}
+
 /// Returns its arguments as an unevaluated list.
-pub fn list(args: &[Expression], _: &mut IO) -> Expression {
-    Expression::List(args.to_vec())
+pub fn list(args: &[Expression], io: &mut IO) -> Expression {
+    interpreter::execute_multiple(args, io)
+}
+
+pub fn builtin_not(args: &[Expression], _: &mut IO) -> Expression {
+    Expression::Nil
 }
 
 /// Form a pipeline between a series of calls and execute them in parallel.
@@ -190,7 +267,7 @@ pub fn pipe(args: &[Expression], io: &mut IO) -> Expression {
 
     // If only on argument is given, just execute it normally.
     if args.len() == 1 {
-        return execute::reduce(&args[0], io);
+        return interpreter::reduce(&args[0], io);
     }
 
     // Multiple arguments are given, so create a series of IO contexts that are chained together.
@@ -202,7 +279,7 @@ pub fn pipe(args: &[Expression], io: &mut IO) -> Expression {
         let mut child_io = contexts.remove(0);
 
         handles.push(thread::spawn(move || {
-            execute::reduce(&expr, &mut child_io)
+            interpreter::reduce(&expr, &mut child_io)
         }));
     }
 
@@ -221,7 +298,7 @@ pub fn print(args: &[Expression], io: &mut IO) -> Expression {
     let mut first = true;
 
     for arg in args {
-        let arg = execute::reduce(arg, io);
+        let arg = interpreter::reduce(arg, io);
 
         if first {
             write!(io.stdout, "{}", arg).unwrap();
@@ -244,4 +321,25 @@ pub fn pwd(args: &[Expression], io: &mut IO) -> Expression {
     writeln!(io.stdout, "{}", env::current_dir().unwrap().display()).unwrap();
 
     Expression::Nil
+}
+
+/// Evaluate the contents of a file and return its result.
+pub fn source(args: &[Expression], io: &mut IO) -> Expression {
+    use std::fs::File;
+
+    // If a filename is given, read from the file. Otherwise read from stdin.
+    let expr = if args.is_empty() {
+        parser::parse_stream(&mut io.stdin)
+    } else if let Some(filename) = interpreter::reduce(&args[0], io).atom() {
+        let mut file = File::open(filename).unwrap();
+        parser::parse_stream(&mut file)
+    } else {
+        return Expression::Nil;
+    };
+
+    if let Ok(expr) = expr {
+        interpreter::reduce(&expr, io)
+    } else {
+        Expression::Nil
+    }
 }

@@ -1,0 +1,17 @@
+(begin
+    (print "Loading user profile...")
+    (if (= 0 (test -f "config.crush"))
+        (print source "config.crush")
+        (print "config.crush missing")
+    )
+)
+
+(def ls
+    (command ls -FHl --human-readable --color=always --group-directories-first)
+)
+
+(def dbg/reload
+    (exec cargo run)
+)
+
+(print "Crush shell is ready to go!")

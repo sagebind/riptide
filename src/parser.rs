@@ -1,51 +1,7 @@
-use scanner::Scanner;
+use interpreter::Expression;
+use scanner::*;
 use std::fmt;
-
-
-#[derive(Clone, Debug)]
-/// Abstract representation of an expression. An expression can either be an atom (string), or a list of expressions
-/// surrounded by parenthesis.
-pub enum Expression {
-    /// A list of expressions.
-    List(Vec<Expression>),
-    /// A value.
-    Atom(String),
-    /// An empty list. This is equivalent to List with no expressions.
-    Nil,
-}
-
-impl Expression {
-    /// If this is an atom expression, get its value.
-    pub fn atom(&self) -> Option<&str> {
-        if let &Expression::Atom(ref s) = self {
-            Some(s)
-        } else {
-            None
-        }
-    }
-}
-
-impl fmt::Display for Expression {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Expression::List(ref v) => {
-                write!(f, "(")?;
-                let mut first = true;
-                for expr in v {
-                    if first {
-                        write!(f, "{}", expr)?;
-                        first = false;
-                    } else {
-                        write!(f, " {}", expr)?;
-                    }
-                }
-                write!(f, ")")
-            },
-            &Expression::Atom(ref s) => write!(f, "{}", s),
-            &Expression::Nil => write!(f, "()"),
-        }
-    }
-}
+use std::io::Read;
 
 
 #[derive(Clone, Copy, Default, Debug)]
@@ -61,6 +17,21 @@ impl Pos {
             column: 1,
         }
     }
+}
+
+
+pub fn parse_string(string: &str) -> Result<Expression, ParseError> {
+    let mut scanner = StringScanner::new(string);
+    let mut parser = Parser::new(&mut scanner);
+
+    parser.parse_program()
+}
+
+pub fn parse_stream<R: Read>(reader: &mut R) -> Result<Expression, ParseError> {
+    let mut scanner = ReaderScanner::new(reader);
+    let mut parser = Parser::new(&mut scanner);
+
+    parser.parse_program()
 }
 
 
@@ -113,7 +84,7 @@ impl<'r> Parser<'r> {
     }
 
     /// Attempt to parse all input into an expression tree.
-    pub fn parse(mut self) -> Result<Expression, ParseError> {
+    pub fn parse_program(&mut self) -> Result<Expression, ParseError> {
         let mut items = Vec::new();
 
         loop {
@@ -183,7 +154,7 @@ impl<'r> Parser<'r> {
             }
         }
 
-        Ok(Expression::Atom(string))
+        Ok(Expression::Atom(string.into()))
     }
 
     fn parse_string(&mut self) -> Result<Expression, ParseError> {
@@ -204,7 +175,7 @@ impl<'r> Parser<'r> {
             }
         }
 
-        Ok(Expression::Atom(string))
+        Ok(Expression::Atom(string.into()))
     }
 
     /// Consume and skip over any whitespace and comments.

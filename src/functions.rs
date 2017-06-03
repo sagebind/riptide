@@ -1,6 +1,6 @@
-use execute;
+use interpreter;
+use interpreter::Expression;
 use io::IO;
-use parser::Expression;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -37,7 +37,7 @@ pub struct UserFunction {
 
 impl Function for UserFunction {
     fn execute(&self, args: &[Expression], io: &mut IO) -> Expression {
-        execute::reduce(&self.body, io)
+        interpreter::reduce(&self.body, io)
     }
 }
 
@@ -46,7 +46,7 @@ impl Function for UserFunction {
 pub fn lookup<S>(name: S) -> Option<Arc<UserFunction>>
     where S: AsRef<str>
 {
-    let mut table = TABLE.lock().unwrap();
+    let table = TABLE.lock().unwrap();
     table.get(name.as_ref()).cloned()
 }
 
