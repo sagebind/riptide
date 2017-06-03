@@ -5,36 +5,74 @@ extern crate utf8parse;
 mod builtins;
 mod editor;
 mod execute;
+mod io;
 mod parser;
 mod scanner;
-mod shell;
 
-use std::process::exit;
+use std::process;
 
 
-/// Get a reference to the global exit status.
-#[inline]
-pub fn exit_status() -> &'static mut i32 {
-    static mut STATUS: i32 = 0;
+pub mod exit {
+    /// Get a reference to the global exit status.
+    #[inline]
+    pub fn status() -> &'static mut i32 {
+        static mut STATUS: i32 = 0;
 
-    unsafe {
-        &mut STATUS
+        unsafe {
+            &mut STATUS
+        }
+    }
+
+    /// Get the process exit flag used to request an exit cleanly.
+    #[inline]
+    pub fn flag() -> &'static mut bool {
+        static mut FLAG: bool = false;
+
+        unsafe {
+            &mut FLAG
+        }
     }
 }
 
 fn main() {
-    let mut shell = shell::Shell::current();
+    let mut io = io::IO::inherited();
 
     // If stdin is interactive, use the editor.
-    if shell.is_tty() {
-        let mut editor = editor::Editor::new(&mut shell);
-        *exit_status() = editor.run();
+    if io.is_tty() {
+        loop {
+            let line = {
+                let mut editor = editor::Editor::new(&mut io);
+                editor.read_line()
+            };
+
+            // Build a parser.
+            let mut scanner = scanner::StringScanner::new(&line);
+            let parser = parser::Parser::new(&mut scanner);
+
+            // Parse the command line as a script.
+            let expression = match parser.parse() {
+                Ok(e) => e,
+                Err(e) => {
+                    println!("error: {}\n    <stdin>:{}:{}",
+                            e.kind.description(),
+                            e.pos.line,
+                            e.pos.column);
+                    return;
+                }
+            };
+
+            execute::execute(&expression, &mut io);
+
+            if *exit::flag() {
+                break;
+            }
+        }
     }
 
     // Stdin isn't interactive, so treat it is just a script input file.
     else {
         let result = {
-            let mut scanner = scanner::ReaderScanner::new(&mut shell.stdin);
+            let mut scanner = scanner::ReaderScanner::new(&mut io.stdin);
             let parser = parser::Parser::new(&mut scanner);
 
             parser.parse()
@@ -47,12 +85,12 @@ fn main() {
             Err(e) => {
                 println!("error: {}\n    {}:{}:{}",
                          e.kind.description(),
-                         shell.name(),
+                         io.name(),
                          e.pos.line,
                          e.pos.column);
             }
         }
     }
 
-    exit(*exit_status());
+    process::exit(*exit::status());
 }
