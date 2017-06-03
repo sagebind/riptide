@@ -1,4 +1,5 @@
 use builtins;
+use functions::{self, Function};
 use io::IO;
 use parser::Expression;
 use std::os::unix::io::*;
@@ -28,11 +29,18 @@ pub fn reduce(expr: &Expression, io: &mut IO) -> Expression {
             };
 
             if let Some(name) = f.atom() {
-                // Try to execute a builtin first.
-                if let Some(func) = builtins::get(name) {
-                    return func(&atoms[1..], io);
-                } else {
-                    // Execute a command.
+                // First look up a user defined function.
+                if let Some(f) = functions::lookup(name) {
+                    return f.execute(&atoms[1..], io);
+                }
+
+                // Try to execute a builtin.
+                else if let Some(f) = builtins::lookup(name) {
+                    return f.execute(&atoms[1..], io);
+                }
+
+                // Execute a command.
+                else {
                     return builtins::command(atoms, io);
                 }
             }

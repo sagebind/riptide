@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate lazy_static;
 extern crate nix;
 extern crate termion;
 extern crate utf8parse;
@@ -5,6 +7,7 @@ extern crate utf8parse;
 mod builtins;
 mod editor;
 mod execute;
+mod functions;
 mod io;
 mod parser;
 mod scanner;
