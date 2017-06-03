@@ -16,6 +16,7 @@ pub fn get(name: &str) -> Option<Builtin> {
         "car" => Some(car),
         "cdr" => Some(cdr),
         "command" => Some(command),
+        "do" => Some(do_builtin),
         "exec" => Some(exec),
         "exit" => Some(exit),
         "help" => Some(help),
@@ -51,7 +52,7 @@ pub fn car(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Return the tail of a list.
-pub fn cdr(args: &[Expression], io: &mut IO) -> Expression {
+pub fn cdr(args: &[Expression], _: &mut IO) -> Expression {
     if let Some(&Expression::List(ref items)) = args.first() {
         return Expression::List((&items[1..]).to_vec())
     }
@@ -67,6 +68,22 @@ pub fn command(args: &[Expression], io: &mut IO) -> Expression {
     }
 
     Expression::Nil
+}
+
+/// Execute expressions in a sequence and return all results in a list.
+pub fn do_builtin(args: &[Expression], io: &mut IO) -> Expression {
+    // If no arguments are given, do nothing.
+    if args.is_empty() {
+        return Expression::Nil;
+    }
+
+    let mut results = Vec::new();
+
+    for expr in args {
+        results.push(execute::reduce(expr, io));
+    }
+
+    Expression::List(results)
 }
 
 /// Replace the current process with a new command.
@@ -87,8 +104,10 @@ pub fn exit(args: &[Expression], _: &mut IO) -> Expression {
     Expression::Nil
 }
 
-pub fn help(args: &[Expression], _: &mut IO) -> Expression {
-    println!("<PLACEHOLDER TEXT>");
+pub fn help(args: &[Expression], io: &mut IO) -> Expression {
+    use std::io::Write;
+
+    writeln!(io.stdout, "<PLACEHOLDER TEXT>").unwrap();
 
     Expression::Nil
 }
@@ -99,7 +118,37 @@ pub fn list(args: &[Expression], _: &mut IO) -> Expression {
 }
 
 /// Form a pipeline between a series of calls and execute them in parallel.
-pub fn pipe(args: &[Expression], _: &mut IO) -> Expression {
+pub fn pipe(args: &[Expression], io: &mut IO) -> Expression {
+    use std::thread;
+
+    // If no arguments are given, do nothing.
+    if args.is_empty() {
+        return Expression::Nil;
+    }
+
+    // If only on argument is given, just execute it normally.
+    if args.len() == 1 {
+        return execute::reduce(&args[0], io);
+    }
+
+    // Multiple arguments are given, so create a series of IO contexts that are chained together.
+    let mut contexts = io.clone().pipeline(args.len() as u16);
+    let mut handles = Vec::new();
+
+    for arg in args {
+        let expr = arg.clone();
+        let mut child_io = contexts.remove(0);
+
+        handles.push(thread::spawn(move || {
+            execute::execute(&expr, &mut child_io);
+        }));
+    }
+
+    // Wait for all processes to complete.
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
     Expression::Nil
 }
 

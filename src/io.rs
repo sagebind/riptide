@@ -5,15 +5,77 @@
 use nix::unistd;
 use std::borrow::Cow;
 use std::fs::File;
+use std::io::{self, Read, Write};
 use std::os::unix::io::*;
 use termion;
 
 
+/// A readable pipe.
+pub struct ReadPipe(File);
+
+impl Read for ReadPipe {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.0.read(buf)
+    }
+}
+
+impl AsRawFd for ReadPipe {
+    fn as_raw_fd(&self) -> RawFd {
+        self.0.as_raw_fd()
+    }
+}
+
+impl IntoRawFd for ReadPipe {
+    fn into_raw_fd(self) -> RawFd {
+        self.0.into_raw_fd()
+    }
+}
+
+impl Clone for ReadPipe {
+    fn clone(&self) -> Self {
+        ReadPipe(self.0.try_clone().expect("failed to duplicate pipe"))
+    }
+}
+
+
+/// A writable pipe.
+pub struct WritePipe(File);
+
+impl Write for WritePipe {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.0.flush()
+    }
+}
+
+impl AsRawFd for WritePipe {
+    fn as_raw_fd(&self) -> RawFd {
+        self.0.as_raw_fd()
+    }
+}
+
+impl IntoRawFd for WritePipe {
+    fn into_raw_fd(self) -> RawFd {
+        self.0.into_raw_fd()
+    }
+}
+
+impl Clone for WritePipe {
+    fn clone(&self) -> Self {
+        WritePipe(self.0.try_clone().expect("failed to duplicate pipe"))
+    }
+}
+
+
+/// An IO context.
 pub struct IO {
     name: Cow<'static, str>,
-    pub stdin: File,
-    pub stdout: File,
-    pub stderr: File,
+    pub stdin: ReadPipe,
+    pub stdout: WritePipe,
+    pub stderr: WritePipe,
 }
 
 impl IO {
@@ -22,15 +84,15 @@ impl IO {
         unsafe {
             Self::new(
                 "<stdin>",
-                File::from_raw_fd(0),
-                File::from_raw_fd(1),
-                File::from_raw_fd(2),
+                ReadPipe(File::from_raw_fd(0)),
+                WritePipe(File::from_raw_fd(1)),
+                WritePipe(File::from_raw_fd(2)),
             )
         }
     }
 
     /// Create a new IO context.
-    pub fn new<S>(name: S, stdin: File, stdout: File, stderr: File) -> Self
+    pub fn new<S>(name: S, stdin: ReadPipe, stdout: WritePipe, stderr: WritePipe) -> Self
         where S: Into<Cow<'static, str>>
     {
         Self {
@@ -49,32 +111,69 @@ impl IO {
 
     /// Check if the input stream is a TTY.
     pub fn is_tty(&self) -> bool {
-        termion::is_tty(&self.stdin)
+        termion::is_tty(&self.stdin.0)
+    }
+
+    /// Split the IO context into two new contexts.
+    ///
+    /// The streams are set up as follows:
+    /// - The first context inherits the previous stdin and stderr.
+    /// - The second context inherits the previous stdout and stderr.
+    /// - The first context's stdout and the second context's stdin form a new pipe.
+    pub fn split(self) -> (Self, Self) {
+        let head_stdin = self.stdin;
+        let head_stderr = self.stderr.clone();
+
+        let tail_stdout = self.stdout;
+        let tail_stderr = self.stderr;
+
+        let (head_stdout, tail_stdin) = pipe();
+
+        (
+            Self::new(self.name.clone(), head_stdin, head_stdout, head_stderr),
+            Self::new(self.name.clone(), tail_stdin, tail_stdout, tail_stderr),
+        )
+    }
+
+    /// Turn the IO context into a series of contexts piped together of the given length.
+    pub fn pipeline(self, length: u16) -> Vec<Self> {
+        let mut contexts = Vec::new();
+
+        // If length is zero, just return empty.
+        if length == 0 {
+            return contexts;
+        }
+
+        let mut io_tail = self;
+
+        for i in 1..length {
+            let split = io_tail.split();
+            contexts.push(split.0);
+            io_tail = split.1;
+        }
+
+        contexts.push(io_tail);
+        contexts
     }
 }
 
 impl Clone for IO {
     fn clone(&self) -> Self {
-        unsafe {
-            let stdin = unistd::dup(self.stdin.as_raw_fd()).unwrap();
-            let stdout = unistd::dup(self.stdout.as_raw_fd()).unwrap();
-            let stderr = unistd::dup(self.stderr.as_raw_fd()).unwrap();
-
-            Self::new(
-                self.name.clone(),
-                File::from_raw_fd(stdin),
-                File::from_raw_fd(stdout),
-                File::from_raw_fd(stderr),
-            )
-        }
+        Self::new(
+            self.name.clone(),
+            self.stdin.clone(),
+            self.stdout.clone(),
+            self.stderr.clone(),
+        )
     }
 }
 
+
 /// Create a new IO pipe.
-pub fn pipe() -> (File, File) {
+pub fn pipe() -> (WritePipe, ReadPipe) {
     let fds = unistd::pipe().unwrap();
 
     unsafe {
-        (File::from_raw_fd(fds.0), File::from_raw_fd(fds.1))
+        (WritePipe(File::from_raw_fd(fds.1)), ReadPipe(File::from_raw_fd(fds.0)))
     }
 }

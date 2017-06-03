@@ -41,7 +41,7 @@ impl fmt::Display for Expression {
                 }
                 write!(f, ")")
             },
-            &Expression::Atom(ref s) => write!(f, "\"{}\"", s),
+            &Expression::Atom(ref s) => write!(f, "{}", s),
             &Expression::Nil => write!(f, "()"),
         }
     }

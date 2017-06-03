@@ -38,8 +38,8 @@ impl<'s> Editor<'s> {
         self.io.stdout.flush().unwrap();
 
         // Duplicate stdin and stdout handles to workaround Termion's API.
-        let stdin = self.io.stdin.try_clone().unwrap();
-        let stdout = self.io.stdout.try_clone().unwrap();
+        let stdin = self.io.stdin.clone();
+        let stdout = self.io.stdout.clone();
 
         // Enter raw mode.
         let _raw_guard = stdout.into_raw_mode().unwrap();
