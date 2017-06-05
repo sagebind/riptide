@@ -13,6 +13,7 @@ pub type Builtin = fn(&[Expression], &Context, &mut IO) -> Expression;
 pub fn lookup(name: &str) -> Option<Builtin> {
     match name {
         "and" => Some(builtin_and),
+        "args" => Some(builtin_args),
         "begin" => Some(builtin_begin),
         "builtin" => Some(builtin),
         "=" => Some(builtin_equal),
@@ -48,6 +49,11 @@ pub fn builtin_and(args: &[Expression], context: &Context, io: &mut IO) -> Expre
     }
 
     Expression::Atom("true".into())
+}
+
+/// Return all arguments passed to the current function as a list.
+pub fn builtin_args(_: &[Expression], context: &Context, io: &mut IO) -> Expression {
+    interpreter::execute_all(&*context.args, context, io)
 }
 
 /// Executes a builtin command.
@@ -118,9 +124,9 @@ pub fn cd(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
 }
 
 /// Return the tail of a list.
-pub fn cdr(args: &[Expression], context: &Context, _: &mut IO) -> Expression {
+pub fn cdr(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     if let Some(&Expression::List(ref items)) = args.first() {
-        return Expression::List((&items[1..]).to_vec())
+        return interpreter::execute_all(&items[1..], context, io);
     }
 
     Expression::Nil
@@ -297,7 +303,7 @@ pub fn builtin_if(args: &[Expression], context: &Context, io: &mut IO) -> Expres
 
 /// Returns its arguments as a list.
 pub fn list(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    interpreter::execute_all(args, io)
+    interpreter::execute_all(args, context, io)
 }
 
 /// Returns its arguments as a list unevaluated.

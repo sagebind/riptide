@@ -46,7 +46,7 @@ fn main() {
     let script = parser::parse_string(include_str!("init.crush"))
         .expect("error in internal init script");
     if let Some(items) = script.items() {
-        interpreter::execute_all(items, &mut io);
+        interpreter::execute_all(items, &interpreter::Context::default(), &mut io);
     }
 
     // If stdin is interactive, use the editor.

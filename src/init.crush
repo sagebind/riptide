@@ -14,4 +14,8 @@
     (exec cargo run)
 )
 
+(def 2nd
+    (car (cdr (args)))
+)
+
 (print "Crush shell is ready to go!")

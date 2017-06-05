@@ -71,11 +71,21 @@ pub fn create_function<S>(name: S, params: Vec<String>, body: Expression)
 #[derive(Clone)]
 pub struct Context {
     /// Reference to the function being executed.
-    function: Option<Arc<UserFunction>>,
+    pub function: Option<Arc<UserFunction>>,
 
     /// Arguments passed in to the current function call.
-    args: Arc<Vec<Expression>>,
+    pub args: Arc<Vec<Expression>>,
 }
+
+impl Default for Context {
+    fn default() -> Context {
+        Context {
+            function: None,
+            args: Arc::new(Vec::new()),
+        }
+    }
+}
+
 
 /// Execute an expression.
 pub fn execute(expr: &Expression, io: &mut IO) -> Expression {
@@ -162,9 +172,9 @@ pub fn execute_function_call(expr: &Expression, context: &Context, io: &mut IO) 
 }
 
 /// Execute multiple expressions in sequence, returning all results in a list.
-pub fn execute_all(exprs: &[Expression], io: &mut IO) -> Expression {
+pub fn execute_all(exprs: &[Expression], context: &Context, io: &mut IO) -> Expression {
     let results = exprs.iter().map(|expr| {
-        execute(expr, io)
+        execute_function_call(expr, context, io)
     }).collect();
 
     Expression::List(results)
