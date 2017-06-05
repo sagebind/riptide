@@ -1,6 +1,7 @@
 //! Functions for executing external programs.
-use interpreter::{self, Expression};
+use interpreter;
 use io::IO;
+use parser::Expression;
 use std::os::unix::io::*;
 use std::process::{Command, Stdio};
 

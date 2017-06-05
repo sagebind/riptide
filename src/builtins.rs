@@ -1,13 +1,16 @@
-use functions;
 use exec;
-use interpreter;
-use interpreter::Expression;
+use interpreter::{self, Context};
 use io::{self, IO};
-use parser;
+use parser::{self, Expression};
 
+
+/// A builtin function in native code.
+///
+/// Builtin functions have the special property of receiving their arguments before they are reduced.
+pub type Builtin = fn(&[Expression], &Context, &mut IO) -> Expression;
 
 /// Lookup a builtin function by name.
-pub fn lookup(name: &str) -> Option<functions::Builtin> {
+pub fn lookup(name: &str) -> Option<Builtin> {
     match name {
         "and" => Some(builtin_and),
         "begin" => Some(builtin_begin),
@@ -30,15 +33,16 @@ pub fn lookup(name: &str) -> Option<functions::Builtin> {
         "pipe" | "|" => Some(pipe),
         "print" | "echo" => Some(print),
         "pwd" => Some(pwd),
+        "quote" => Some(quote),
         "source" => Some(source),
         _ => None,
     }
 }
 
 /// Test if all arguments are truthy.
-pub fn builtin_and(args: &[Expression], io: &mut IO) -> Expression {
+pub fn builtin_and(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     for arg in args {
-        if !interpreter::execute(arg, io).is_truthy() {
+        if !interpreter::execute_function_call(arg, context, io).is_truthy() {
             return Expression::Atom("false".into());
         }
     }
@@ -47,11 +51,11 @@ pub fn builtin_and(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Executes a builtin command.
-pub fn builtin(args: &[Expression], io: &mut IO) -> Expression {
+pub fn builtin(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     if let Some(name_expr) = args.first() {
-        if let Some(name) = interpreter::execute(name_expr, io).value() {
+        if let Some(name) = interpreter::execute_function_call(name_expr, context, io).value() {
             if let Some(builtin) = lookup(name) {
-                return builtin(&args[1..], io);
+                return builtin(&args[1..], context, io);
             }
         }
     }
@@ -60,7 +64,7 @@ pub fn builtin(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Execute an expression, capturing its standard output and returning it as a value.
-pub fn capture(args: &[Expression], io: &mut IO) -> Expression {
+pub fn capture(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     use std::io::{BufRead, BufReader};
     use std::thread;
 
@@ -71,8 +75,9 @@ pub fn capture(args: &[Expression], io: &mut IO) -> Expression {
 
     // Execute the arguments as an expression in the background.
     let expr = Expression::List(args.to_vec());
+    let context = context.clone();
     thread::spawn(move || {
-        interpreter::execute(&expr, &mut captured_io);
+        interpreter::execute_function_call(&expr, &context, &mut captured_io);
     });
 
     // Read the first line of output and return it as an atom.
@@ -89,10 +94,10 @@ pub fn capture(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Return the first element of a list.
-pub fn car(args: &[Expression], io: &mut IO) -> Expression {
+pub fn car(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     if let Some(&Expression::List(ref items)) = args.first() {
         if let Some(item) = items.first() {
-            return interpreter::execute(item, io);
+            return interpreter::execute_function_call(item, context, io);
         }
     }
 
@@ -100,11 +105,11 @@ pub fn car(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Change the current directory.
-pub fn cd(args: &[Expression], io: &mut IO) -> Expression {
+pub fn cd(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     use std::env;
 
     if let Some(expr) = args.first() {
-        if let Some(path) = interpreter::execute(expr, io).value() {
+        if let Some(path) = interpreter::execute_function_call(expr, context, io).value() {
             env::set_current_dir(path).unwrap();
         }
     }
@@ -113,7 +118,7 @@ pub fn cd(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Return the tail of a list.
-pub fn cdr(args: &[Expression], _: &mut IO) -> Expression {
+pub fn cdr(args: &[Expression], context: &Context, _: &mut IO) -> Expression {
     if let Some(&Expression::List(ref items)) = args.first() {
         return Expression::List((&items[1..]).to_vec())
     }
@@ -122,7 +127,7 @@ pub fn cdr(args: &[Expression], _: &mut IO) -> Expression {
 }
 
 /// Executes an external command.
-pub fn command(args: &[Expression], io: &mut IO) -> Expression {
+pub fn command(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     if let Some(mut command) = exec::build_external_command(args, io) {
         // Start running the command in a child process.
         let status = command.status().expect("error running external command");
@@ -136,49 +141,67 @@ pub fn command(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Define a new function.
-pub fn def(args: &[Expression], io: &mut IO) -> Expression {
+pub fn def(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     // If no arguments are given, do nothing.
     if args.is_empty() {
         return Expression::Nil;
     }
 
     // First argument is the function name.
-    if let Some(name) = interpreter::execute(args.first().unwrap(), io).value() {
-        // Second argument is the body. If body wasn't given, just use Nil as the body.
-        let body = args.get(1).cloned().unwrap_or(Expression::Nil);
+    if let Some(name) = interpreter::execute_function_call(args.first().unwrap(), context, io).value() {
+        let mut params = Vec::new();
+        let mut body = Expression::Nil;
+
+        // If two arguments are given, there are no parameters and the second argument is the body.
+        if args.len() == 2 {
+            body = args[1].clone();
+        }
+
+        // If three arguments are given, the second argument is the parameter list and the third is the body.
+        else if args.len() >= 3 {
+            body = args[2].clone();
+
+            if let Some(params_list) = args[1].items() {
+                for param_expr in params_list {
+                    if let Some(param_name) = interpreter::execute_function_call(param_expr, context, io).value() {
+                        params.push(param_name.to_owned());
+                    }
+                }
+            }
+        }
 
         // Create the function.
-        functions::create(name, body);
+        interpreter::create_function(name, params, body);
     }
 
     Expression::Nil
 }
 
 /// Execute expressions in a sequence and returns the result of the last expression.
-pub fn builtin_begin(args: &[Expression], io: &mut IO) -> Expression {
+pub fn builtin_begin(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     let mut result = Expression::Nil;
 
     for expr in args {
-        result = interpreter::execute(expr, io);
+        result = interpreter::execute_function_call(expr, context, io);
     }
 
     result
 }
 
-pub fn builtin_crush(args: &[Expression], io: &mut IO) -> Expression {
+pub fn builtin_crush(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     use std::env;
 
     if let Ok(path) = env::current_exe() {
         let mut args = args.to_vec();
         args.insert(0, Expression::Atom(path.to_string_lossy().into_owned().into()));
-        command(&args, io)
+        command(&args, context, io)
     } else {
         Expression::Nil
     }
 }
 
 /// Test if all arguments are equal.
-pub fn builtin_equal(args: &[Expression], io: &mut IO) -> Expression {
+pub fn builtin_equal(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     // If less than two arguments are given, just return true.
     if args.len() < 2 {
         return Expression::TRUE;
@@ -194,7 +217,7 @@ pub fn builtin_equal(args: &[Expression], io: &mut IO) -> Expression {
     return Expression::TRUE;
 }
 
-pub fn builtin_env(args: &[Expression], io: &mut IO) -> Expression {
+pub fn builtin_env(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     use std::env;
     use std::io::Write;
 
@@ -207,7 +230,7 @@ pub fn builtin_env(args: &[Expression], io: &mut IO) -> Expression {
 
     // If one argument is given, lookup and return the value of an environment variable with that name.
     if args.len() == 1 {
-        if let Some(name) = interpreter::execute(&args[0], io).value() {
+        if let Some(name) = interpreter::execute_function_call(&args[0], context, io).value() {
             if let Ok(value) = env::var(name) {
                 return Expression::Atom(value.into());
             }
@@ -218,7 +241,7 @@ pub fn builtin_env(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Replace the current process with a new command.
-pub fn exec(args: &[Expression], io: &mut IO) -> Expression {
+pub fn exec(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     use std::os::unix::process::CommandExt;
 
     if let Some(mut command) = exec::build_external_command(args, io) {
@@ -229,7 +252,7 @@ pub fn exec(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Exits the current shell.
-pub fn exit(args: &[Expression], _: &mut IO) -> Expression {
+pub fn exit(args: &[Expression], context: &Context, _: &mut IO) -> Expression {
     use exit;
 
     *exit::flag() = true;
@@ -237,7 +260,7 @@ pub fn exit(args: &[Expression], _: &mut IO) -> Expression {
     Expression::Nil
 }
 
-pub fn help(args: &[Expression], io: &mut IO) -> Expression {
+pub fn help(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     use std::io::Write;
 
     writeln!(io.stdout, "<PLACEHOLDER TEXT>").unwrap();
@@ -246,26 +269,26 @@ pub fn help(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// If the first argument is truthy, the second argument is executed. Otherwise the third argument is executed.
-pub fn builtin_if(args: &[Expression], io: &mut IO) -> Expression {
+pub fn builtin_if(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     // If no arguments are given, do nothing.
     if args.is_empty() {
         return Expression::Nil;
     }
 
     // Determine if the first argument is truthy.
-    let condition_expr = interpreter::execute(&args[0], io);
+    let condition_expr = interpreter::execute_function_call(&args[0], context, io);
     let truthy = condition_expr.is_truthy();
 
     // Evaluate the appropriate expression arm.
     if truthy {
         if let Some(expr) = args.get(1) {
-            interpreter::execute(expr, io)
+            interpreter::execute_function_call(expr, context, io)
         } else {
             Expression::Nil
         }
     } else {
         if let Some(expr) = args.get(2) {
-            interpreter::execute(expr, io)
+            interpreter::execute_function_call(expr, context, io)
         } else {
             Expression::Nil
         }
@@ -273,21 +296,29 @@ pub fn builtin_if(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Returns its arguments as a list.
-pub fn list(args: &[Expression], io: &mut IO) -> Expression {
+pub fn list(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     interpreter::execute_all(args, io)
 }
 
 /// Returns its arguments as a list unevaluated.
-pub fn quote(args: &[Expression], _: &mut IO) -> Expression {
+pub fn quote(args: &[Expression], _: &Context, _: &mut IO) -> Expression {
     Expression::List(args.to_vec())
 }
 
-pub fn builtin_not(args: &[Expression], _: &mut IO) -> Expression {
-    Expression::Nil
+pub fn builtin_not(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+    if let Some(expr) = args.first() {
+        if interpreter::execute_function_call(expr, context, io).is_truthy() {
+            Expression::FALSE
+        } else {
+            Expression::TRUE
+        }
+    } else {
+        Expression::Nil
+    }
 }
 
 /// Form a pipeline between a series of calls and execute them in parallel.
-pub fn pipe(args: &[Expression], io: &mut IO) -> Expression {
+pub fn pipe(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     use std::thread;
 
     // If no arguments are given, do nothing.
@@ -297,7 +328,7 @@ pub fn pipe(args: &[Expression], io: &mut IO) -> Expression {
 
     // If only on argument is given, just execute it normally.
     if args.len() == 1 {
-        return interpreter::execute(&args[0], io);
+        return interpreter::execute_function_call(&args[0], context, io);
     }
 
     // Multiple arguments are given, so create a series of IO contexts that are chained together.
@@ -307,9 +338,10 @@ pub fn pipe(args: &[Expression], io: &mut IO) -> Expression {
     for arg in args {
         let expr = arg.clone();
         let mut child_io = contexts.remove(0);
+        let child_context = context.clone();
 
         handles.push(thread::spawn(move || {
-            interpreter::execute(&expr, &mut child_io)
+            interpreter::execute_function_call(&expr, &child_context, &mut child_io)
         }));
     }
 
@@ -322,13 +354,13 @@ pub fn pipe(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Print the given expressions to standard output. Multiple arguments are separated with a space.
-pub fn print(args: &[Expression], io: &mut IO) -> Expression {
+pub fn print(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     use std::io::Write;
 
     let mut first = true;
 
     for arg in args {
-        let arg = interpreter::execute(arg, io);
+        let arg = interpreter::execute_function_call(arg, context, io);
 
         if first {
             write!(io.stdout, "{}", arg).unwrap();
@@ -344,7 +376,7 @@ pub fn print(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Print the current directory.
-pub fn pwd(args: &[Expression], io: &mut IO) -> Expression {
+pub fn pwd(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     use std::env;
     use std::io::Write;
 
@@ -354,13 +386,13 @@ pub fn pwd(args: &[Expression], io: &mut IO) -> Expression {
 }
 
 /// Evaluate the contents of a file and return its result.
-pub fn source(args: &[Expression], io: &mut IO) -> Expression {
+pub fn source(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     use std::fs::File;
 
     // If a filename is given, read from the file. Otherwise read from stdin.
     let expr = if args.is_empty() {
         parser::parse_stream(&mut io.stdin)
-    } else if let Some(filename) = interpreter::execute(&args[0], io).value() {
+    } else if let Some(filename) = interpreter::execute_function_call(&args[0], context, io).value() {
         let mut file = File::open(filename).unwrap();
         parser::parse_stream(&mut file)
     } else {
@@ -368,7 +400,7 @@ pub fn source(args: &[Expression], io: &mut IO) -> Expression {
     };
 
     if let Ok(expr) = expr {
-        interpreter::execute(&expr, io)
+        interpreter::execute_function_call(&expr, context, io)
     } else {
         Expression::Nil
     }

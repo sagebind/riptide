@@ -10,8 +10,16 @@ use std::os::unix::io::*;
 use termion;
 
 
-/// A readable pipe.
+
+/// A readable pipe. This is the type used for stdin.
 pub struct ReadPipe(File);
+
+impl ReadPipe {
+    /// Check if the input stream is a TTY.
+    pub fn is_tty(&self) -> bool {
+        termion::is_tty(&self.0)
+    }
+}
 
 impl Read for ReadPipe {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -38,7 +46,7 @@ impl Clone for ReadPipe {
 }
 
 
-/// A writable pipe.
+/// A writable pipe. This is the type used for stdout and stderr.
 pub struct WritePipe(File);
 
 impl Write for WritePipe {

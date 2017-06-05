@@ -9,7 +9,6 @@ extern crate utf8parse;
 mod builtins;
 mod editor;
 mod exec;
-mod functions;
 mod interpreter;
 mod io;
 mod parser;
