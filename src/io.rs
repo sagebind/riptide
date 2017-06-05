@@ -146,7 +146,7 @@ impl IO {
 
         let mut io_tail = self;
 
-        for i in 1..length {
+        for _ in 1..length {
             let split = io_tail.split();
             contexts.push(split.0);
             io_tail = split.1;

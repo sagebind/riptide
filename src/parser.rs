@@ -1,6 +1,5 @@
 use interpreter::Expression;
 use scanner::*;
-use std::fmt;
 use std::io::Read;
 
 

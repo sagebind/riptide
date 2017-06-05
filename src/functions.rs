@@ -31,13 +31,18 @@ impl Function for Builtin {
 
 
 /// A function defined by the user.
+///
+/// User functions consist of an argument list, and a body. The body is an expression, which gets executed on every
+/// invocation. The argument list is a list of names that are used inside the body. These names actually become function
+/// aliases for the expressions passed in at call time. Thus, if an argument is never used, it is never executed.
 pub struct UserFunction {
-    body: Expression,
+    args: Vec<String>,
+    pub body: Expression,
 }
 
 impl Function for UserFunction {
     fn execute(&self, args: &[Expression], io: &mut IO) -> Expression {
-        interpreter::reduce(&self.body, io)
+        interpreter::execute(&self.body, io)
     }
 }
 
@@ -55,6 +60,7 @@ pub fn create<S>(name: S, body: Expression)
     where S: Into<String>
 {
     let function = UserFunction {
+        args: Vec::new(),
         body: body,
     };
 

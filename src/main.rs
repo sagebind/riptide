@@ -1,3 +1,5 @@
+#![feature(associated_consts)]
+
 #[macro_use]
 extern crate lazy_static;
 extern crate nix;
@@ -6,6 +8,7 @@ extern crate utf8parse;
 
 mod builtins;
 mod editor;
+mod exec;
 mod functions;
 mod interpreter;
 mod io;
@@ -44,7 +47,7 @@ fn main() {
     let script = parser::parse_string(include_str!("init.crush"))
         .expect("error in internal init script");
     if let Some(items) = script.items() {
-        interpreter::execute_multiple(items, &mut io);
+        interpreter::execute_all(items, &mut io);
     }
 
     // If stdin is interactive, use the editor.
@@ -67,7 +70,12 @@ fn main() {
                 }
             };
 
-            interpreter::execute(&expression, &mut io);
+            let result = interpreter::execute(&expression, &mut io);
+
+            // If the return value isn't Nil, print it out for the user.
+            if !result.is_nil() {
+                println!("{}", result);
+            }
 
             if *exit::flag() {
                 break;
