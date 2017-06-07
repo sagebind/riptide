@@ -101,9 +101,13 @@ pub fn capture(args: &[Expression], context: &Context, io: &mut IO) -> Expressio
 
 /// Return the first element of a list.
 pub fn car(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    if let Some(&Expression::List(ref items)) = args.first() {
-        if let Some(item) = items.first() {
-            return interpreter::execute_function_call(item, context, io);
+    if let Some(expr) = args.first() {
+        let expr = interpreter::execute_function_call(expr, context, io);
+
+        if let Some(items) = expr.items() {
+            if let Some(item) = items.first() {
+                return item.clone();
+            }
         }
     }
 
@@ -125,8 +129,12 @@ pub fn cd(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
 
 /// Return the tail of a list.
 pub fn cdr(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    if let Some(&Expression::List(ref items)) = args.first() {
-        return interpreter::execute_all(&items[1..], context, io);
+    if let Some(expr) = args.first() {
+        let expr = interpreter::execute_function_call(expr, context, io);
+
+        if let Some(items) = expr.items() {
+            return interpreter::execute_all(&items[1..], context, io);
+        }
     }
 
     Expression::Nil
