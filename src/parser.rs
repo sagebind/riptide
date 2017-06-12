@@ -1,13 +1,10 @@
 //! Parses script source code into an S-expression tree.
-use builtins;
-use io::IO;
 use scanner::*;
 use std::borrow::Cow;
 use std::cmp;
-use std::collections::HashMap;
 use std::fmt;
 use std::io::Read;
-use std::sync::{Arc, Mutex};
+use std::str::FromStr;
 
 
 #[derive(Clone, Debug)]
@@ -60,12 +57,31 @@ impl Expression {
         }
     }
 
-    // If this is a non-empty list, return a reference to its contents.
+    /// Try to parse this expression as a value into another type.
+    pub fn parse<F: FromStr>(&self) -> Option<F> {
+        match self.value() {
+            Some(s) => s.parse().ok(),
+            None => None,
+        }
+    }
+
+    /// If this is a non-empty list, return a reference to its contents.
     pub fn items(&self) -> Option<&[Expression]> {
         match self {
             &Expression::List(ref items) if items.len() > 0 => Some(items),
             _ => None,
         }
+    }
+
+    /// Attempt to decompose the expression into its items if it is a list.
+    pub fn into_items(self) -> Result<Vec<Expression>, Self> {
+        if self.items().is_some() {
+            if let Expression::List(items) = self {
+                return Ok(items);
+            }
+        }
+
+        Err(self)
     }
 }
 
@@ -94,6 +110,18 @@ impl fmt::Display for Expression {
                 write!(f, ")")
             },
         }
+    }
+}
+
+impl<'e> Into<Cow<'e, Expression>> for Expression {
+    fn into(self) -> Cow<'e, Expression> {
+        Cow::Owned(self)
+    }
+}
+
+impl<'e> Into<Cow<'e, Expression>> for &'e Expression {
+    fn into(self) -> Cow<'e, Expression> {
+        Cow::Borrowed(self)
     }
 }
 
@@ -276,8 +304,13 @@ impl<'r> Parser<'r> {
     fn skip_whitespace(&mut self) {
         loop {
             match self.peek() {
-                Some(';') => {
-                    while self.next() != Some('\n') {}
+                Some(';') | Some('#') => {
+                    loop {
+                        match self.next() {
+                            None | Some('\n') => break,
+                            _ => continue,
+                        }
+                    }
                 },
                 Some(c) if c.is_whitespace() => {
                     self.next();

@@ -10,12 +10,21 @@
     (command ls -FHl --human-readable --color=always --group-directories-first)
 )
 
-(def dbg/reload
+(def dbg:reload
     (exec cargo run)
 )
 
 (def 2nd
-    (car (cdr (args)))
+    (first (tail (args)))
+)
+
+(def map (list callback)
+    (if (list)
+        (begin
+            ((callback) (first (list)))
+            (map (tail (list)) (callback))
+        )
+    )
 )
 
 (print "Crush shell is ready to go!")

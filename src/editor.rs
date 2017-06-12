@@ -1,5 +1,5 @@
 use exit;
-use io::IO;
+use io::Streams;
 use std::cmp;
 use std::io::Write;
 use std::mem::swap;
@@ -14,7 +14,7 @@ const DEFAULT_PROMPT: &str = "$ ";
 
 /// Controls the interactive command line editor.
 pub struct Editor<'s> {
-    io: &'s mut IO,
+    io: &'s mut Streams,
     // Current command line buffer.
     buffer: String,
     // Current cursor position in the buffer.
@@ -24,7 +24,7 @@ pub struct Editor<'s> {
 }
 
 impl<'s> Editor<'s> {
-    pub fn new(io: &'s mut IO) -> Self {
+    pub fn new(io: &'s mut Streams) -> Self {
         Self {
             io: io,
             buffer: String::new(),

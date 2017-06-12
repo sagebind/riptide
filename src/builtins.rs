@@ -1,89 +1,131 @@
-use exec;
-use interpreter::{self, Context};
-use io::{self, IO};
+//! Definition of builtin functions.
+use interpreter::{self, NativeFunction, StackFrame};
+use io::{self, Streams};
 use parser::{self, Expression};
 
 
-/// A builtin function in native code.
-///
-/// Builtin functions have the special property of receiving their arguments before they are reduced.
-pub type Builtin = fn(&[Expression], &Context, &mut IO) -> Expression;
-
 /// Lookup a builtin function by name.
-pub fn lookup(name: &str) -> Option<Builtin> {
+pub fn lookup(name: &str) -> Option<NativeFunction> {
     match name {
-        "and" => Some(builtin_and),
-        "args" => Some(builtin_args),
-        "begin" => Some(builtin_begin),
-        "builtin" => Some(builtin),
-        "=" => Some(builtin_equal),
-        "capture" | "$" => Some(capture),
-        "car" => Some(car),
-        "cd" => Some(cd),
-        "cdr" => Some(cdr),
-        "command" => Some(command),
-        "crush" => Some(builtin_crush),
-        "def" => Some(def),
-        "env" => Some(builtin_env),
-        "exec" => Some(exec),
-        "exit" => Some(exit),
-        "help" => Some(help),
-        "if" => Some(builtin_if),
-        "list" => Some(list),
-        "not" => Some(builtin_not),
-        "pipe" | "|" => Some(pipe),
-        "print" | "echo" => Some(print),
-        "pwd" => Some(pwd),
-        "quote" => Some(quote),
-        "source" => Some(source),
+        "=" => Some(EQUAL),
+        "and" => Some(AND),
+        "args" => Some(ARGS),
+        "begin" => Some(BEGIN),
+        "builtin" => Some(BUILTIN),
+        "capture" | "$" => Some(CAPTURE),
+        "cd" => Some(CD),
+        "command" => Some(COMMAND),
+        "crush" => Some(CRUSH),
+        "def" => Some(DEF),
+        "env" => Some(ENV),
+        "exec" => Some(EXEC),
+        "exit" => Some(EXIT),
+        "first" => Some(FIRST),
+        "help" => Some(HELP),
+        "if" => Some(IF),
+        "list" => Some(LIST),
+        "not" => Some(NOT),
+        "nth" => Some(NTH),
+        "pipe" | "|" => Some(PIPE),
+        "print" | "echo" => Some(PRINT),
+        "pwd" => Some(PWD),
+        "quote" => Some(QUOTE),
+        "source" => Some(SOURCE),
+        "tail" => Some(TAIL),
         _ => None,
     }
 }
 
-/// Test if all arguments are truthy.
-pub fn builtin_and(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+
+/// Convenience macro for defining builtins.
+macro_rules! builtin {
+    ($args:pat, $frame:pat, $streams:pat, $body:expr) => ({
+        fn builtin($args: &[Expression], $frame: &mut StackFrame, $streams: &mut Streams) -> Expression {
+            $body
+        }
+
+        $crate::interpreter::NativeFunction {
+            lazy_args: false,
+            ptr: builtin,
+        }
+    });
+
+    (lazy $args:pat, $frame:pat, $streams:pat, $body:expr) => ({
+        fn builtin($args: &[Expression], $frame: &mut StackFrame, $streams: &mut Streams) -> Expression {
+            $body
+        }
+
+        $crate::interpreter::NativeFunction {
+            lazy_args: true,
+            ptr: builtin,
+        }
+    });
+}
+
+
+/// Tests if all arguments are truthy.
+pub const AND: NativeFunction = builtin!(args, _, _, {
     for arg in args {
-        if !interpreter::execute_function_call(arg, context, io).is_truthy() {
-            return Expression::Atom("false".into());
+        if !arg.is_truthy() {
+            return Expression::FALSE;
         }
     }
 
-    Expression::Atom("true".into())
-}
+    Expression::TRUE
+});
 
 /// Return all arguments passed to the current function as a list.
-pub fn builtin_args(_: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    interpreter::execute_all(&*context.args, context, io)
-}
+pub const ARGS: NativeFunction = builtin!(_, frame, _, {
+    let args = frame.args.to_vec();
 
-/// Executes a builtin command.
-pub fn builtin(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    if let Some(name_expr) = args.first() {
-        if let Some(name) = interpreter::execute_function_call(name_expr, context, io).value() {
-            if let Some(builtin) = lookup(name) {
-                return builtin(&args[1..], context, io);
-            }
+    Expression::List(args)
+});
+
+/// Execute expressions in a sequence and returns the result of the last expression.
+pub const BEGIN: NativeFunction = builtin!(lazy args, frame, streams, {
+    for (i, arg) in args.iter().enumerate() {
+        let result = interpreter::execute(arg, frame, streams);
+
+        if i == args.len() - 1 {
+            return result;
         }
     }
 
     Expression::Nil
-}
+});
+
+/// Executes a builtin command.
+pub const BUILTIN: NativeFunction = builtin!(args, frame, streams, {
+    // Return Nil if no builtin name is given.
+    if args.is_empty() {
+        return Expression::Nil;
+    }
+
+    if let Some(name) = args[0].value() {
+        if let Some(builtin) = lookup(name) {
+            return interpreter::native_function_call(builtin, &args[1..], frame, streams);
+        }
+    }
+
+    Expression::Nil
+});
 
 /// Execute an expression, capturing its standard output and returning it as a value.
-pub fn capture(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+pub const CAPTURE: NativeFunction = builtin!(lazy args, frame, streams, {
     use std::io::{BufRead, BufReader};
     use std::thread;
 
     // Set up a new IO context with a piped stdout so we can capture it.
     let (write, read) = io::pipe();
-    let mut captured_io = io.clone();
-    captured_io.stdout = write;
+    let mut captured_streams = streams.clone();
+    captured_streams.stdout = write;
 
     // Execute the arguments as an expression in the background.
     let expr = Expression::List(args.to_vec());
-    let context = context.clone();
+    let mut frame = frame.clone();
+
     thread::spawn(move || {
-        interpreter::execute_function_call(&expr, &context, &mut captured_io);
+        interpreter::execute(expr, &mut frame, &mut captured_streams);
     });
 
     // Read the first line of output and return it as an atom.
@@ -97,72 +139,75 @@ pub fn capture(args: &[Expression], context: &Context, io: &mut IO) -> Expressio
     }
 
     Expression::Atom(line.into())
-}
-
-/// Return the first element of a list.
-pub fn car(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    if let Some(expr) = args.first() {
-        let expr = interpreter::execute_function_call(expr, context, io);
-
-        if let Some(items) = expr.items() {
-            if let Some(item) = items.first() {
-                return item.clone();
-            }
-        }
-    }
-
-    Expression::Nil
-}
+});
 
 /// Change the current directory.
-pub fn cd(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+pub const CD: NativeFunction = builtin!(args, _, _, {
     use std::env;
 
-    if let Some(expr) = args.first() {
-        if let Some(path) = interpreter::execute_function_call(expr, context, io).value() {
+    if !args.is_empty() {
+        if let Some(path) = args[0].value() {
             env::set_current_dir(path).unwrap();
         }
     }
 
     Expression::Nil
-}
-
-/// Return the tail of a list.
-pub fn cdr(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    if let Some(expr) = args.first() {
-        let expr = interpreter::execute_function_call(expr, context, io);
-
-        if let Some(items) = expr.items() {
-            return interpreter::execute_all(&items[1..], context, io);
-        }
-    }
-
-    Expression::Nil
-}
+});
 
 /// Executes an external command.
-pub fn command(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    if let Some(mut command) = exec::build_external_command(args, io) {
-        // Start running the command in a child process.
-        let status = command.status().expect("error running external command");
+pub const COMMAND: NativeFunction = builtin!(args, _, streams, {
+    use exec;
+
+    // Return Nil if no command name is given.
+    if args.is_empty() {
+        return Expression::Nil;
+    }
+
+    // Create a command for the given program name.
+    if let Some(command_name) = args[0].value() {
+        let mut command = exec::build_external_command(command_name, &args[1..], streams);
+
+        // Run the command in a child process.
+        let status = match command.status() {
+            Ok(v) => v,
+            Err(e) => {
+                println!("error running external command '{}': {}", command_name, e);
+                return Expression::Nil;
+            }
+        };
 
         // Return the exit code.
         let status_string = format!("{}", status.code().unwrap_or(0));
-        return Expression::atom(status_string);
+        Expression::atom(status_string)
+    } else {
+        Expression::Nil
     }
+});
 
-    Expression::Nil
-}
+pub const CRUSH: NativeFunction = builtin!(args, frame, streams, {
+    use std::env;
+
+    if let Ok(path) = env::current_exe() {
+        let mut command_args = Vec::with_capacity(args.len() + 1);
+
+        command_args.push(Expression::Atom(path.to_string_lossy().into_owned().into()));
+        command_args.extend_from_slice(args);
+
+        interpreter::native_function_call(COMMAND, &command_args, frame, streams)
+    } else {
+        Expression::Nil
+    }
+});
 
 /// Define a new function.
-pub fn def(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+pub const DEF: NativeFunction = builtin!(lazy args, frame, streams, {
     // If no arguments are given, do nothing.
     if args.is_empty() {
         return Expression::Nil;
     }
 
     // First argument is the function name.
-    if let Some(name) = interpreter::execute_function_call(args.first().unwrap(), context, io).value() {
+    if let Some(name) = interpreter::execute(&args[0], frame, streams).value() {
         let mut params = Vec::new();
         let mut body = Expression::Nil;
 
@@ -177,7 +222,7 @@ pub fn def(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
 
             if let Some(params_list) = args[1].items() {
                 for param_expr in params_list {
-                    if let Some(param_name) = interpreter::execute_function_call(param_expr, context, io).value() {
+                    if let Some(param_name) = interpreter::execute(param_expr, frame, streams).value() {
                         params.push(param_name.to_owned());
                     }
                 }
@@ -189,33 +234,33 @@ pub fn def(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
     }
 
     Expression::Nil
-}
+});
 
-/// Execute expressions in a sequence and returns the result of the last expression.
-pub fn builtin_begin(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    let mut result = Expression::Nil;
-
-    for expr in args {
-        result = interpreter::execute_function_call(expr, context, io);
-    }
-
-    result
-}
-
-pub fn builtin_crush(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+pub const ENV: NativeFunction = builtin!(args, frame, streams, {
     use std::env;
+    use std::io::Write;
 
-    if let Ok(path) = env::current_exe() {
-        let mut args = args.to_vec();
-        args.insert(0, Expression::Atom(path.to_string_lossy().into_owned().into()));
-        command(&args, context, io)
-    } else {
-        Expression::Nil
+    // If no arguments are given, print all variables.
+    if args.is_empty() {
+        for (name, value) in env::vars() {
+            writeln!(streams.stdout, "{} {}", name, value);
+        }
     }
-}
+
+    // If one argument is given, lookup and return the value of an environment variable with that name.
+    if args.len() == 1 {
+        if let Some(name) = interpreter::execute(&args[0], frame, streams).value() {
+            if let Ok(value) = env::var(name) {
+                return Expression::atom(value);
+            }
+        }
+    }
+
+    Expression::Nil
+});
 
 /// Test if all arguments are equal.
-pub fn builtin_equal(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+pub const EQUAL: NativeFunction = builtin!(args, _, _, {
     // If less than two arguments are given, just return true.
     if args.len() < 2 {
         return Expression::TRUE;
@@ -228,100 +273,89 @@ pub fn builtin_equal(args: &[Expression], context: &Context, io: &mut IO) -> Exp
         }
     }
 
-    return Expression::TRUE;
-}
-
-pub fn builtin_env(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    use std::env;
-    use std::io::Write;
-
-    // If no arguments are given, print all variables.
-    if args.is_empty() {
-        for (name, value) in env::vars() {
-            writeln!(io.stdout, "{} {}", name, value);
-        }
-    }
-
-    // If one argument is given, lookup and return the value of an environment variable with that name.
-    if args.len() == 1 {
-        if let Some(name) = interpreter::execute_function_call(&args[0], context, io).value() {
-            if let Ok(value) = env::var(name) {
-                return Expression::Atom(value.into());
-            }
-        }
-    }
-
-    Expression::Nil
-}
+    Expression::TRUE
+});
 
 /// Replace the current process with a new command.
-pub fn exec(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+pub const EXEC: NativeFunction = builtin!(args, _, streams, {
+    use exec;
     use std::os::unix::process::CommandExt;
 
-    if let Some(mut command) = exec::build_external_command(args, io) {
-        command.exec();
+    if args.len() >= 1 {
+        if let Some(command_name) = args[0].value() {
+            let mut command = exec::build_external_command(command_name, &args[1..], streams);
+            command.exec();
+        }
     }
 
     Expression::Nil
-}
+});
 
 /// Exits the current shell.
-pub fn exit(args: &[Expression], context: &Context, _: &mut IO) -> Expression {
+pub const EXIT: NativeFunction = builtin!(args, _, _, {
     use exit;
 
     *exit::flag() = true;
 
     Expression::Nil
-}
+});
 
-pub fn help(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    use std::io::Write;
-
-    writeln!(io.stdout, "<PLACEHOLDER TEXT>").unwrap();
+/// Return the first element of a list.
+pub const FIRST: NativeFunction = builtin!(args, _, _, {
+    if args.len() > 0 {
+        if let Some(items) = args[0].items() {
+            if !items.is_empty() {
+                return items[0].clone();
+            }
+        }
+    }
 
     Expression::Nil
-}
+});
+
+pub const HELP: NativeFunction = builtin!(args, _, streams, {
+    use std::io::Write;
+
+    writeln!(streams.stdout, "<PLACEHOLDER TEXT>").unwrap();
+
+    Expression::Nil
+});
 
 /// If the first argument is truthy, the second argument is executed. Otherwise the third argument is executed.
-pub fn builtin_if(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+pub const IF: NativeFunction = builtin!(lazy args, frame, streams, {
     // If no arguments are given, do nothing.
     if args.is_empty() {
         return Expression::Nil;
     }
 
     // Determine if the first argument is truthy.
-    let condition_expr = interpreter::execute_function_call(&args[0], context, io);
+    let condition_expr = interpreter::execute(&args[0], frame, streams);
     let truthy = condition_expr.is_truthy();
 
     // Evaluate the appropriate expression arm.
     if truthy {
-        if let Some(expr) = args.get(1) {
-            interpreter::execute_function_call(expr, context, io)
+        if args.len() >= 2 {
+            interpreter::execute(&args[1], frame, streams)
         } else {
             Expression::Nil
         }
     } else {
-        if let Some(expr) = args.get(2) {
-            interpreter::execute_function_call(expr, context, io)
+        if args.len() >= 3 {
+            interpreter::execute(&args[2], frame, streams)
         } else {
             Expression::Nil
         }
     }
-}
+});
 
 /// Returns its arguments as a list.
-pub fn list(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    interpreter::execute_all(args, context, io)
-}
-
-/// Returns its arguments as a list unevaluated.
-pub fn quote(args: &[Expression], _: &Context, _: &mut IO) -> Expression {
+pub const LIST: NativeFunction = builtin!(args, _, _, {
     Expression::List(args.to_vec())
-}
+});
 
-pub fn builtin_not(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    if let Some(expr) = args.first() {
-        if interpreter::execute_function_call(expr, context, io).is_truthy() {
+pub const NOT: NativeFunction = builtin!(args, _, _, {
+    if !args.is_empty() {
+        if args[0].is_truthy() {
             Expression::FALSE
         } else {
             Expression::TRUE
@@ -329,10 +363,28 @@ pub fn builtin_not(args: &[Expression], context: &Context, io: &mut IO) -> Expre
     } else {
         Expression::Nil
     }
-}
+});
+
+pub const NTH: NativeFunction = builtin!(args, _, _, {
+    // We need at least 2 arguments.
+    if args.len() < 2 {
+        return Expression::Nil;
+    }
+
+    if let Some(index) = args[0].parse::<usize>() {
+        if let Some(items) = args[1].items() {
+            return match items.get(index) {
+                Some(item) => item.clone(),
+                None => Expression::Nil,
+            };
+        }
+    }
+
+    Expression::Nil
+});
 
 /// Form a pipeline between a series of calls and execute them in parallel.
-pub fn pipe(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+pub const PIPE: NativeFunction = builtin!(lazy args, frame, streams, {
     use std::thread;
 
     // If no arguments are given, do nothing.
@@ -342,71 +394,74 @@ pub fn pipe(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
 
     // If only on argument is given, just execute it normally.
     if args.len() == 1 {
-        return interpreter::execute_function_call(&args[0], context, io);
+        return interpreter::execute(&args[0], frame, streams);
     }
 
     // Multiple arguments are given, so create a series of IO contexts that are chained together.
-    let mut contexts = io.clone().pipeline(args.len() as u16);
+    let mut contexts = streams.clone().pipeline(args.len() as u16);
     let mut handles = Vec::new();
 
     for arg in args {
         let expr = arg.clone();
         let mut child_io = contexts.remove(0);
-        let child_context = context.clone();
+        let mut child_context = frame.clone();
 
         handles.push(thread::spawn(move || {
-            interpreter::execute_function_call(&expr, &child_context, &mut child_io)
+            interpreter::execute(expr, &mut child_context, &mut child_io)
         }));
     }
 
     // Wait for all processes to complete and collect their return values.
-    let results: Vec<Expression> = handles.into_iter()
+    let results = handles.into_iter()
         .map(|h| h.join().unwrap())
         .collect();
 
     Expression::List(results)
-}
+});
 
 /// Print the given expressions to standard output. Multiple arguments are separated with a space.
-pub fn print(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+pub const PRINT: NativeFunction = builtin!(args, _, streams, {
     use std::io::Write;
 
     let mut first = true;
 
     for arg in args {
-        let arg = interpreter::execute_function_call(arg, context, io);
-
         if first {
-            write!(io.stdout, "{}", arg).unwrap();
+            write!(streams.stdout, "{}", arg).unwrap();
             first = false;
         } else {
-            write!(io.stdout, " {}", arg).unwrap();
+            write!(streams.stdout, " {}", arg).unwrap();
         }
     }
 
-    writeln!(io.stdout).unwrap();
+    writeln!(streams.stdout).unwrap();
 
     Expression::Nil
-}
+});
 
 /// Print the current directory.
-pub fn pwd(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+pub const PWD: NativeFunction = builtin!(_, _, streams, {
     use std::env;
     use std::io::Write;
 
-    writeln!(io.stdout, "{}", env::current_dir().unwrap().display()).unwrap();
+    writeln!(streams.stdout, "{}", env::current_dir().unwrap().display()).unwrap();
 
     Expression::Nil
-}
+});
+
+/// Returns its arguments as a list unevaluated.
+pub const QUOTE: NativeFunction = builtin!(lazy args, _, _, {
+    Expression::List(args.to_vec())
+});
 
 /// Evaluate the contents of a file and return its result.
-pub fn source(args: &[Expression], context: &Context, io: &mut IO) -> Expression {
+pub const SOURCE: NativeFunction = builtin!(args, frame, streams, {
     use std::fs::File;
 
     // If a filename is given, read from the file. Otherwise read from stdin.
     let expr = if args.is_empty() {
-        parser::parse_stream(&mut io.stdin)
-    } else if let Some(filename) = interpreter::execute_function_call(&args[0], context, io).value() {
+        parser::parse_stream(&mut streams.stdin)
+    } else if let Some(filename) = interpreter::execute(&args[0], frame, streams).value() {
         let mut file = File::open(filename).unwrap();
         parser::parse_stream(&mut file)
     } else {
@@ -414,8 +469,19 @@ pub fn source(args: &[Expression], context: &Context, io: &mut IO) -> Expression
     };
 
     if let Ok(expr) = expr {
-        interpreter::execute_function_call(&expr, context, io)
+        interpreter::execute(expr, frame, streams)
     } else {
         Expression::Nil
     }
-}
+});
+
+/// Return the tail of a list.
+pub const TAIL: NativeFunction = builtin!(args, _, _, {
+    if !args.is_empty() {
+        if let Some(items) = args[0].items() {
+            return Expression::List(items[1..].to_vec());
+        }
+    }
+
+    Expression::Nil
+});

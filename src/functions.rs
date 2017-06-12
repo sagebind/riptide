@@ -1,6 +1,6 @@
 use interpreter;
 use interpreter::Expression;
-use io::IO;
+use io::Streams;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -14,17 +14,17 @@ lazy_static! {
 /// A shell function.
 pub trait Function {
     /// Execute the function in the given IO context and capture its return value.
-    fn execute(&self, args: &[Expression], io: &mut IO) -> Expression;
+    fn execute(&self, args: &[Expression], io: &mut Streams) -> Expression;
 }
 
 
 /// A builtin function in native code.
 ///
 /// Builtin functions have the special property of receiving their arguments before they are reduced.
-pub type Builtin = fn(&[Expression], &mut IO) -> Expression;
+pub type Builtin = fn(&[Expression], &mut Streams) -> Expression;
 
 impl Function for Builtin {
-    fn execute(&self, args: &[Expression], io: &mut IO) -> Expression {
+    fn execute(&self, args: &[Expression], io: &mut Streams) -> Expression {
         self(args, io)
     }
 }
@@ -41,7 +41,7 @@ pub struct UserFunction {
 }
 
 impl Function for UserFunction {
-    fn execute(&self, args: &[Expression], io: &mut IO) -> Expression {
+    fn execute(&self, args: &[Expression], io: &mut Streams) -> Expression {
         interpreter::execute(&self.body, io)
     }
 }

@@ -10,7 +10,6 @@ use std::os::unix::io::*;
 use termion;
 
 
-
 /// A readable pipe. This is the type used for stdin.
 pub struct ReadPipe(File);
 
@@ -30,6 +29,12 @@ impl Read for ReadPipe {
 impl AsRawFd for ReadPipe {
     fn as_raw_fd(&self) -> RawFd {
         self.0.as_raw_fd()
+    }
+}
+
+impl FromRawFd for ReadPipe {
+    unsafe fn from_raw_fd(fd: RawFd) -> Self {
+        ReadPipe(File::from_raw_fd(fd))
     }
 }
 
@@ -65,6 +70,12 @@ impl AsRawFd for WritePipe {
     }
 }
 
+impl FromRawFd for WritePipe {
+    unsafe fn from_raw_fd(fd: RawFd) -> Self {
+        WritePipe(File::from_raw_fd(fd))
+    }
+}
+
 impl IntoRawFd for WritePipe {
     fn into_raw_fd(self) -> RawFd {
         self.0.into_raw_fd()
@@ -78,15 +89,21 @@ impl Clone for WritePipe {
 }
 
 
-/// An IO context.
-pub struct IO {
+/// Holds handles to standard streams.
+pub struct Streams {
     name: Cow<'static, str>,
+
+    /// Standard input stream.
     pub stdin: ReadPipe,
+
+    /// Standard output stream.
     pub stdout: WritePipe,
+
+    /// Standard error stream.
     pub stderr: WritePipe,
 }
 
-impl IO {
+impl Streams {
     /// Create an IO context from the process inherited streams.
     pub fn inherited() -> Self {
         unsafe {
@@ -111,15 +128,17 @@ impl IO {
         }
     }
 
+    /// Drop the streams without closing them.
+    pub fn release(self) {
+        self.stdin.into_raw_fd();
+        self.stdout.into_raw_fd();
+        self.stderr.into_raw_fd();
+    }
+
     /// Get a name for the context based on the input stream, suitable for display purposes.
     #[inline]
     pub fn name(&self) -> &str {
         &self.name
-    }
-
-    /// Check if the input stream is a TTY.
-    pub fn is_tty(&self) -> bool {
-        termion::is_tty(&self.stdin.0)
     }
 
     /// Split the IO context into two new contexts.
@@ -165,7 +184,7 @@ impl IO {
     }
 }
 
-impl Clone for IO {
+impl Clone for Streams {
     fn clone(&self) -> Self {
         Self::new(
             self.name.clone(),
@@ -182,6 +201,6 @@ pub fn pipe() -> (WritePipe, ReadPipe) {
     let fds = unistd::pipe().unwrap();
 
     unsafe {
-        (WritePipe(File::from_raw_fd(fds.1)), ReadPipe(File::from_raw_fd(fds.0)))
+        (WritePipe::from_raw_fd(fds.1), ReadPipe(File::from_raw_fd(fds.0)))
     }
 }

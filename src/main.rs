@@ -17,6 +17,7 @@ mod scanner;
 use std::process;
 
 
+/// Control over the process exit status.
 pub mod exit {
     /// Get a reference to the global exit status.
     #[inline]
@@ -39,21 +40,25 @@ pub mod exit {
     }
 }
 
+
+/// Run a new shell instance.
 fn main() {
-    let mut io = io::IO::inherited();
+    let mut streams = io::Streams::inherited();
+    let mut frame = interpreter::StackFrame::new();
 
     // Source the internal init script.
     let script = parser::parse_string(include_str!("init.crush"))
         .expect("error in internal init script");
+
     if let Some(items) = script.items() {
-        interpreter::execute_all(items, &interpreter::Context::default(), &mut io);
+        interpreter::execute_all(items, &mut frame, &mut streams);
     }
 
     // If stdin is interactive, use the editor.
-    if io.is_tty() {
+    if streams.stdin.is_tty() {
         loop {
             let line = {
-                let mut editor = editor::Editor::new(&mut io);
+                let mut editor = editor::Editor::new(&mut streams);
                 editor.read_line()
             };
 
@@ -69,7 +74,7 @@ fn main() {
                 }
             };
 
-            let result = interpreter::execute(&expression, &mut io);
+            let result = interpreter::execute(expression, &mut frame, &mut streams);
 
             // If the return value isn't Nil, print it out for the user.
             if !result.is_nil() {
@@ -84,14 +89,14 @@ fn main() {
 
     // Stdin isn't interactive, so treat it is just a script input file.
     else {
-        match parser::parse_stream(&mut io.stdin) {
+        match parser::parse_stream(&mut streams.stdin) {
             Ok(expr) => {
                 println!("{}", expr);
             }
             Err(e) => {
                 println!("error: {}\n    {}:{}:{}",
                          e.kind.description(),
-                         io.name(),
+                         streams.name(),
                          e.pos.line,
                          e.pos.column);
             }

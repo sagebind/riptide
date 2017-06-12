@@ -1,21 +1,15 @@
 //! The script language interpreter engine. This is where the magic happens.
 //!
 //! The interpreter implementation is not incredibly complex, but it does have some neat features:
-//! - Mostly stackless function calls.
+//! - Stateless interpreter using reentrant recursion.
 //! - Tail-call optimization.
 //! - Lazy parameter evaluation.
 //! - Thread-safe global and lexical bindings.
 //!
-//! It should be noted that not expressions are evaluated lazily. The rules for lazy evaluation are as follows:
-//! - The first item in a function call (the function name or lambda) is always eagerly evaluated.
-//! - Arguments to user-defined functions are not evaluated until "later".
-//! - Builtins determine how their arguments are evaluated individually.
-//!
-//! In theory, anything that does not end up as an argument to a builtin when an entire program is reduced will _never_
-//! get evaluated. This is great for performance, but is different than typical Lisp-like languages, which are
-//! traditionally strict-evaluation languages.
+//! It should be noted that expressions are usually eagerly evaluated. Parameters may be lazily evaluated when calling
+//! special builtins called "macros".
 use builtins;
-use io::IO;
+use io::Streams;
 use parser::Expression;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -32,12 +26,25 @@ pub struct UserFunction {
     pub body: Expression,
 }
 
-/// Global table of user-defined functions.
+/// A function implemented in native code.
+///
+/// Native functions can receive their arguments either eagerly evaluated (like user functions), or lazily evaluated
+/// (like a macro).
+pub struct NativeFunction {
+    /// Whether this function's arguments are evaluated eagerly or lazily.
+    pub lazy_args: bool,
+
+    /// Pointer to the native function body.
+    pub ptr: fn(&[Expression], &mut StackFrame, &mut Streams) -> Expression,
+}
+
+
 lazy_static! {
+    /// Symbol table for global bindings.
     static ref TABLE: Mutex<HashMap<String, Arc<UserFunction>>> = Mutex::new(HashMap::new());
 }
 
-/// Lookup a user-defined function by name.
+/// Lookup a global binding.
 pub fn lookup_function<S>(name: S) -> Option<Arc<UserFunction>>
     where S: AsRef<str>
 {
@@ -45,7 +52,7 @@ pub fn lookup_function<S>(name: S) -> Option<Arc<UserFunction>>
     table.get(name.as_ref()).cloned()
 }
 
-/// Create a new user-defined function.
+/// Create a new global binding.
 ///
 /// If a binding already exists for the given name, the old value is replaced.
 pub fn create_function<S>(name: S, params: Vec<String>, body: Expression)
@@ -61,121 +68,134 @@ pub fn create_function<S>(name: S, params: Vec<String>, body: Expression)
 }
 
 
-/// A function execution context.
+/// A single frame in the interpreter call stack.
 ///
-/// This is essentially a stack frame in the interpreter's virtual call stack.
+/// Interestingly, this is also all the state that is needed for the interpreter. Passing frames between method calls is
+/// enough to mesh everything together.
 ///
 /// Why is this refcounted? Think about a function call. It is possible for a function body to execute many pipelines
 /// and subshells. Since arguments are evaluated lazily, an expression may need to get evaluated in a different thread
 /// than the one that initially invoked the function.
 #[derive(Clone)]
-pub struct Context {
+pub struct StackFrame {
     /// Reference to the function being executed.
     pub function: Option<Arc<UserFunction>>,
 
-    /// Arguments passed in to the current function call.
+    /// Arguments passed in to the current function call. These are the original, unevaluated values.
     pub args: Arc<Vec<Expression>>,
+
+    /// Symbol table for expanded arguments and local values. This is not a hashmap to avoid allocating a heavy hashmap
+    /// for each stack frame. The number of locals should typically be small enough that it does not affect performance
+    /// too badly.
+    // TODO: Maybe use a Judy array?
+    pub symbol_table: Arc<Vec<(String, Expression)>>,
 }
 
-impl Default for Context {
-    fn default() -> Context {
-        Context {
+impl StackFrame {
+    pub fn new() -> Self {
+        StackFrame {
             function: None,
             args: Arc::new(Vec::new()),
+            symbol_table: Arc::new(Vec::new()),
         }
     }
 }
 
 
-/// Execute an expression.
-pub fn execute(expr: &Expression, io: &mut IO) -> Expression {
-    let context = Context {
-        function: None,
-        args: Arc::new(Vec::new()),
-    };
-
-    execute_function_call(expr, &context, io)
+/// Execute multiple expressions in sequence and collect the results.
+pub fn execute_all(exprs: &[Expression], frame: &mut StackFrame, streams: &mut Streams) -> Vec<Expression> {
+    exprs.iter().map(|expr| {
+        execute(expr, frame, streams)
+    }).collect()
 }
 
-/// Executes an expression as a function call.
+/// Execute an expression.
 ///
-/// This is a nearly-stackless implementation using tail recursion and a call stack trampoline. The call stack for user
-/// functions is always unrolled, but builtins are still implemented using recursion.
-pub fn execute_function_call(expr: &Expression, context: &Context, io: &mut IO) -> Expression {
-    // Hold a reference to the next expression to execute. Rust can't solve non-lexical borrows, so we're just using a
-    // regular pointer.
-    let mut expr_ptr = expr as *const Expression;
-    let mut expr: Expression;
-
-    let mut context_ptr = context as *const _;
-    let mut context: Context;
+/// Can take an expression either as a reference or owned.
+pub fn execute<'e, E>(expr: E, mut frame: &mut StackFrame, streams: &mut Streams) -> Expression
+    where E: Into<Cow<'e, Expression>>
+{
+    let mut next_expr = expr.into();
+    let mut tail_frame;
 
     loop {
-        let expr_ref = unsafe {&*expr_ptr};
-        let context_ref = unsafe {&*context_ptr};
+        let current_expr = next_expr;
 
-        match expr_ref.items() {
-            // Expression is already reduced.
-            None => return expr_ref.clone(),
+        // Expression is a function call or macro.
+        if let Some(args) = current_expr.items() {
+            // Prepare to execute a function call. First argument is the function name, which is always eagerly
+            // evaluated. Here we execute this using recursion.
+            let function_expr = execute(&args[0], frame, streams);
 
-            // Expression is a function call.
-            Some(args) => {
-                // Prepare to execute a function call. First argument is the function name, which is always eagerly
-                // evaluated. Here we execute this using recursion.
-                let f_expr = execute_function_call(&args[0], context_ref, io);
+            // TODO: Lambdas are not implemented. Assume this is a function name.
+            let function_name = function_expr.value().expect("lambdas are not implemented");
 
-                // TODO: Lambdas are not implemented. Assume this is a function name.
-                let f_name = f_expr.value().expect("lambdas are not implemented");
+            // Check if the function is a local binding.
+            for &(ref name, ref value) in frame.symbol_table.iter() {
+                if name == function_name {
+                    return value.clone();
+                }
+            }
 
-                // Check if this is the name of a parent function argument that should be expanded.
-                if let Some(ref current_function) = context_ref.function {
-                    for (i, param) in current_function.params.iter().enumerate() {
-                        // Break early if less arguments were passed.
-                        if i >= context_ref.args.len() {
-                            break;
-                        }
+            // Check to see if it is a builtin.
+            if let Some(builtin) = builtins::lookup(function_name) {
+                return native_function_call(builtin, &args[1..], frame, streams);
+            }
 
-                        if param == f_name {
-                            return context_ref.args[i].clone();
-                        }
+            // Check if the function is a global binding.
+            else if let Some(function) = lookup_function(function_name) {
+                // Set the user function to be the next one executed. Doing this lets us avoid another recursive
+                // call here (tail-call optimization).
+                next_expr = function.body.clone().into();
+
+                // Evaluate the arguments and form a symbol table.
+                let mut symbols = Vec::new();
+                for (i, arg) in args[1..].iter().enumerate() {
+                    let evaluated = execute(arg, frame, streams);
+
+                    if let Some(param) = function.params.get(i) {
+                        symbols.push((param.clone(), evaluated));
                     }
                 }
 
-                // Determine the function to be executed by name. First look up a user defined function.
-                if let Some(function) = lookup_function(f_name) {
-                    // Set the user function to be the next one executed.
-                    expr = function.body.clone();
-                    expr_ptr = &expr;
-
-                    // Create a new execution context for the function call.
-                    context = Context {
-                        function: Some(function),
-                        args: Arc::new((&args[1..]).to_vec()),
-                    };
-                    context_ptr = &context;
-
-                    continue;
+                // Assign any free params to Nil.
+                if symbols.len() < function.params.len() {
+                    for i in symbols.len() .. function.params.len() {
+                        symbols.push((function.params[i].clone(), Expression::Nil));
+                    }
                 }
 
-                // Not a function, check to see if it is a builtin.
-                else if let Some(builtin) = builtins::lookup(f_name) {
-                    return builtin(&args[1..], context_ref, io);
+                // Create a new stack frame for the function call.
+                tail_frame = StackFrame {
+                    function: Some(function),
+                    args: Arc::new((&args[1..]).to_vec()),
+                    symbol_table: Arc::new(symbols),
+                };
+
+                unsafe {
+                    frame = &mut *(&mut tail_frame as *mut _);
                 }
 
-                // Execute a command.
-                else {
-                    return builtins::command(args, context_ref, io);
-                }
+                continue;
+            }
+
+            // Execute a command.
+            else {
+                return native_function_call(builtins::COMMAND, args, frame, streams);
             }
         }
+
+        // Expression is already fully reduced.
+        return current_expr.into_owned();
     }
 }
 
-/// Execute multiple expressions in sequence, returning all results in a list.
-pub fn execute_all(exprs: &[Expression], context: &Context, io: &mut IO) -> Expression {
-    let results = exprs.iter().map(|expr| {
-        execute_function_call(expr, context, io)
-    }).collect();
-
-    Expression::List(results)
+/// Call a native builtin function.
+pub fn native_function_call(function: NativeFunction, args: &[Expression], frame: &mut StackFrame, streams: &mut Streams) -> Expression {
+    if function.lazy_args {
+        (function.ptr)(args, frame, streams)
+    } else {
+        let evaluated_args = execute_all(args, frame, streams);
+        (function.ptr)(&evaluated_args, frame, streams)
+    }
 }
