@@ -1,5 +1,5 @@
 //! Definition of builtin functions.
-use interpreter::{self, NativeFunction, StackFrame};
+use interpreter::*;
 use io::{self, Streams};
 use parser::{self, Expression};
 
@@ -13,6 +13,7 @@ pub fn lookup(name: &str) -> Option<NativeFunction> {
         "begin" => Some(BEGIN),
         "builtin" => Some(BUILTIN),
         "capture" | "$" => Some(CAPTURE),
+        "catch" => Some(CATCH),
         "cd" => Some(CD),
         "command" => Some(COMMAND),
         "crush" => Some(CRUSH),
@@ -30,6 +31,7 @@ pub fn lookup(name: &str) -> Option<NativeFunction> {
         "print" | "echo" => Some(PRINT),
         "pwd" => Some(PWD),
         "quote" => Some(QUOTE),
+        "raise" => Some(RAISE),
         "source" => Some(SOURCE),
         "tail" => Some(TAIL),
         _ => None,
@@ -40,7 +42,7 @@ pub fn lookup(name: &str) -> Option<NativeFunction> {
 /// Convenience macro for defining builtins.
 macro_rules! builtin {
     ($args:pat, $frame:pat, $streams:pat, $body:expr) => ({
-        fn builtin($args: &[Expression], $frame: &mut StackFrame, $streams: &mut Streams) -> Expression {
+        fn builtin($args: &[Expression], $frame: &mut StackFrame, $streams: &mut Streams) -> Result<Expression, Exception> {
             $body
         }
 
@@ -51,7 +53,7 @@ macro_rules! builtin {
     });
 
     (lazy $args:pat, $frame:pat, $streams:pat, $body:expr) => ({
-        fn builtin($args: &[Expression], $frame: &mut StackFrame, $streams: &mut Streams) -> Expression {
+        fn builtin($args: &[Expression], $frame: &mut StackFrame, $streams: &mut Streams) -> Result<Expression, Exception> {
             $body
         }
 
@@ -67,47 +69,47 @@ macro_rules! builtin {
 pub const AND: NativeFunction = builtin!(args, _, _, {
     for arg in args {
         if !arg.is_truthy() {
-            return Expression::FALSE;
+            return Ok(Expression::FALSE);
         }
     }
 
-    Expression::TRUE
+    Ok(Expression::TRUE)
 });
 
 /// Return all arguments passed to the current function as a list.
 pub const ARGS: NativeFunction = builtin!(_, frame, _, {
     let args = frame.args.to_vec();
 
-    Expression::List(args)
+    Ok(Expression::List(args))
 });
 
 /// Execute expressions in a sequence and returns the result of the last expression.
 pub const BEGIN: NativeFunction = builtin!(lazy args, frame, streams, {
     for (i, arg) in args.iter().enumerate() {
-        let result = interpreter::execute(arg, frame, streams);
+        let result = execute(arg, frame, streams)?;
 
         if i == args.len() - 1 {
-            return result;
+            return Ok(result);
         }
     }
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 /// Executes a builtin command.
 pub const BUILTIN: NativeFunction = builtin!(args, frame, streams, {
     // Return Nil if no builtin name is given.
     if args.is_empty() {
-        return Expression::Nil;
+        return Ok(Expression::Nil);
     }
 
     if let Some(name) = args[0].value() {
         if let Some(builtin) = lookup(name) {
-            return interpreter::native_function_call(builtin, &args[1..], frame, streams);
+            return native_function_call(builtin, &args[1..], frame, streams);
         }
     }
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 /// Execute an expression, capturing its standard output and returning it as a value.
@@ -125,7 +127,7 @@ pub const CAPTURE: NativeFunction = builtin!(lazy args, frame, streams, {
     let mut frame = frame.clone();
 
     thread::spawn(move || {
-        interpreter::execute(expr, &mut frame, &mut captured_streams);
+        execute(expr, &mut frame, &mut captured_streams);
     });
 
     // Read the first line of output and return it as an atom.
@@ -138,7 +140,30 @@ pub const CAPTURE: NativeFunction = builtin!(lazy args, frame, streams, {
         line.pop();
     }
 
-    Expression::Atom(line.into())
+    Ok(Expression::atom(line))
+});
+
+/// Catch an exception.
+///
+/// Example:
+///
+/// (catch
+///     (raise "an exception")
+///     (print "caught exception:")
+/// )
+pub const CATCH: NativeFunction = builtin!(lazy args, frame, streams, {
+    if args.len() != 2 {
+        return Err(Exception {
+            value: Expression::atom("catch expects exactly two arguments"),
+        });
+    }
+
+    match execute(&args[0], frame, streams) {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            execute(&args[1], frame, streams)
+        }
+    }
 });
 
 /// Change the current directory.
@@ -151,7 +176,7 @@ pub const CD: NativeFunction = builtin!(args, _, _, {
         }
     }
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 /// Executes an external command.
@@ -160,7 +185,7 @@ pub const COMMAND: NativeFunction = builtin!(args, _, streams, {
 
     // Return Nil if no command name is given.
     if args.is_empty() {
-        return Expression::Nil;
+        return Ok(Expression::Nil);
     }
 
     // Create a command for the given program name.
@@ -171,16 +196,17 @@ pub const COMMAND: NativeFunction = builtin!(args, _, streams, {
         let status = match command.status() {
             Ok(v) => v,
             Err(e) => {
-                println!("error running external command '{}': {}", command_name, e);
-                return Expression::Nil;
+                return Err(Exception {
+                    value: Expression::atom(format!("error running external command '{}': {}", command_name, e)),
+                });
             }
         };
 
         // Return the exit code.
         let status_string = format!("{}", status.code().unwrap_or(0));
-        Expression::atom(status_string)
+        Ok(Expression::atom(status_string))
     } else {
-        Expression::Nil
+        Ok(Expression::Nil)
     }
 });
 
@@ -193,9 +219,9 @@ pub const CRUSH: NativeFunction = builtin!(args, frame, streams, {
         command_args.push(Expression::Atom(path.to_string_lossy().into_owned().into()));
         command_args.extend_from_slice(args);
 
-        interpreter::native_function_call(COMMAND, &command_args, frame, streams)
+        native_function_call(COMMAND, &command_args, frame, streams)
     } else {
-        Expression::Nil
+        Ok(Expression::Nil)
     }
 });
 
@@ -203,11 +229,11 @@ pub const CRUSH: NativeFunction = builtin!(args, frame, streams, {
 pub const DEF: NativeFunction = builtin!(lazy args, frame, streams, {
     // If no arguments are given, do nothing.
     if args.is_empty() {
-        return Expression::Nil;
+        return Ok(Expression::Nil);
     }
 
     // First argument is the function name.
-    if let Some(name) = interpreter::execute(&args[0], frame, streams).value() {
+    if let Some(name) = execute(&args[0], frame, streams)?.value() {
         let mut params = Vec::new();
         let mut body = Expression::Nil;
 
@@ -222,7 +248,7 @@ pub const DEF: NativeFunction = builtin!(lazy args, frame, streams, {
 
             if let Some(params_list) = args[1].items() {
                 for param_expr in params_list {
-                    if let Some(param_name) = interpreter::execute(param_expr, frame, streams).value() {
+                    if let Some(param_name) = execute(param_expr, frame, streams)?.value() {
                         params.push(param_name.to_owned());
                     }
                 }
@@ -230,10 +256,10 @@ pub const DEF: NativeFunction = builtin!(lazy args, frame, streams, {
         }
 
         // Create the function.
-        interpreter::create_function(name, params, body);
+        create_function(name, params, body);
     }
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 pub const ENV: NativeFunction = builtin!(args, frame, streams, {
@@ -249,31 +275,31 @@ pub const ENV: NativeFunction = builtin!(args, frame, streams, {
 
     // If one argument is given, lookup and return the value of an environment variable with that name.
     if args.len() == 1 {
-        if let Some(name) = interpreter::execute(&args[0], frame, streams).value() {
+        if let Some(name) = execute(&args[0], frame, streams)?.value() {
             if let Ok(value) = env::var(name) {
-                return Expression::atom(value);
+                return Ok(Expression::atom(value));
             }
         }
     }
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 /// Test if all arguments are equal.
 pub const EQUAL: NativeFunction = builtin!(args, _, _, {
     // If less than two arguments are given, just return true.
     if args.len() < 2 {
-        return Expression::TRUE;
+        return Ok(Expression::TRUE);
     }
 
     let expr_to_compare_to = &args[0];
     for expr in &args[1..] {
         if expr != expr_to_compare_to {
-            return Expression::FALSE;
+            return Ok(Expression::FALSE);
         }
     }
 
-    Expression::TRUE
+    Ok(Expression::TRUE)
 });
 
 /// Replace the current process with a new command.
@@ -288,7 +314,7 @@ pub const EXEC: NativeFunction = builtin!(args, _, streams, {
         }
     }
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 /// Exits the current shell.
@@ -297,7 +323,7 @@ pub const EXIT: NativeFunction = builtin!(args, _, _, {
 
     *exit::flag() = true;
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 /// Return the first element of a list.
@@ -305,12 +331,12 @@ pub const FIRST: NativeFunction = builtin!(args, _, _, {
     if args.len() > 0 {
         if let Some(items) = args[0].items() {
             if !items.is_empty() {
-                return items[0].clone();
+                return Ok(items[0].clone());
             }
         }
     }
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 pub const HELP: NativeFunction = builtin!(args, _, streams, {
@@ -318,69 +344,69 @@ pub const HELP: NativeFunction = builtin!(args, _, streams, {
 
     writeln!(streams.stdout, "<PLACEHOLDER TEXT>").unwrap();
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 /// If the first argument is truthy, the second argument is executed. Otherwise the third argument is executed.
 pub const IF: NativeFunction = builtin!(lazy args, frame, streams, {
     // If no arguments are given, do nothing.
     if args.is_empty() {
-        return Expression::Nil;
+        return Ok(Expression::Nil);
     }
 
     // Determine if the first argument is truthy.
-    let condition_expr = interpreter::execute(&args[0], frame, streams);
+    let condition_expr = execute(&args[0], frame, streams)?;
     let truthy = condition_expr.is_truthy();
 
     // Evaluate the appropriate expression arm.
     if truthy {
         if args.len() >= 2 {
-            interpreter::execute(&args[1], frame, streams)
+            execute(&args[1], frame, streams)
         } else {
-            Expression::Nil
+            Ok(Expression::Nil)
         }
     } else {
         if args.len() >= 3 {
-            interpreter::execute(&args[2], frame, streams)
+            execute(&args[2], frame, streams)
         } else {
-            Expression::Nil
+            Ok(Expression::Nil)
         }
     }
 });
 
 /// Returns its arguments as a list.
 pub const LIST: NativeFunction = builtin!(args, _, _, {
-    Expression::List(args.to_vec())
+    Ok(Expression::List(args.to_vec()))
 });
 
 pub const NOT: NativeFunction = builtin!(args, _, _, {
     if !args.is_empty() {
         if args[0].is_truthy() {
-            Expression::FALSE
+            Ok(Expression::FALSE)
         } else {
-            Expression::TRUE
+            Ok(Expression::TRUE)
         }
     } else {
-        Expression::Nil
+        Ok(Expression::Nil)
     }
 });
 
 pub const NTH: NativeFunction = builtin!(args, _, _, {
     // We need at least 2 arguments.
     if args.len() < 2 {
-        return Expression::Nil;
+        return Ok(Expression::Nil);
     }
 
     if let Some(index) = args[0].parse::<usize>() {
         if let Some(items) = args[1].items() {
-            return match items.get(index) {
+            return Ok(match items.get(index) {
                 Some(item) => item.clone(),
                 None => Expression::Nil,
-            };
+            });
         }
     }
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 /// Form a pipeline between a series of calls and execute them in parallel.
@@ -389,12 +415,12 @@ pub const PIPE: NativeFunction = builtin!(lazy args, frame, streams, {
 
     // If no arguments are given, do nothing.
     if args.is_empty() {
-        return Expression::Nil;
+        return Ok(Expression::Nil);
     }
 
     // If only on argument is given, just execute it normally.
     if args.len() == 1 {
-        return interpreter::execute(&args[0], frame, streams);
+        return execute(&args[0], frame, streams);
     }
 
     // Multiple arguments are given, so create a series of IO contexts that are chained together.
@@ -407,7 +433,7 @@ pub const PIPE: NativeFunction = builtin!(lazy args, frame, streams, {
         let mut child_context = frame.clone();
 
         handles.push(thread::spawn(move || {
-            interpreter::execute(expr, &mut child_context, &mut child_io)
+            execute(expr, &mut child_context, &mut child_io).expect("inner thread threw exception")
         }));
     }
 
@@ -416,7 +442,7 @@ pub const PIPE: NativeFunction = builtin!(lazy args, frame, streams, {
         .map(|h| h.join().unwrap())
         .collect();
 
-    Expression::List(results)
+    Ok(Expression::List(results))
 });
 
 /// Print the given expressions to standard output. Multiple arguments are separated with a space.
@@ -436,7 +462,7 @@ pub const PRINT: NativeFunction = builtin!(args, _, streams, {
 
     writeln!(streams.stdout).unwrap();
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 /// Print the current directory.
@@ -446,12 +472,21 @@ pub const PWD: NativeFunction = builtin!(_, _, streams, {
 
     writeln!(streams.stdout, "{}", env::current_dir().unwrap().display()).unwrap();
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });
 
 /// Returns its arguments as a list unevaluated.
 pub const QUOTE: NativeFunction = builtin!(lazy args, _, _, {
-    Expression::List(args.to_vec())
+    Ok(Expression::List(args.to_vec()))
+});
+
+/// Raises an exception.
+pub const RAISE: NativeFunction = builtin!(args, _, _, {
+    let value = args.first().cloned().unwrap_or(Expression::Nil);
+
+    Err(Exception {
+        value: value,
+    })
 });
 
 /// Evaluate the contents of a file and return its result.
@@ -461,17 +496,17 @@ pub const SOURCE: NativeFunction = builtin!(args, frame, streams, {
     // If a filename is given, read from the file. Otherwise read from stdin.
     let expr = if args.is_empty() {
         parser::parse_stream(&mut streams.stdin)
-    } else if let Some(filename) = interpreter::execute(&args[0], frame, streams).value() {
+    } else if let Some(filename) = execute(&args[0], frame, streams)?.value() {
         let mut file = File::open(filename).unwrap();
         parser::parse_stream(&mut file)
     } else {
-        return Expression::Nil;
+        return Ok(Expression::Nil);
     };
 
     if let Ok(expr) = expr {
-        interpreter::execute(expr, frame, streams)
+        execute(expr, frame, streams)
     } else {
-        Expression::Nil
+        Ok(Expression::Nil)
     }
 });
 
@@ -479,9 +514,9 @@ pub const SOURCE: NativeFunction = builtin!(args, frame, streams, {
 pub const TAIL: NativeFunction = builtin!(args, _, _, {
     if !args.is_empty() {
         if let Some(items) = args[0].items() {
-            return Expression::List(items[1..].to_vec());
+            return Ok(Expression::List(items[1..].to_vec()));
         }
     }
 
-    Expression::Nil
+    Ok(Expression::Nil)
 });

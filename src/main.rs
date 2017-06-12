@@ -74,12 +74,18 @@ fn main() {
                 }
             };
 
-            let result = interpreter::execute(expression, &mut frame, &mut streams);
-
-            // If the return value isn't Nil, print it out for the user.
-            if !result.is_nil() {
-                println!("{}", result);
+            match interpreter::execute(expression, &mut frame, &mut streams) {
+                Ok(expr) => {
+                    // If the return value isn't Nil, print it out for the user.
+                    if !expr.is_nil() {
+                        println!("{}", expr);
+                    }
+                }
+                Err(e) => {
+                    println!("error: {}", e.value);
+                }
             }
+
 
             if *exit::flag() {
                 break;

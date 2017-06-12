@@ -5,6 +5,7 @@ use std::cmp;
 use std::fmt;
 use std::io::Read;
 use std::str::FromStr;
+use std::sync::Arc;
 
 
 #[derive(Clone, Debug)]
@@ -126,18 +127,27 @@ impl<'e> Into<Cow<'e, Expression>> for &'e Expression {
 }
 
 
-#[derive(Clone, Copy, Default, Debug)]
-pub struct Pos {
+/// A reference to a location in source code. Useful for error messages.
+#[derive(Clone, Debug)]
+pub struct SourceLocation {
+    pub filename: Arc<String>,
     pub line: u32,
     pub column: u32,
 }
 
-impl Pos {
-    fn new() -> Self {
+impl SourceLocation {
+    fn new<S: Into<String>>(filename: S) -> Self {
         Self {
+            filename: Arc::new(filename.into()),
             line: 1,
             column: 1,
         }
+    }
+}
+
+impl Default for SourceLocation {
+    fn default() -> Self {
+        Self::new("<unknown>")
     }
 }
 
@@ -163,13 +173,13 @@ pub fn parse_stream<R: Read>(reader: &mut R) -> Result<Expression, ParseError> {
 pub struct Parser<'r> {
     scanner: &'r mut Scanner,
     next_char: Option<char>,
-    pos: Pos,
+    pos: SourceLocation,
 }
 
 #[derive(Debug)]
 pub struct ParseError {
     pub kind: ParseErrorKind,
-    pub pos: Pos,
+    pub pos: SourceLocation,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -192,7 +202,7 @@ impl ParseErrorKind {
 macro_rules! parse_error {
     ($parser:expr, $kind:expr) => (Err(ParseError {
         kind: $kind,
-        pos: $parser.pos,
+        pos: $parser.pos.clone(),
     }))
 }
 
@@ -201,7 +211,7 @@ impl<'r> Parser<'r> {
         Self {
             scanner: scanner,
             next_char: None,
-            pos: Pos::new(),
+            pos: SourceLocation::default(),
         }
     }
 

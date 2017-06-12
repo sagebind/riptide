@@ -10,7 +10,7 @@
 //! special builtins called "macros".
 use builtins;
 use io::Streams;
-use parser::Expression;
+use parser::{Expression, SourceLocation};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -35,7 +35,13 @@ pub struct NativeFunction {
     pub lazy_args: bool,
 
     /// Pointer to the native function body.
-    pub ptr: fn(&[Expression], &mut StackFrame, &mut Streams) -> Expression,
+    pub ptr: fn(&[Expression], &mut StackFrame, &mut Streams) -> Result<Expression, Exception>,
+}
+
+/// A wrapper around a value that can be raised as an error.
+#[derive(Debug)]
+pub struct Exception {
+    pub value: Expression,
 }
 
 
@@ -103,16 +109,20 @@ impl StackFrame {
 
 
 /// Execute multiple expressions in sequence and collect the results.
-pub fn execute_all(exprs: &[Expression], frame: &mut StackFrame, streams: &mut Streams) -> Vec<Expression> {
-    exprs.iter().map(|expr| {
-        execute(expr, frame, streams)
-    }).collect()
+pub fn execute_all(exprs: &[Expression], frame: &mut StackFrame, streams: &mut Streams) -> Result<Vec<Expression>, Exception> {
+    let mut results = Vec::with_capacity(exprs.len());
+
+    for expr in exprs {
+        results.push(execute(expr, frame, streams)?);
+    }
+
+    Ok(results)
 }
 
 /// Execute an expression.
 ///
 /// Can take an expression either as a reference or owned.
-pub fn execute<'e, E>(expr: E, mut frame: &mut StackFrame, streams: &mut Streams) -> Expression
+pub fn execute<'e, E>(expr: E, mut frame: &mut StackFrame, streams: &mut Streams) -> Result<Expression, Exception>
     where E: Into<Cow<'e, Expression>>
 {
     let mut next_expr = expr.into();
@@ -125,7 +135,7 @@ pub fn execute<'e, E>(expr: E, mut frame: &mut StackFrame, streams: &mut Streams
         if let Some(args) = current_expr.items() {
             // Prepare to execute a function call. First argument is the function name, which is always eagerly
             // evaluated. Here we execute this using recursion.
-            let function_expr = execute(&args[0], frame, streams);
+            let function_expr = execute(&args[0], frame, streams)?;
 
             // TODO: Lambdas are not implemented. Assume this is a function name.
             let function_name = function_expr.value().expect("lambdas are not implemented");
@@ -133,7 +143,7 @@ pub fn execute<'e, E>(expr: E, mut frame: &mut StackFrame, streams: &mut Streams
             // Check if the function is a local binding.
             for &(ref name, ref value) in frame.symbol_table.iter() {
                 if name == function_name {
-                    return value.clone();
+                    return Ok(value.clone());
                 }
             }
 
@@ -151,7 +161,7 @@ pub fn execute<'e, E>(expr: E, mut frame: &mut StackFrame, streams: &mut Streams
                 // Evaluate the arguments and form a symbol table.
                 let mut symbols = Vec::new();
                 for (i, arg) in args[1..].iter().enumerate() {
-                    let evaluated = execute(arg, frame, streams);
+                    let evaluated = execute(arg, frame, streams)?;
 
                     if let Some(param) = function.params.get(i) {
                         symbols.push((param.clone(), evaluated));
@@ -186,16 +196,16 @@ pub fn execute<'e, E>(expr: E, mut frame: &mut StackFrame, streams: &mut Streams
         }
 
         // Expression is already fully reduced.
-        return current_expr.into_owned();
+        return Ok(current_expr.into_owned());
     }
 }
 
 /// Call a native builtin function.
-pub fn native_function_call(function: NativeFunction, args: &[Expression], frame: &mut StackFrame, streams: &mut Streams) -> Expression {
+pub fn native_function_call(function: NativeFunction, args: &[Expression], frame: &mut StackFrame, streams: &mut Streams) -> Result<Expression, Exception> {
     if function.lazy_args {
         (function.ptr)(args, frame, streams)
     } else {
-        let evaluated_args = execute_all(args, frame, streams);
+        let evaluated_args = execute_all(args, frame, streams)?;
         (function.ptr)(&evaluated_args, frame, streams)
     }
 }
