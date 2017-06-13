@@ -14,10 +14,6 @@
     (exec cargo run)
 )
 
-(def 2nd
-    (first (tail (args)))
-)
-
 (def map (list callback)
     (if (list)
         (begin
@@ -25,6 +21,16 @@
             (map (tail (list)) (callback))
         )
     )
+)
+
+; Define pwd because many users will expect it to be there.
+(def pwd
+    (print (cwd))
+)
+
+; Define the default command prompt.
+(def crush:prompt
+    (concat (color cyan (cwd)) "$ ")
 )
 
 (print "Crush shell is ready to go!")

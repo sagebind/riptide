@@ -1,5 +1,8 @@
 use exit;
+use interpreter;
 use io::Streams;
+use parser::Expression;
+use std::borrow::Cow;
 use std::cmp;
 use std::io::Write;
 use std::mem::swap;
@@ -10,6 +13,7 @@ use termion::input::TermRead;
 use termion::raw::*;
 
 
+/// The default prompt string if none is defined.
 const DEFAULT_PROMPT: &str = "$ ";
 
 /// Controls the interactive command line editor.
@@ -34,7 +38,8 @@ impl<'s> Editor<'s> {
     }
 
     pub fn read_line(&mut self) -> String {
-        write!(self.io.stdout, "{}", DEFAULT_PROMPT);
+        let prompt = self.get_prompt_str();
+        write!(self.io.stdout, "{}", prompt);
         self.io.stdout.flush().unwrap();
 
         // Duplicate stdin and stdout handles to workaround Termion's API.
@@ -160,7 +165,8 @@ impl<'s> Editor<'s> {
 
     /// Redraw the prompt.
     pub fn redraw(&mut self) {
-        write!(self.io.stdout, "\r{}{}{}", clear::AfterCursor, DEFAULT_PROMPT, self.buffer).unwrap();
+        let prompt = self.get_prompt_str();
+        write!(self.io.stdout, "\r{}{}{}", clear::AfterCursor, prompt, self.buffer).unwrap();
 
         // Update the cursor position.
         let diff = self.buffer.len() - self.cursor;
@@ -172,5 +178,12 @@ impl<'s> Editor<'s> {
         self.io.stdout.flush().unwrap();
 
         self.redraw_needed = false;
+    }
+
+    fn get_prompt_str(&self) -> Cow<'static, str> {
+        match interpreter::function_call("crush:prompt", &[], &mut Streams::null()) {
+            Ok(Expression::Atom(s)) => s,
+            _ => Cow::Borrowed(DEFAULT_PROMPT),
+        }
     }
 }

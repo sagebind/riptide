@@ -116,6 +116,16 @@ impl Streams {
         }
     }
 
+    /// Create an IO context without any open streams.
+    pub fn null() -> Self {
+        Self::new(
+            "<null>",
+            ReadPipe(File::open("/dev/null").unwrap()),
+            WritePipe(File::open("/dev/null").unwrap()),
+            WritePipe(File::open("/dev/null").unwrap()),
+        )
+    }
+
     /// Create a new IO context.
     pub fn new<S>(name: S, stdin: ReadPipe, stdout: WritePipe, stderr: WritePipe) -> Self
         where S: Into<Cow<'static, str>>

@@ -2,6 +2,7 @@
 use interpreter::*;
 use io::{self, Streams};
 use parser::{self, Expression};
+use termion::color;
 
 
 /// Lookup a builtin function by name.
@@ -15,8 +16,11 @@ pub fn lookup(name: &str) -> Option<NativeFunction> {
         "capture" | "$" => Some(CAPTURE),
         "catch" => Some(CATCH),
         "cd" => Some(CD),
+        "color" => Some(COLOR),
         "command" => Some(COMMAND),
+        "concat" => Some(CONCAT),
         "crush" => Some(CRUSH),
+        "cwd" => Some(CWD),
         "def" => Some(DEF),
         "env" => Some(ENV),
         "exec" => Some(EXEC),
@@ -29,7 +33,6 @@ pub fn lookup(name: &str) -> Option<NativeFunction> {
         "nth" => Some(NTH),
         "pipe" | "|" => Some(PIPE),
         "print" | "echo" => Some(PRINT),
-        "pwd" => Some(PWD),
         "quote" => Some(QUOTE),
         "raise" => Some(RAISE),
         "source" => Some(SOURCE),
@@ -179,6 +182,33 @@ pub const CD: NativeFunction = builtin!(args, _, _, {
     Ok(Expression::Nil)
 });
 
+/// Return a colorized string.
+pub const COLOR: NativeFunction = builtin!(args, _, _, {
+    if args.len() >= 2 {
+        if let Some(color) = args[0].value() {
+            if let Some(string) = args[1].value() {
+                let color = match color {
+                    "black" => color::AnsiValue(0),
+                    "red" => color::AnsiValue(1),
+                    "green" => color::AnsiValue(2),
+                    "yellow" => color::AnsiValue(3),
+                    "blue" => color::AnsiValue(4),
+                    "magenta" => color::AnsiValue(5),
+                    "cyan" => color::AnsiValue(6),
+                    "white" => color::AnsiValue(7),
+                    _ => return Err(Exception {
+                        value: Expression::atom(format!("unknown color '{}'", color)),
+                    })
+                };
+
+                return Ok(Expression::atom(format!("{}{}{}", color::Fg(color), string, color::Fg(color::Reset))));
+            }
+        }
+    }
+
+    Ok(Expression::Nil)
+});
+
 /// Executes an external command.
 pub const COMMAND: NativeFunction = builtin!(args, _, streams, {
     use exec;
@@ -210,6 +240,19 @@ pub const COMMAND: NativeFunction = builtin!(args, _, streams, {
     }
 });
 
+/// Concatenate a series of strings together.
+pub const CONCAT: NativeFunction = builtin!(args, frame, streams, {
+    let mut string = String::new();
+
+    for arg in args {
+        if let Some(value) = arg.value() {
+            string.push_str(value);
+        }
+    }
+
+    Ok(Expression::atom(string))
+});
+
 pub const CRUSH: NativeFunction = builtin!(args, frame, streams, {
     use std::env;
 
@@ -222,6 +265,19 @@ pub const CRUSH: NativeFunction = builtin!(args, frame, streams, {
         native_function_call(COMMAND, &command_args, frame, streams)
     } else {
         Ok(Expression::Nil)
+    }
+});
+
+/// Get the current working directory.
+pub const CWD: NativeFunction = builtin!(_, _, _, {
+    use std::env;
+    use std::error::Error;
+
+    match env::current_dir() {
+        Ok(dir) => Ok(Expression::atom(dir.to_string_lossy().into_owned())),
+        Err(e) => Err(Exception {
+            value: Expression::atom(e.description().to_string()),
+        }),
     }
 });
 
@@ -461,16 +517,6 @@ pub const PRINT: NativeFunction = builtin!(args, _, streams, {
     }
 
     writeln!(streams.stdout).unwrap();
-
-    Ok(Expression::Nil)
-});
-
-/// Print the current directory.
-pub const PWD: NativeFunction = builtin!(_, _, streams, {
-    use std::env;
-    use std::io::Write;
-
-    writeln!(streams.stdout, "{}", env::current_dir().unwrap().display()).unwrap();
 
     Ok(Expression::Nil)
 });

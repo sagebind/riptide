@@ -147,13 +147,8 @@ pub fn execute<'e, E>(expr: E, mut frame: &mut StackFrame, streams: &mut Streams
                 }
             }
 
-            // Check to see if it is a builtin.
-            if let Some(builtin) = builtins::lookup(function_name) {
-                return native_function_call(builtin, &args[1..], frame, streams);
-            }
-
             // Check if the function is a global binding.
-            else if let Some(function) = lookup_function(function_name) {
+            if let Some(function) = lookup_function(function_name) {
                 // Set the user function to be the next one executed. Doing this lets us avoid another recursive
                 // call here (tail-call optimization).
                 next_expr = function.body.clone().into();
@@ -189,15 +184,29 @@ pub fn execute<'e, E>(expr: E, mut frame: &mut StackFrame, streams: &mut Streams
                 continue;
             }
 
-            // Execute a command.
-            else {
-                return native_function_call(builtins::COMMAND, args, frame, streams);
+            // Check to see if it is a builtin.
+            if let Some(builtin) = builtins::lookup(function_name) {
+                return native_function_call(builtin, &args[1..], frame, streams);
             }
+
+            // Execute a command.
+            return native_function_call(builtins::COMMAND, args, frame, streams);
         }
 
         // Expression is already fully reduced.
         return Ok(current_expr.into_owned());
     }
+}
+
+/// Execute a function call in the global scope by name.
+pub fn function_call(name: &str, args: &[Expression], streams: &mut Streams) -> Result<Expression, Exception> {
+    let mut frame = StackFrame::new();
+    let mut items = Vec::new();
+
+    items.push(Expression::atom(name.to_string()));
+    items.extend_from_slice(args);
+
+    execute(Expression::List(items), &mut frame, streams)
 }
 
 /// Call a native builtin function.
