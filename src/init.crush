@@ -1,3 +1,5 @@
+; Main crush initialization script. Defines some important functions and variables, and sources relevant config files.
+
 (begin
     (print "Loading user profile...")
     (if (= 0 (test -f "config.crush"))
@@ -35,13 +37,19 @@
 
 ; Push onto the directory stack.
 (def pushd (lambda (dir)
-    (def crush/dirstack (append (dir) (crush/dirstack)))
+    (begin
+        (def crush/dirstack (append (cwd) (crush/dirstack)))
+        (cd (dir))
+    )
 ))
 
 ; Pop off the directory stack.
 (def popd (lambda
     (if (crush/dirstack)
-        (cd (first (crush/dirstack)))
+        (begin
+            (cd (first (crush/dirstack)))
+            (def crush/dirstack (tail (crush/dirstack)))
+        )
     )
 ))
 

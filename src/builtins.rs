@@ -91,7 +91,11 @@ pub const APPEND: NativeFunction = builtin!(args, _, _, {
     for arg in args {
         match arg.as_items() {
             Some(sublist_items) => items.extend_from_slice(sublist_items),
-            None => items.push(arg.clone()),
+            None => {
+                if !arg.is_nil() {
+                    items.push(arg.clone())
+                }
+            },
         }
     }
 
@@ -194,7 +198,11 @@ pub const CD: NativeFunction = builtin!(args, _, _, {
 
     if !args.is_empty() {
         if let Some(path) = args[0].as_value() {
-            env::set_current_dir(path).unwrap();
+            if let Err(e) = env::set_current_dir(path) {
+                return Err(Exception {
+                    value: Expression::atom(format!("cd: {}", e)),
+                });
+            }
         }
     }
 

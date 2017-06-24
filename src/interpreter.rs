@@ -174,8 +174,7 @@ pub fn function_call(name: &str, args: &[Expression], streams: &mut Streams) -> 
 
     items.push(Expression::atom(name.to_string()));
     if args.len() > 0 {
-
-    items.extend_from_slice(args);
+        items.extend_from_slice(args);
     }
 
     execute(Expression::List(items), &mut frame, streams)
