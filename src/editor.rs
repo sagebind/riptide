@@ -1,7 +1,7 @@
 use exit;
+use expr::Expression;
 use interpreter;
 use io::Streams;
-use parser::Expression;
 use std::borrow::Cow;
 use std::cmp;
 use std::io::Write;
@@ -15,6 +15,8 @@ use termion::raw::*;
 
 /// The default prompt string if none is defined.
 const DEFAULT_PROMPT: &str = "$ ";
+/// Name of the function to use as the prompt.
+const PROMPT_FUNCTION: &str = "crush/prompt";
 
 /// Controls the interactive command line editor.
 pub struct Editor<'s> {
@@ -181,7 +183,7 @@ impl<'s> Editor<'s> {
     }
 
     fn get_prompt_str(&self) -> Cow<'static, str> {
-        match interpreter::function_call("crush:prompt", &[], &mut Streams::null()) {
+        match interpreter::function_call(PROMPT_FUNCTION, &[], &mut Streams::null()) {
             Ok(Expression::Atom(s)) => s,
             _ => Cow::Borrowed(DEFAULT_PROMPT),
         }

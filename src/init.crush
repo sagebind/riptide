@@ -6,31 +6,43 @@
     )
 )
 
-(def ls
+(def ls (lambda
     (command ls -FHl --human-readable --color=always --group-directories-first)
-)
+))
 
-(def dbg:reload
-    (exec cargo run)
-)
-
-(def map (list callback)
+(def map (lambda (list callback)
     (if (list)
         (begin
             ((callback) (first (list)))
             (map (tail (list)) (callback))
         )
     )
-)
+))
 
 ; Define pwd because many users will expect it to be there.
-(def pwd
+(def pwd (lambda
     (print (cwd))
-)
+))
 
 ; Define the default command prompt.
-(def crush:prompt
+(def crush/prompt (lambda
     (concat (color cyan (cwd)) "$ ")
-)
+))
+
+
+; Default empty directory stack.
+(def crush/dirstack ())
+
+; Push onto the directory stack.
+(def pushd (lambda (dir)
+    (def crush/dirstack (append (dir) (crush/dirstack)))
+))
+
+; Pop off the directory stack.
+(def popd (lambda
+    (if (crush/dirstack)
+        (cd (first (crush/dirstack)))
+    )
+))
 
 (print "Crush shell is ready to go!")

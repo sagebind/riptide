@@ -9,6 +9,8 @@ extern crate utf8parse;
 mod builtins;
 mod editor;
 mod exec;
+mod expr;
+mod globals;
 mod interpreter;
 mod io;
 mod parser;
@@ -50,7 +52,7 @@ fn main() {
     let script = parser::parse_string(include_str!("init.crush"))
         .expect("error in internal init script");
 
-    if let Some(items) = script.items() {
+    if let Some(items) = script.as_items() {
         interpreter::execute_all(items, &mut frame, &mut streams);
     }
 

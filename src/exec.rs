@@ -1,6 +1,6 @@
 //! Functions for executing external programs.
+use expr::Expression;
 use io::Streams;
-use parser::Expression;
 use std::os::unix::io::*;
 use std::process::{Command, Stdio};
 
@@ -13,7 +13,7 @@ pub fn build_external_command(name: &str, args: &[Expression], streams: &mut Str
     // For each other parameter given, add it as a shell argument.
     for arg in args {
         // Reduce each argument as we go.
-        command.arg(arg.value().unwrap());
+        command.arg(arg.as_value().unwrap());
     }
 
     // Set up standard IO streams.

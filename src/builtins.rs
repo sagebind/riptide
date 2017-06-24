@@ -1,7 +1,9 @@
 //! Definition of builtin functions.
+use expr::*;
+use globals;
 use interpreter::*;
 use io::{self, Streams};
-use parser::{self, Expression};
+use parser;
 use termion::color;
 
 
@@ -10,6 +12,7 @@ pub fn lookup(name: &str) -> Option<NativeFunction> {
     match name {
         "=" => Some(EQUAL),
         "and" => Some(AND),
+        "append" => Some(APPEND),
         "args" => Some(ARGS),
         "begin" => Some(BEGIN),
         "builtin" => Some(BUILTIN),
@@ -28,7 +31,9 @@ pub fn lookup(name: &str) -> Option<NativeFunction> {
         "first" => Some(FIRST),
         "help" => Some(HELP),
         "if" => Some(IF),
+        "lambda" => Some(LAMBDA),
         "list" => Some(LIST),
+        "length" => Some(LENGTH),
         "not" => Some(NOT),
         "nth" => Some(NTH),
         "pipe" | "|" => Some(PIPE),
@@ -79,6 +84,20 @@ pub const AND: NativeFunction = builtin!(args, _, _, {
     Ok(Expression::TRUE)
 });
 
+/// Append lists together.
+pub const APPEND: NativeFunction = builtin!(args, _, _, {
+    let mut items = Vec::new();
+
+    for arg in args {
+        match arg.as_items() {
+            Some(sublist_items) => items.extend_from_slice(sublist_items),
+            None => items.push(arg.clone()),
+        }
+    }
+
+    Ok(Expression::List(items))
+});
+
 /// Return all arguments passed to the current function as a list.
 pub const ARGS: NativeFunction = builtin!(_, frame, _, {
     let args = frame.args.to_vec();
@@ -106,9 +125,9 @@ pub const BUILTIN: NativeFunction = builtin!(args, frame, streams, {
         return Ok(Expression::Nil);
     }
 
-    if let Some(name) = args[0].value() {
+    if let Some(name) = args[0].as_value() {
         if let Some(builtin) = lookup(name) {
-            return native_function_call(builtin, &args[1..], frame, streams);
+            return do_native_function_call(builtin, &args[1..], frame, streams);
         }
     }
 
@@ -174,7 +193,7 @@ pub const CD: NativeFunction = builtin!(args, _, _, {
     use std::env;
 
     if !args.is_empty() {
-        if let Some(path) = args[0].value() {
+        if let Some(path) = args[0].as_value() {
             env::set_current_dir(path).unwrap();
         }
     }
@@ -185,8 +204,8 @@ pub const CD: NativeFunction = builtin!(args, _, _, {
 /// Return a colorized string.
 pub const COLOR: NativeFunction = builtin!(args, _, _, {
     if args.len() >= 2 {
-        if let Some(color) = args[0].value() {
-            if let Some(string) = args[1].value() {
+        if let Some(color) = args[0].as_value() {
+            if let Some(string) = args[1].as_value() {
                 let color = match color {
                     "black" => color::AnsiValue(0),
                     "red" => color::AnsiValue(1),
@@ -219,7 +238,7 @@ pub const COMMAND: NativeFunction = builtin!(args, _, streams, {
     }
 
     // Create a command for the given program name.
-    if let Some(command_name) = args[0].value() {
+    if let Some(command_name) = args[0].as_value() {
         let mut command = exec::build_external_command(command_name, &args[1..], streams);
 
         // Run the command in a child process.
@@ -241,11 +260,11 @@ pub const COMMAND: NativeFunction = builtin!(args, _, streams, {
 });
 
 /// Concatenate a series of strings together.
-pub const CONCAT: NativeFunction = builtin!(args, frame, streams, {
+pub const CONCAT: NativeFunction = builtin!(args, _, _, {
     let mut string = String::new();
 
     for arg in args {
-        if let Some(value) = arg.value() {
+        if let Some(value) = arg.as_value() {
             string.push_str(value);
         }
     }
@@ -262,7 +281,7 @@ pub const CRUSH: NativeFunction = builtin!(args, frame, streams, {
         command_args.push(Expression::Atom(path.to_string_lossy().into_owned().into()));
         command_args.extend_from_slice(args);
 
-        native_function_call(COMMAND, &command_args, frame, streams)
+        do_native_function_call(COMMAND, &command_args, frame, streams)
     } else {
         Ok(Expression::Nil)
     }
@@ -281,38 +300,20 @@ pub const CWD: NativeFunction = builtin!(_, _, _, {
     }
 });
 
-/// Define a new function.
-pub const DEF: NativeFunction = builtin!(lazy args, frame, streams, {
+/// Define a new global binding.
+pub const DEF: NativeFunction = builtin!(args, frame, streams, {
     // If no arguments are given, do nothing.
     if args.is_empty() {
         return Ok(Expression::Nil);
     }
 
-    // First argument is the function name.
-    if let Some(name) = execute(&args[0], frame, streams)?.value() {
-        let mut params = Vec::new();
-        let mut body = Expression::Nil;
+    // First argument is the binding name.
+    if let Some(name) = args[0].as_value() {
+        // If two arguments are given, the second argument is the value. Otherwise just use Nil.
+        let value = args.get(1).cloned().unwrap_or(Expression::Nil);
 
-        // If two arguments are given, there are no parameters and the second argument is the body.
-        if args.len() == 2 {
-            body = args[1].clone();
-        }
-
-        // If three arguments are given, the second argument is the parameter list and the third is the body.
-        else if args.len() >= 3 {
-            body = args[2].clone();
-
-            if let Some(params_list) = args[1].items() {
-                for param_expr in params_list {
-                    if let Some(param_name) = execute(param_expr, frame, streams)?.value() {
-                        params.push(param_name.to_owned());
-                    }
-                }
-            }
-        }
-
-        // Create the function.
-        create_function(name, params, body);
+        // Set the binding value.
+        globals::set(name, value);
     }
 
     Ok(Expression::Nil)
@@ -331,7 +332,7 @@ pub const ENV: NativeFunction = builtin!(args, frame, streams, {
 
     // If one argument is given, lookup and return the value of an environment variable with that name.
     if args.len() == 1 {
-        if let Some(name) = execute(&args[0], frame, streams)?.value() {
+        if let Some(name) = execute(&args[0], frame, streams)?.as_value() {
             if let Ok(value) = env::var(name) {
                 return Ok(Expression::atom(value));
             }
@@ -364,7 +365,7 @@ pub const EXEC: NativeFunction = builtin!(args, _, streams, {
     use std::os::unix::process::CommandExt;
 
     if args.len() >= 1 {
-        if let Some(command_name) = args[0].value() {
+        if let Some(command_name) = args[0].as_value() {
             let mut command = exec::build_external_command(command_name, &args[1..], streams);
             command.exec();
         }
@@ -385,7 +386,7 @@ pub const EXIT: NativeFunction = builtin!(args, _, _, {
 /// Return the first element of a list.
 pub const FIRST: NativeFunction = builtin!(args, _, _, {
     if args.len() > 0 {
-        if let Some(items) = args[0].items() {
+        if let Some(items) = args[0].as_items() {
             if !items.is_empty() {
                 return Ok(items[0].clone());
             }
@@ -430,8 +431,45 @@ pub const IF: NativeFunction = builtin!(lazy args, frame, streams, {
     }
 });
 
+/// Creates a lambda function.
+pub const LAMBDA: NativeFunction = builtin!(lazy args, frame, streams, {
+    // If no arguments are given, do nothing.
+    if args.is_empty() {
+        return Ok(Expression::Nil);
+    }
+
+    let mut params = Vec::new();
+    let body;
+
+    // If one argument is given, there are no parameters and the first argument is the body.
+    if args.len() == 1 {
+        body = args[0].clone();
+    }
+
+    // If two or more arguments are given, the first argument is the parameter list and the second is the body.
+    else {
+        body = args[1].clone();
+
+        if let Some(params_list) = args[0].as_items() {
+            for param_expr in params_list {
+                if let Some(param_name) = execute(param_expr, frame, streams)?.as_value() {
+                    params.push(param_name.to_owned());
+                }
+            }
+        }
+    }
+
+    // Construct the lambda.
+    Ok(Expression::create_lambda(params, body))
+});
+
 /// Returns its arguments as a list.
 pub const LIST: NativeFunction = builtin!(args, _, _, {
+    Ok(Expression::List(args.to_vec()))
+});
+
+/// Count the number of arguments given.
+pub const LENGTH: NativeFunction = builtin!(args, _, _, {
     Ok(Expression::List(args.to_vec()))
 });
 
@@ -454,7 +492,7 @@ pub const NTH: NativeFunction = builtin!(args, _, _, {
     }
 
     if let Some(index) = args[0].parse::<usize>() {
-        if let Some(items) = args[1].items() {
+        if let Some(items) = args[1].as_items() {
             return Ok(match items.get(index) {
                 Some(item) => item.clone(),
                 None => Expression::Nil,
@@ -542,7 +580,7 @@ pub const SOURCE: NativeFunction = builtin!(args, frame, streams, {
     // If a filename is given, read from the file. Otherwise read from stdin.
     let expr = if args.is_empty() {
         parser::parse_stream(&mut streams.stdin)
-    } else if let Some(filename) = execute(&args[0], frame, streams)?.value() {
+    } else if let Some(filename) = execute(&args[0], frame, streams)?.as_value() {
         let mut file = File::open(filename).unwrap();
         parser::parse_stream(&mut file)
     } else {
@@ -559,7 +597,7 @@ pub const SOURCE: NativeFunction = builtin!(args, frame, streams, {
 /// Return the tail of a list.
 pub const TAIL: NativeFunction = builtin!(args, _, _, {
     if !args.is_empty() {
-        if let Some(items) = args[0].items() {
+        if let Some(items) = args[0].as_items() {
             return Ok(Expression::List(items[1..].to_vec()));
         }
     }
