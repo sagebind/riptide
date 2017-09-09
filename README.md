@@ -1,5 +1,5 @@
-# Crush shell
-Crush shell is an interactive, command line shell designed for humans.
+# Riptide
+Fast and powerful shell scripting.
 
 ## License
 MIT

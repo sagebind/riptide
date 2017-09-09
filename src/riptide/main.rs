@@ -1,8 +1,7 @@
-#![feature(associated_consts)]
-
 #[macro_use]
 extern crate lazy_static;
 extern crate nix;
+extern crate ripflow;
 extern crate termion;
 extern crate utf8parse;
 
