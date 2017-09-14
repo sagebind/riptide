@@ -2,7 +2,7 @@
 use expr::Expression;
 use scanner::*;
 use std::io::Read;
-use std::sync::Arc;
+use std::rc::Rc;
 
 
 /// A reference to a location in source code. Useful for error messages.

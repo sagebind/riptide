@@ -3,16 +3,30 @@
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
+use std::rc::Rc;
 use std::str::Chars;
 use utf8parse;
+
+
+/// A reference to a location in source code. Useful for error messages.
+#[derive(Clone, Debug)]
+pub struct SourcePos {
+    /// The file name.
+    pub name: Rc<String>,
+
+    /// The line number. Begins at 1.
+    pub line: u32,
+
+    /// The column position in the current line. Begins at 1.
+    pub column: u32,
+}
 
 
 /// Reads source code from a source incrementally.
 pub struct Scanner {
     pub source: Box<Source>,
     next_char: Option<char>,
-    line: u32,
-    column: u32,
+    pos: SourcePos,
 }
 
 impl Scanner {
@@ -31,19 +45,17 @@ impl Scanner {
         Scanner {
             source: Box::new(source),
             next_char: None,
-            line: 1,
-            column: 1,
+            pos: SourcePos {
+                name: Rc::new(source.name().to_owned()),
+                line: 1,
+                column: 1,
+            },
         }
     }
 
-    /// Report the current line number.
-    pub fn line(&self) -> u32 {
-        self.line
-    }
-
-    /// Report the current column number.
-    pub fn column(&self) -> u32 {
-        self.column
+    /// Report the current source position.
+    pub fn pos(&self) -> &SourcePos {
+        &self.pos
     }
 
     /// Get the next character of input.
