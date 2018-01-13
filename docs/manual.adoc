@@ -1,0 +1,321 @@
+= Riptide Manual
+
+== Introduction
+
+Riptide is a Lisp-like shell scripting language designed around the UNIX philosophy.
+
+* Executables in $PATH are first-class functions
+* Environment variables are first-class
+* Designed around piping
+* Strict evaluation model, with explicit lazy evaluation using functions
+* Functions are no different from commands
+* Built-in shell argument parsing. Functions receive arguments in the same way executables do.
+
+
+== Syntax
+
+Crush has a very small syntax with only a few rules and only a few forms. This makes Crush easy to learn, and also allows the Crush interpreter to be really small and fast.
+
+=== Basics
+A Crush _script_ is a file or string containing valid Crush expressions. To explore the syntax, let's create a Crush script as a file and explore its contents. Below is a very basic Crush script:
+
+----
+#!/usr/bin/crush
+
+print "Hello world!"
+----
+
+Running the above script yields this result:
+
+----
+Hello world!
+----
+
+==== Comments
+
+Like most scripting languages, we can add comments to our script to add documentation or explanation to our script without affecting how it runs. Comments are indicated with a `#`.
+
+----
+#!/usr/bin/crush
+
+# This is a comment
+print "Hello world!"
+----
+
+A comment can appear anywhere on a line, and includes everything to the end of the line:
+
+----
+#!/usr/bin/crush
+
+print "Hello world!"  # This is also a comment
+----
+
+The first line in the script is called the _shebang_ line. In UNIX-like systems, this tells the operating system how to run the script. Since it does not affect the script itself, and it starts with `#`, Crush just sees it as a comment and ignores it.
+
+==== Whitespace
+Generally, whitespace has no meaning in Crush, except when used inside quotes to form a string. You are free to use whitespace however you like to format your scripts to make them readable.
+
+=== Function calls
+Even though Crush is designed for shell scripting, its design is heavily inspired by functional languages like Lisp, Scheme, and Haskell. In Crush, this means that we need to introduce function calls right away, since almost everything in Crush _is_ a function call.
+
+Since function calls are so prevalent, they have a barebones syntax so that you don't have to write a lot of boilerplate text. For example, to call a function named `a` with three arguments we would write:
+
+----
+(a b c d)
+src/
+foo-sys/
+  Cargo.toml
+  src/
+A crate with multiple in-tree dependencies
+
+Cargo.toml
+src/
+dep1/
+----
+
+or equivalently:
+
+----
+a b c d
+----
+
+Like Lisp, function calls use prefix syntax, with the arguments following the function name. Generally, you can choose to drop the parentheses whenever a function call is by itself on its own line. For example, passing the result of one function as an argument to another requires use of parentheses:
+
+----
+# Pass the result of calling 'c' as an argument to 'a'
+a b (c d)
+----
+
+Should you choose to put more than one function call on a line, you must also use parentheses:
+
+----
+# This is two distinct function calls...
+(a b) (c d)
+
+# or equivalently
+a b
+c d
+----
+
+It seems like a small and possibly useless thing to allow you to omit the parentheses, but it actually helps immensely with readability while maintaining the same general structure as Lisp. In fact, many simple scripts might not need to use any parentheses at all, easily dodging the problem of getting "Lost Ina Seaof Parentheses".
+
+We'll talk about how to create our own functions later.
+
+=== Expressions
+After function calls, the second most important thing in Crush is _expressions_. It is important to realize that all syntactic forms in Crush are all different types of expressions.
+
+An expression is one of three things:
+
+1. A literal value.
+2. A list of expressions.
+3. A function call that _results_ in an expression.
+
+You can use both types in the exact same way. Let's look at our hello world example again:
+
+----
+#!/usr/bin/crush
+
+print "Hello world!"
+----
+
+In our function call to `print`, the first argument we give is `"Hello world!"`. This is an example of a literal expression, known as a "literal" or a "string". All literals in Crush are simply text; there are no number types, character types, or boolean types.
+
+When writing a literal, you can omit the quotes `"` if the literal does not contain any whitespace or characters that have other special meaning, like `)`. For example, `"hello"` and simply `hello` are equivalent. `"hello world"` and `hello world` are _not_ equivalent; the latter will be interpreted as two separate literals
+
+==== Lists
+Technically, Lisp does not have lists, only "cells" and "atoms". This is interesting, but not really useful for our purposes. When we say that Crush has "lists", we really mean it. Lists are built-in types, with many uses. Lists are an in-memory structure, and do not have a syntax of their own. Thankfully, there is a built-in function called `list` to help us create lists:
+
+----
+list 1 2 3
+----
+
+The result of the above function call will be a list containing the values 1, 2, and 3 in order.
+
+=== Function blocks
+In Crush, functions are first-class values. In fact, a function is merely a sequence of expressions whose evaluation is delayed. Function syntax uses curly braces (`{` and `}`) instead of parenthesis to enclose their body. The general synax of a block is
+
+----
+{
+    [statement...]
+}
+----
+
+Within a block, a _statement_ is a standalone expression to be evaluated. Statements can be separated by newlines or by a semicolon `;`.
+
+Here is an example of defining a function called `hello`:
+
+----
+def hello {
+    echo "Hello World!"
+}
+----
+
+Note that we're using `def` again here. Functions by themselves do not have names, but they can be bound to a name in the same way as expressions to form variables.
+
+=== Control flow
+Unlike typical Lisp-like languages, Crush has no special forms or cases for built-in language constructs. Instead, control structures use functions to apply conditional logic. (That's why we covered functions before we talked about control structures.)
+
+==== If
+Take the humble `if` statement. In Crush, an `if` statement looks like this:
+
+----
+if (= (+ 2 2) 4) {
+    echo "Hey, math works!"
+}
+----
+
+This looks pretty similar to an imperative language, but don't let that trip you up. `if` here is actually a built-in function bound to the name `if`. Here we call `if` with two arguments:
+
+- `(= (+ 2 2) 4)`: This is a straightforward expression, which reduces to `true`.
+- `{ echo "Hey, math works!" }`: Hey, this is a function! `if` calls the second argument as a function if and only if the first expression given to it is truthy.
+
+`if` can also take additional arguments to form "else if" and "else" cases:
+
+----
+if (= (+ 2 2) 4) {
+    echo "Hey, math works!"
+} elseif (= (+ 2 2) 10) {
+    echo "In base 4, I'm fine!"
+} else {
+    echo "Math must not work."
+}
+----
+
+==== While
+----
+while {= (+ 2 2) 4} {
+    (echo "Hey, math works!")
+}
+----
+
+==== Match
+----
+match "hello" \
+    "h" => {
+    }
+----
+
+=== Bindings
+Now that you understand function calls, function blocks, and expressions, we can finally talk about bindings. First, recall the function call syntax:
+
+----
+a b c d
+----
+
+Originally I referred to `a` here as the "function name", but that was not entirely honest, though sufficient to explain the function call syntax. In the above code, the word `a` is actually the name of a _binding_. In many ways, a binding is like a variable in other languages.
+
+----
+def x 1
+def y 2
+def z (+ $x $y)
+----
+
+To distinguish between a string and a binding, the dollar sign, or _binding sigil_ ($) is used. For example, we can bind the string "Hello world" to a name and then print it out later:
+
+----
+def message "Hello world"
+echo $message
+----
+
+When invoking a binding as a function, the sigil is optional. Thus the following programs are equivalent:
+
+----
+def main {
+    print "Hello world"
+}
+
+$main
+----
+
+----
+def main {
+    print "Hello world"
+}
+
+main
+----
+
+
+== Immediately Invoked Function Expression (IIFE)
+----
+({
+    # function body...
+})
+
+# Or simply...
+{
+    # function body...
+}
+----
+
+
+== Exceptions
+
+----
+catch {
+    raise "an exception"
+} {
+    print "exeption caught"
+}
+----
+
+
+== Working with streams
+
+An example:
+
+----
+send 1 2 3 | {
+    loop {
+        println "Received:" (recv)
+    }
+}
+----
+
+The above should output:
+
+----
+Received: 1
+Received: 2
+Received: 3
+----
+
+
+== Examples
+
+Nested function application.
+
+----
+(((a) b) c) d
+----
+
+Statements in a block. Call `a`, then `b`, and then `c`.
+
+----
+{
+    a; b
+    c
+}
+----
+
+IO redirection:
+
+----
+# write to hello.txt
+print hello | write hello.txt
+# append to hello.txt
+print world | write -a hello.txt
+----
+
+Map function using recursion:
+
+----
+def map {
+    def list $1
+    def callback $2
+    if $list {
+        callback (first $list)
+        map (tail $list) $callback
+    }
+}
+----

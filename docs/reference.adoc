@@ -1,0 +1,70 @@
+= Riptide Standard Library Reference
+
+* `=`
+* `!`
+* `+`
+* `-`
+* `|`
+* `>`
+* `<`
+* `cd`
+* `builtin`
+* `apply`
+* `or`
+* `and`
+* `command`
+* `def`
+* `env`
+* `exec`
+* `exit`
+* `help`
+* `if`
+* `list`
+* `nth`
+* `echo`
+* `print`
+* `pwd`
+* `read`
+* `write`
+* `each`
+* `source`
+* `slice`
+* `count`
+* `sleep`
+* `type`
+* `tostring`
+* `toint`
+* `concat`
+* `spawn`
+* `split`
+* `filter`
+* `random`
+* `parse`
+
+
+== Working with strings
+=== `match`
+Applies a regular expression to a string and emits matches and captures.
+
+=== `replace`
+Applies a regular expression to a string and replaces matches with the received values.
+
+
+== Stream functions
+=== `send`
+Sends one or more values to the current output channel.
+
+=== `recv`
+Receives a value from the input channel.
+
+* `first-where`
+* `last-where`
+* `reduce`
+* `fold`
+* `join`
+* `contains`
+* `for-each`
+* `every`
+* `any`
+* `collect`
+* `pipe`
