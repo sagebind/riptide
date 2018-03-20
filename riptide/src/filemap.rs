@@ -1,8 +1,8 @@
+//! Abstractions over reading files and source code used in the parser.
 use std::fs::File;
 use std::io::{self, BufReader, Bytes, Read};
 use std::os::unix::io::*;
 use std::path::Path;
-
 
 /// A reference to a location in a source file. Useful for error messages.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -16,16 +16,13 @@ pub struct FilePos {
 
 impl Default for FilePos {
     fn default() -> FilePos {
-        FilePos {
-            line: 1,
-            column: 1,
-        }
+        FilePos { line: 1, column: 1 }
     }
 }
 
-
 /// Line-aware source file reader that can be read incrementally as a stream of bytes.
 pub struct FileMap {
+    /// The name of the file.
     name: Option<String>,
     pos: FilePos,
     next_byte: Option<u8>,
@@ -61,8 +58,7 @@ impl FileMap {
 
     /// Open a file as a file map.
     pub fn open(path: &Path) -> io::Result<Self> {
-        let name = path.file_name()
-            .map(|s| s.to_string_lossy().into_owned());
+        let name = path.file_name().map(|s| s.to_string_lossy().into_owned());
         let file = File::open(path)?;
 
         Ok(Self::file(name, file))
@@ -70,7 +66,10 @@ impl FileMap {
 
     /// Get the name of the file.
     pub fn name(&self) -> &str {
-        self.name.as_ref().map(String::as_str).unwrap_or("<unknown>")
+        self.name
+            .as_ref()
+            .map(String::as_str)
+            .unwrap_or("<unknown>")
     }
 
     /// Get the current position in the file.
@@ -88,7 +87,7 @@ impl FileMap {
                 } else {
                     Ok(None)
                 }
-            },
+            }
             FileSource::File(ref mut r) => match r.next() {
                 Some(Ok(b)) => Ok(Some(b)),
                 Some(Err(e)) => Err(e),
@@ -98,30 +97,9 @@ impl FileMap {
     }
 }
 
-impl From<String> for FileMap {
-    fn from(string: String) -> FileMap {
-        FileMap::buffer(None, string)
-    }
-}
-
-impl<'a> From<&'a str> for FileMap {
-    fn from(string: &'a str) -> FileMap {
-        FileMap::buffer(None, string)
-    }
-}
-
-impl FromRawFd for FileMap {
-    unsafe fn from_raw_fd(fd: RawFd) -> FileMap {
-        let file = File::from_raw_fd(fd);
-        Self::file(None, file)
-    }
-}
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn test_read_from_string() {
@@ -136,4 +114,3 @@ mod tests {
         assert!(reader.next_byte().unwrap().is_none());
     }
 }
-

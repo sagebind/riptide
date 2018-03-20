@@ -1,14 +1,11 @@
 [package]
-name = "ripflow"
+name = "riptide"
 version = "0.2.0"
 authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
-description = "The Ripflow language interpreter"
-
-[lib]
-name = "ripflow"
-path = "lib.rs"
+description = "The Riptide language interpreter"
 
 [dependencies]
 lazy_static = "0.2"
+mio = "0.6.14"
 nix = "0.8.1"
 utf8parse = "0.1.0"
