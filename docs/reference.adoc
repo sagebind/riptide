@@ -246,6 +246,18 @@ Returns the ID of the current fiber.
 Set a fiber-local value.
 
 
+=== Exceptions
+
+==== `throw`
+
+Throw an exception.
+
+
+==== `catch`
+
+Execute a block, and if the block throws an exception, return the thrown exception.
+
+
 === Other functions
 
 * `=`

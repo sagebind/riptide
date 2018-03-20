@@ -3,7 +3,6 @@ use std::io::{self, BufReader, Bytes, Read};
 use std::os::unix::io::*;
 use std::path::Path;
 
-
 /// A reference to a location in a source file. Useful for error messages.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FilePos {
@@ -16,13 +15,9 @@ pub struct FilePos {
 
 impl Default for FilePos {
     fn default() -> FilePos {
-        FilePos {
-            line: 1,
-            column: 1,
-        }
+        FilePos { line: 1, column: 1 }
     }
 }
-
 
 /// Line-aware source file reader that can be read incrementally as a stream of bytes.
 pub struct FileMap {
@@ -61,8 +56,7 @@ impl FileMap {
 
     /// Open a file as a file map.
     pub fn open(path: &Path) -> io::Result<Self> {
-        let name = path.file_name()
-            .map(|s| s.to_string_lossy().into_owned());
+        let name = path.file_name().map(|s| s.to_string_lossy().into_owned());
         let file = File::open(path)?;
 
         Ok(Self::file(name, file))
@@ -70,7 +64,10 @@ impl FileMap {
 
     /// Get the name of the file.
     pub fn name(&self) -> &str {
-        self.name.as_ref().map(String::as_str).unwrap_or("<unknown>")
+        self.name
+            .as_ref()
+            .map(String::as_str)
+            .unwrap_or("<unknown>")
     }
 
     /// Get the current position in the file.
@@ -88,7 +85,7 @@ impl FileMap {
                 } else {
                     Ok(None)
                 }
-            },
+            }
             FileSource::File(ref mut r) => match r.next() {
                 Some(Ok(b)) => Ok(Some(b)),
                 Some(Err(e)) => Err(e),
@@ -117,11 +114,9 @@ impl FromRawFd for FileMap {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn test_read_from_string() {
@@ -136,4 +131,3 @@ mod tests {
         assert!(reader.next_byte().unwrap().is_none());
     }
 }
-

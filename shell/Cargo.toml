@@ -1,0 +1,9 @@
+[package]
+name = "riptide-shell"
+version = "0.2.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+description = "RipShell"
+
+[dependencies]
+lazy_static = "0.2"
+termion = "1.3"

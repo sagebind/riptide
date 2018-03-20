@@ -13,14 +13,18 @@ pub enum Expr {
     String(String),
 
     /// A function call.
-    Call {
-        /// The function to invoke. Could be a binding name or a block.
-        function: Box<Expr>,
-
-        /// A list of arguments to pass to the function.
-        args: Vec<Expr>,
-    },
+    Call(Call),
 
     /// A function block, containing a list of expressions to execute.
     Block(Vec<Expr>),
+}
+
+/// A function call.
+#[derive(Clone, Debug)]
+pub struct Call {
+    /// The function to invoke. Could be a binding name or a block.
+    pub function: Box<Expr>,
+
+    /// A list of argument expressions to pass to the function.
+    pub args: Vec<Expr>,
 }
