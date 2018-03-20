@@ -1,4 +1,252 @@
-= Riptide Standard Library Reference
+= Riptide Reference
+
+== Introduction
+
+This document is the primary reference for the Riptide programming language.
+
+
+== Syntax
+
+Riptide has a very small syntax with only a few rules and only a few forms. This makes Riptide easy to learn, and also allows the Riptide interpreter to be really small and fast.
+
+
+=== Expressions
+
+Riptide is an expression based language, where nearly every construct is an expression.
+
+
+=== Lexical scope and variables
+
+Variables must be explicitly declared before they are used. By default, a variable is confined to the lexical scope in which it is defined.
+
+
+=== Function calls
+
+
+=== Pipelines
+
+
+=== Formal grammar
+
+Below is the full specification of the Riptide grammar (in an extended Backus–Naur form):
+
+----
+Program             = Block
+Block               = (Expr StatementSeparator)* Expr?
+Statement           = Expr (Pipe Expr)*
+StatementSeparator  = LineTerminator+ | ';'
+Expr                = '{' Block '}' | '(' Expr ')' | FunctionCall | String
+FunctionCall        = Expr (Whitespace Expr)*
+Variable            = '$' [a-Z] [a-Z0-9_]*
+String              = BareString | SingleQuotedString | DoubleQuotedString
+BareString          = [a-Z0-9_]+
+SingleQuotedString  = "'" [^']* "'"
+DoubleQuotedString  = '"' [^"]* '"'
+Pipe                = '|'
+Whitespace          = WhitespaceChar+
+LineTerminator      = <CR><LF> | <CR> | <LF>
+CharEscapeSequence  = '\' '\'
+WhitespaceChar      = '\x20' | '\x09' | '\x0a' | '\x0d'
+----
+
+
+== Data types
+
+=== Strings
+
+The string is the most fundamental data type in Riptide.
+
+
+=== Numbers
+
+
+=== Lists
+
+
+=== Tables
+
+A table (or associative array) is a collection of key-value pairs, where each key appears at most once in the collection.
+
+Tables are passed by reference instead of by value.
+
+The storage representation of a table is implementation-defined.
+
+
+== The runtime
+
+At its core, Riptide is an asynchronous pipeline processor.
+
+
+=== Fibers
+
+A single interpeter process is divided up into multiple execution units, called _fibers_. A fiber represents a single thread of execution in the runtime. Unlike system-level threads or processes which are switched preemptively, a fiber is executed _cooperatively_ with other threads in the process, and only yields to another fiber at specific points.
+
+The runtime schedules these fibers cooperatively within a single process.
+
+Each fiber has a unique ID.
+
+Each fiber has its own standard input, standard output, and standard error streams. All functions called in a fiber that references a standard stream will use the streams from the current fiber by default. If a command is executed, the command process's standard streams are inherited from the current fiber.
+
+
+=== Exceptions
+
+
+== Commands
+
+External commands can be executed in the same way as functions are, and use the same function call mechanism.
+
+Native data types passed to a command as arguments are _coalesced_ into strings and then passed in as program arguments. The function call waits for the command to finish, then returns the exit code of the command as a number.
+
+
+== Modules
+
+
+== Builtins
+
+This section of the reference describes all of the built-in functions that must be provided by the Riptide runtime for any program.
+
+
+=== Core functions
+
+==== `def`
+
+Define a new variable.
+
+
+==== `builtin`
+
+Call the builtin function with the given name and arguments.
+
+
+==== `command`
+
+Execute an external command as a function.
+
+
+==== `help`
+
+Print out user help for using Riptide.
+
+
+=== Input and output
+
+==== `print`
+
+Writes each argument given to standard output.
+
+
+==== `println`
+
+Writes each argument given to standard output, with a trailing newline separator.
+
+
+==== `echo`
+
+An alias for `println`.
+
+
+==== `eprint`
+
+Writes each argument given to standard error.
+
+
+==== `eprintln`
+
+Writes each argument given to standard error, with a trailing newline separator.
+
+
+=== Working with strings
+
+==== `str?`
+
+Check if the given values are strings.
+
+
+==== `str:format`
+
+
+==== `str:match`
+
+Applies a regular expression to a string and emits matches and captures.
+
+
+==== `str:replace`
+
+Applies a regular expression to a string and replaces matches with the received values.
+
+
+=== Tables
+
+==== `table-get`
+
+==== `table-set`
+
+
+=== Stream functions
+
+==== `send`
+
+Sends one or more values to the current output channel.
+
+
+==== `recv`
+
+Receives a value from the input channel.
+
+
+=== Process management
+
+==== `pid`
+
+Returns the PID of the current process.
+
+
+==== `exit`
+
+Terminate the current process, with an optional status code.
+
+NOTE: By default, all child processes will also be terminated in as safe a manner as possible before the current process exits. Child processes that do not respond will be terminated forcefully. To bypass this behavior, pass the `--orphan` flag.
+
+
+==== `spawn`
+
+Spawn a new process and execute a given block within it. Returns the PID of the new process.
+
+Calling `spawn` will never interrupt the current fiber; the spawned fiber will not be started until at least the current fiber yields.
+
+
+==== `kill`
+
+Send an interrupt or signal to a running process.
+
+
+==== `sleep`
+
+Suspend the current process for a given amount of time.
+
+
+==== `exec`
+
+Execute a command, replacing the current process with the executed process.
+
+NOTE: Like `exit`, `exec` will do its best to clean up the current process as safely as possible before replacing the current process.
+
+WARNING: This replaces the current _process_, which includes all fibers in the current process.
+
+
+=== Fiber management
+
+==== `current-fiber`
+
+Returns the ID of the current fiber.
+
+
+==== `fiber-set`
+
+Set a fiber-local value.
+
+
+=== Other functions
 
 * `=`
 * `!`
@@ -8,21 +256,13 @@
 * `>`
 * `<`
 * `cd`
-* `builtin`
 * `apply`
 * `or`
 * `and`
-* `command`
-* `def`
 * `env`
-* `exec`
-* `exit`
-* `help`
 * `if`
 * `list`
 * `nth`
-* `echo`
-* `print`
 * `pwd`
 * `read`
 * `write`
@@ -30,33 +270,14 @@
 * `source`
 * `slice`
 * `count`
-* `sleep`
 * `type`
 * `tostring`
 * `toint`
 * `concat`
-* `spawn`
 * `split`
 * `filter`
 * `random`
 * `parse`
-
-
-== Working with strings
-=== `match`
-Applies a regular expression to a string and emits matches and captures.
-
-=== `replace`
-Applies a regular expression to a string and replaces matches with the received values.
-
-
-== Stream functions
-=== `send`
-Sends one or more values to the current output channel.
-
-=== `recv`
-Receives a value from the input channel.
-
 * `first-where`
 * `last-where`
 * `reduce`
@@ -68,3 +289,14 @@ Receives a value from the input channel.
 * `any`
 * `collect`
 * `pipe`
+
+
+==== `lines`
+
+Calls a function on each line of input read.
+
+----
+ls -l | lines {
+    println $6
+}
+----
