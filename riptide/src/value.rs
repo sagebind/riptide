@@ -121,6 +121,7 @@ impl PartialEq for Value {
             (&Value::Nil, &Value::Nil) => true,
             (&Value::Number(lhs), &Value::Number(rhs)) => lhs == rhs,
             (&Value::String(ref lhs), &Value::String(ref rhs)) => lhs == rhs,
+            (&Value::List(ref lhs), &Value::List(ref rhs)) => lhs == rhs,
             (&Value::Table(ref lhs), &Value::Table(ref rhs)) => Rc::ptr_eq(lhs, rhs),
             (&Value::Block(ref lhs), &Value::Block(ref rhs)) => Rc::ptr_eq(lhs, rhs),
             _ => false,
