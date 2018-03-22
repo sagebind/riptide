@@ -5,8 +5,7 @@ extern crate utf8parse;
 
 mod ast;
 mod fd;
-mod fibers;
-mod interpreter;
+mod runtime;
 mod value;
 
 fn main() {
