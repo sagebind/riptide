@@ -1,5 +1,5 @@
 use ast::Expr;
-use rr::Value;
+use value::Value;
 
 /// Executes program code and holds its state.
 pub struct Interpreter {

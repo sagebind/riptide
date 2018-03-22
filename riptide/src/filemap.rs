@@ -1,3 +1,4 @@
+//! Abstractions over reading files and source code used in the parser.
 use std::fs::File;
 use std::io::{self, BufReader, Bytes, Read};
 use std::os::unix::io::*;
@@ -21,6 +22,7 @@ impl Default for FilePos {
 
 /// Line-aware source file reader that can be read incrementally as a stream of bytes.
 pub struct FileMap {
+    /// The name of the file.
     name: Option<String>,
     pos: FilePos,
     next_byte: Option<u8>,
@@ -92,25 +94,6 @@ impl FileMap {
                 None => Ok(None),
             },
         }
-    }
-}
-
-impl From<String> for FileMap {
-    fn from(string: String) -> FileMap {
-        FileMap::buffer(None, string)
-    }
-}
-
-impl<'a> From<&'a str> for FileMap {
-    fn from(string: &'a str) -> FileMap {
-        FileMap::buffer(None, string)
-    }
-}
-
-impl FromRawFd for FileMap {
-    unsafe fn from_raw_fd(fd: RawFd) -> FileMap {
-        let file = File::from_raw_fd(fd);
-        Self::file(None, file)
     }
 }
 
