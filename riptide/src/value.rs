@@ -1,5 +1,5 @@
 //! Structures and implementations of the built-in data types.
-use ast::Expr;
+use ast;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -33,7 +33,7 @@ pub enum Value {
     Table(Rc<Table>),
 
     /// A block, containing a list of expressions to execute. Stored by reference.
-    Block(Rc<Expr>),
+    Block(Rc<ast::Block>),
 }
 
 impl From<Number> for Value {
@@ -51,6 +51,12 @@ impl From<&'static str> for Value {
 impl From<String> for Value {
     fn from(value: String) -> Self {
         Value::String(RString::from(value))
+    }
+}
+
+impl From<ast::Block> for Value {
+    fn from(block: ast::Block) -> Self {
+        Value::Block(Rc::new(block))
     }
 }
 

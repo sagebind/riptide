@@ -16,7 +16,7 @@ pub enum Expr {
     Call(Call),
 
     /// A function block, containing a list of expressions to execute.
-    Block(Vec<Expr>),
+    Block(Block),
 }
 
 /// A function call.
@@ -27,4 +27,10 @@ pub struct Call {
 
     /// A list of argument expressions to pass to the function.
     pub args: Vec<Expr>,
+}
+
+/// A function block.
+#[derive(Clone, Debug)]
+pub struct Block {
+    pub statements: Vec<Expr>,
 }
