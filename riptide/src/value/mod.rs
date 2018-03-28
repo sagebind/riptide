@@ -1,18 +1,23 @@
 //! Structures and implementations of the built-in data types.
 use ast;
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::ops::Deref;
+use interpreter::ForeignFunction;
+use std::fmt;
 use std::rc::Rc;
+use self::string::RString;
+use self::table::Table;
+
+pub mod string;
+pub mod table;
+
+/// A plain number.
+pub type Number = f64;
 
 /// A Riptide value. This is a small enum that can rerepresent any of the possible data types. Since Riptide is loosely
 /// typed, a value can be any of these types at runtime.
 ///
 /// The "scalar" types are stored inline, while more heavyweight types are stored behind a pointer. This keeps the
 /// memory footprint of a value small so it can be copied cheaply.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum Value {
     /// The "empty" value. This is equivalent to a unit type or "null" in some languages.
     Nil,
@@ -34,6 +39,9 @@ pub enum Value {
 
     /// A block, containing a list of expressions to execute. Stored by reference.
     Block(Rc<ast::Block>),
+
+    /// Reference to a foreign (native) function.
+    ForeignFunction(ForeignFunction),
 }
 
 impl From<Number> for Value {
@@ -57,6 +65,12 @@ impl From<String> for Value {
 impl From<ast::Block> for Value {
     fn from(block: ast::Block) -> Self {
         Value::Block(Rc::new(block))
+    }
+}
+
+impl From<ForeignFunction> for Value {
+    fn from(function: ForeignFunction) -> Self {
+        Value::ForeignFunction(function)
     }
 }
 
@@ -114,9 +128,7 @@ impl Value {
             &Value::Nil => RString::EMPTY,
             &Value::Number(number) => number.to_string().into(),
             &Value::String(ref string) => string.clone(),
-            &Value::List(_) => "<list>".into(),
-            &Value::Table(_) => "<table>".into(),
-            &Value::Block(_) => "<block>".into(),
+            _ => RString::from(format!("{:?}", self)),
         }
     }
 }
@@ -141,136 +153,16 @@ impl<S> PartialEq<S> for Value where S: AsRef<str> {
     }
 }
 
-/// A plain number.
-pub type Number = f64;
-
-/// A string value.
-///
-/// Since strings are copied and tossed around quite a bit, the string is
-/// reference counted to reduce memory and copying.
-#[derive(Clone, Debug, Eq)]
-pub enum RString {
-    Constant(&'static str),
-    Heap(Rc<String>),
-}
-
-impl RString {
-    /// The empty string.
-    pub const EMPTY: Self = RString::Constant("");
-}
-
-impl From<&'static str> for RString {
-    fn from(value: &'static str) -> Self {
-        RString::Constant(value)
-    }
-}
-
-impl From<String> for RString {
-    fn from(value: String) -> Self {
-        RString::Heap(Rc::new(value.into()))
-    }
-}
-
-impl Deref for RString {
-    type Target = str;
-
-    fn deref(&self) -> &str {
+impl fmt::Debug for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &RString::Constant(s) => s,
-            &RString::Heap(ref ptr) => ptr.as_ref(),
+            &Value::Nil => write!(f, "nil"),
+            &Value::Number(number) => write!(f, "{}", number),
+            &Value::String(ref string) => write!(f, "\"{}\"", string),
+            &Value::List(_) => write!(f, "<list>"),
+            &Value::Table(_) => write!(f, "<table>"),
+            &Value::Block(_) => write!(f, "<block>"),
+            &Value::ForeignFunction(_) => write!(f, "<function>"),
         }
-    }
-}
-
-impl AsRef<str> for RString {
-    fn as_ref(&self) -> &str {
-        &*self
-    }
-}
-
-impl Borrow<str> for RString {
-    fn borrow(&self) -> &str {
-        &*self
-    }
-}
-
-impl PartialEq for RString {
-    fn eq(&self, rhs: &RString) -> bool {
-        let lhs = self.as_ref();
-        let rhs = rhs.as_ref();
-
-        // First compare by address.
-        if lhs as *const _ == rhs as *const _ {
-            return true;
-        }
-
-        // Compare by string contents.
-        lhs == rhs
-    }
-}
-
-impl PartialEq<str> for RString {
-    fn eq(&self, rhs: &str) -> bool {
-        self.as_ref() == rhs
-    }
-}
-
-impl Hash for RString {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.as_ref().hash(state);
-    }
-}
-
-/// Implementation of a "table". Tables are used like a map or object.
-///
-/// Only string keys are allowed.
-#[derive(Clone, Debug)]
-pub struct Table {
-    /// Internally a hashmap is used, but the implementation could vary.
-    ///
-    /// Unlike all other value types, tables are mutable, so we are using a cell here to implement that.
-    map: RefCell<HashMap<RString, Value>>,
-}
-
-impl Table {
-    /// Allocate a new table.
-    pub fn new() -> Self {
-        Table {
-            map: RefCell::new(HashMap::new()),
-        }
-    }
-
-    /// Get the value indexed by a key.
-    ///
-    /// If the key does not exist, `Nil` is returned.
-    pub fn get(&self, key: &str) -> Value {
-        self.map.borrow().get(key).cloned().unwrap_or(Value::Nil)
-    }
-
-    /// Set the value for a given key.
-    ///
-    /// If `Nil` is given as the value, the key is unset.
-    pub fn set<V: Into<Value>>(&mut self, key: &str, value: V) -> Option<Value> {
-        let value = value.into();
-
-        match value {
-            Value::Nil => self.map.borrow_mut().remove(key),
-            value => self.map.borrow_mut().insert(RString::from(String::from(key)), value),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn tables() {
-        let mut table = Table::new();
-
-        assert!(table.get("foo") == Value::Nil);
-        assert!(table.set("foo", "hello").is_none());
-        assert!(table.get("foo") == "hello");
-        assert!(table.get("foo") == Value::from("hello"));
     }
 }

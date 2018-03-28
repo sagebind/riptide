@@ -4,8 +4,10 @@ extern crate nix;
 extern crate utf8parse;
 
 mod ast;
+mod builtins;
 mod fd;
-mod runtime;
+mod interpreter;
+mod process;
 mod value;
 
 fn main() {
