@@ -1,38 +1,34 @@
+//! The Riptide runtime.
 use ast::*;
 use value::Value;
 use value::table::Table;
 
-pub type ForeignFunction = fn(&mut Interpreter, &[Value]) -> Result<Value, Exception>;
-
-pub struct Interpreter {
-    globals: Table,
-    stack: Vec<CallFrame>,
-}
-
-pub struct CallFrame {
-    pub args: Vec<Value>,
-    bindings: Table,
-}
+pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception>;
 
 #[derive(Clone, Debug)]
 pub struct Exception(Value);
 
-impl<V: Into<Value>> From<V> for Exception {
-    fn from(message: V) -> Self {
-        Exception(message.into())
-    }
+/// Holds all of the state of a Riptide runtime.
+pub struct Runtime {
+    /// Holds global variable bindings.
+    globals: Table,
+
+    /// Function call stack containing call frames.
+    call_stack: Vec<CallFrame>,
 }
 
-impl Interpreter {
+/// Contains information about the current function call.
+struct CallFrame {
+    args: Vec<Value>,
+    bindings: Table,
+}
+
+impl Runtime {
     pub fn new() -> Self {
         Self {
             globals: Table::new(),
-            stack: Vec::new(),
+            call_stack: Vec::new(),
         }
-    }
-
-    pub fn frame(&self) -> &CallFrame {
-        self.stack.first().unwrap()
     }
 
     pub fn get_global(&self, name: &str) -> Value {
@@ -43,7 +39,10 @@ impl Interpreter {
         self.globals.set(name, value);
     }
 
-    pub fn execute(&mut self, expr: Expr) -> Result<Value, Exception> {
+    /// Evaluate the given expression, returning the result.
+    ///
+    /// This function is re-entrant.
+    pub fn evaluate(&mut self, expr: Expr) -> Result<Value, Exception> {
         match expr {
             Expr::String(string) => Ok(Value::from(string)),
 
@@ -53,49 +52,47 @@ impl Interpreter {
             Expr::Block(block) => Ok(Value::from(block)),
 
             Expr::Call(call) => {
-                let mut function = self.execute(*call.function)?;
+                let mut function = self.evaluate(*call.function)?;
 
                 let mut args = Vec::with_capacity(call.args.len());
                 for expr in call.args {
-                    args.push(self.execute(expr)?);
+                    args.push(self.evaluate(expr)?);
                 }
 
-                // If the function is a string, resolve binding names first before we try to execute the item as a function.
-                if let Some(mut value) = function.as_string().and_then(|name| self.binding_lookup(name)) {
+                // If the function is a string, resolve binding names first before we try to eval the item as a function.
+                if let Some(mut value) = function.as_string().and_then(|name| self.resolve(name)) {
                     function = value;
                 }
 
-                self.stack.push(CallFrame {
-                    args: args,
-                    bindings: Table::new(),
-                });
-
                 // Execute the function.
-                let return_value = match function {
+                match function {
                     Value::Block(block) => {
+                        self.call_stack.push(CallFrame {
+                            args: args,
+                            bindings: Table::new(),
+                        });
+
                         let mut r = Value::Nil;
 
                         for statement in block.statements.iter().rev() {
-                            r = self.execute(statement.clone())?;
+                            r = self.evaluate(statement.clone())?;
                         }
 
-                        r
-                    },
-                    Value::ForeignFunction(f) => f(self, &self.stack.last().unwrap().args)?,
-                    _ => {
-                        return Err(Exception::from(format!("cannot execute {:?} as a function", function)));
-                    },
-                };
+                        self.call_stack.pop();
 
-                self.stack.pop();
-
-                Ok(return_value)
+                        Ok(r)
+                    },
+                    Value::ForeignFunction(f) => {
+                        f(self, &args)
+                    },
+                    _ => Err(Exception(Value::from(format!("cannot execute {:?} as a function", function)))),
+                }
             },
         }
     }
 
-    fn binding_lookup(&self, name: &str) -> Option<Value> {
-        for frame in self.stack.iter().rev() {
+    fn resolve(&self, name: &str) -> Option<Value> {
+        for frame in self.call_stack.iter().rev() {
             let value = frame.bindings.get(name);
 
             if value != Value::Nil {
@@ -119,9 +116,9 @@ mod tests {
 
     #[test]
     fn basic() {
-        let mut interpreter = Interpreter::new();
+        let mut runtime = Runtime::new();
 
-        interpreter.execute(Expr::Call(Call {
+        runtime.evaluate(Expr::Call(Call {
             function: Box::new(Expr::String("println".into())),
             args: vec![
                 Expr::String("hello".into()),

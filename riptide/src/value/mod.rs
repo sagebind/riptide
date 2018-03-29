@@ -1,6 +1,6 @@
 //! Structures and implementations of the built-in data types.
 use ast;
-use interpreter::ForeignFunction;
+use runtime::ForeignFunction;
 use std::fmt;
 use std::rc::Rc;
 use self::string::RString;

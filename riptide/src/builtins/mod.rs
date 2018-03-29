@@ -1,25 +1,10 @@
-use interpreter::*;
+use runtime::*;
 use process;
 use value::*;
 
-pub fn builtin(interpreter: &mut Interpreter, args: &[Value]) -> Result<Value, Exception> {
-    let name = match args.first() {
-        Some(&Value::String(ref s)) => s,
-        _ => return Err(Exception::from("builtin name is required")),
-    };
-
-    let args = &args[1..];
-
-    match name.as_ref() {
-        "print" => print(interpreter, args),
-        "println" => println(interpreter, args),
-        _ => return Err(Exception::from(format!("unknown builtin \"{}\"", name))),
-    }
-}
-
-pub fn spawn(interpreter: &mut Interpreter) -> Result<Value, Exception> {
+pub fn spawn(interpreter: &mut Runtime) -> Result<Value, Exception> {
     let pid = process::spawn(|| {
-        let child_interpreter = Interpreter::new();
+        let child_interpreter = Runtime::new();
         // child_interpreter.execute(Exp)
     }).unwrap();
 
@@ -30,7 +15,7 @@ pub fn command() {}
 
 pub fn exec() {}
 
-pub fn print(_: &mut Interpreter, args: &[Value]) -> Result<Value, Exception> {
+pub fn print(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     for arg in args.iter() {
         print!("{}", arg.to_string());
     }
@@ -38,11 +23,15 @@ pub fn print(_: &mut Interpreter, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
-pub fn println(_: &mut Interpreter, args: &[Value]) -> Result<Value, Exception> {
+pub fn println(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     for arg in args.iter() {
         println!("{}", arg.to_string());
     }
 
+    Ok(Value::Nil)
+}
+
+pub fn require() -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
@@ -53,10 +42,10 @@ mod tests {
 
     #[test]
     fn test_println() {
-        let mut interpreter = Interpreter::new();
+        let mut interpreter = Runtime::new();
         interpreter.set_global("println", println as ForeignFunction);
 
-        interpreter.execute(Expr::Call(Call {
+        interpreter.evaluate(Expr::Call(Call {
             function: Box::new(Expr::String("println".into())),
             args: vec![Expr::String("hello world".into())],
         })).unwrap();

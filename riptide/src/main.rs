@@ -6,8 +6,9 @@ extern crate utf8parse;
 mod ast;
 mod builtins;
 mod fd;
-mod interpreter;
+mod runtime;
 mod process;
+mod scope;
 mod value;
 
 fn main() {
