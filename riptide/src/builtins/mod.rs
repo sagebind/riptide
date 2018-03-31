@@ -1,8 +1,11 @@
-use runtime::*;
 use process;
-use value::*;
+use runtime::*;
+use runtime::value::*;
 
-pub fn spawn(interpreter: &mut Runtime) -> Result<Value, Exception> {
+/// Spawns a new child process and executes a given block in it.
+///
+/// Returns the child process PID.
+pub fn spawn(interpreter: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     let pid = process::spawn(|| {
         let child_interpreter = Runtime::new();
         // child_interpreter.execute(Exp)
@@ -11,9 +14,19 @@ pub fn spawn(interpreter: &mut Runtime) -> Result<Value, Exception> {
     Ok(Value::Number(pid as f64))
 }
 
-pub fn command() {}
+/// Executes a shell command in the foreground, waiting for it to complete.
+///
+/// Returns the process exit code.
+pub fn command(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+    unimplemented!();
+}
 
-pub fn exec() {}
+/// Executes a shell command, replacing the current process with the new process.
+///
+/// Does not return.
+pub fn exec(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+    unimplemented!();
+}
 
 pub fn print(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     for arg in args.iter() {
@@ -31,8 +44,8 @@ pub fn println(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
-pub fn require() -> Result<Value, Exception> {
-    Ok(Value::Nil)
+pub fn require(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+    unimplemented!();
 }
 
 #[cfg(test)]
@@ -42,10 +55,10 @@ mod tests {
 
     #[test]
     fn test_println() {
-        let mut interpreter = Runtime::new();
-        interpreter.set_global("println", println as ForeignFunction);
+        let mut runtime = Runtime::new();
+        runtime.set_global("println", println as ForeignFunction);
 
-        interpreter.evaluate(Expr::Call(Call {
+        runtime.evaluate(Expr::Call(Call {
             function: Box::new(Expr::String("println".into())),
             args: vec![Expr::String("hello world".into())],
         })).unwrap();

@@ -4,7 +4,7 @@
 /// Abstract representation of an expression.
 ///
 /// Contains a variant for each different expression type.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Expr {
     /// A string literal that may have variable expansions in it.
     ExpandableString(String),
@@ -20,7 +20,7 @@ pub enum Expr {
 }
 
 /// A function call.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Call {
     /// The function to invoke. Could be a binding name or a block.
     pub function: Box<Expr>,
@@ -30,7 +30,7 @@ pub struct Call {
 }
 
 /// A function block.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Block {
     pub statements: Vec<Expr>,
 }

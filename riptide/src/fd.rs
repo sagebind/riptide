@@ -1,7 +1,4 @@
 //! File descriptor and pipe utilities.
-use mio::{Poll, PollOpt, Ready, Token};
-use mio::event::Evented;
-use mio::unix::EventedFd;
 use nix::unistd;
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -57,31 +54,6 @@ impl Clone for ReadPipe {
     }
 }
 
-impl Evented for ReadPipe {
-    fn register(
-        &self,
-        poll: &Poll,
-        token: Token,
-        interest: Ready,
-        opts: PollOpt,
-    ) -> io::Result<()> {
-        EventedFd(&self.as_raw_fd()).register(poll, token, interest, opts)
-    }
-
-    fn reregister(
-        &self,
-        poll: &Poll,
-        token: Token,
-        interest: Ready,
-        opts: PollOpt,
-    ) -> io::Result<()> {
-        EventedFd(&self.as_raw_fd()).reregister(poll, token, interest, opts)
-    }
-
-    fn deregister(&self, poll: &Poll) -> io::Result<()> {
-        EventedFd(&self.as_raw_fd()).deregister(poll)
-    }
-}
 /// A writable pipe. This is the type used for stdout and stderr.
 pub struct WritePipe(File);
 
@@ -116,31 +88,5 @@ impl IntoRawFd for WritePipe {
 impl Clone for WritePipe {
     fn clone(&self) -> Self {
         WritePipe(self.0.try_clone().expect("failed to duplicate pipe"))
-    }
-}
-
-impl Evented for WritePipe {
-    fn register(
-        &self,
-        poll: &Poll,
-        token: Token,
-        interest: Ready,
-        opts: PollOpt,
-    ) -> io::Result<()> {
-        EventedFd(&self.as_raw_fd()).register(poll, token, interest, opts)
-    }
-
-    fn reregister(
-        &self,
-        poll: &Poll,
-        token: Token,
-        interest: Ready,
-        opts: PollOpt,
-    ) -> io::Result<()> {
-        EventedFd(&self.as_raw_fd()).reregister(poll, token, interest, opts)
-    }
-
-    fn deregister(&self, poll: &Poll) -> io::Result<()> {
-        EventedFd(&self.as_raw_fd()).deregister(poll)
     }
 }

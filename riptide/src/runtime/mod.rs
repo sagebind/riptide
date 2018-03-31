@@ -1,7 +1,9 @@
 //! The Riptide runtime.
 use ast::*;
-use value::Value;
-use value::table::Table;
+use self::value::Value;
+use self::value::table::Table;
+
+pub mod value;
 
 pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception>;
 
