@@ -10,6 +10,7 @@ use ast::*;
 use std::io::Read;
 use self::scanner::*;
 
+mod lexer;
 mod scanner;
 
 /// Describes an error that occured in parsing.
@@ -34,42 +35,187 @@ impl<R: Read> Parser<R> {
         }
     }
 
-    pub fn parse(mut self) -> Result<Expr, ParseError> {
-        self.parse_block()
+    pub fn parse(mut self) -> Result<Block, ParseError> {
+        Ok(Block {
+            named_params: None,
+            statements: self.parse_statement_list()?,
+        })
     }
 
-    fn parse_block(&mut self) -> Result<Expr, ParseError> {
+    fn parse_statement_list(&mut self) -> Result<Vec<Pipeline>, ParseError> {
+        let mut statements = Vec::new();
+
+        // loop {
+        //     self.skip_whitespace();
+        // }
+
+        Ok(statements)
+    }
+
+    fn parse_statement(&mut self) -> Result<Pipeline, ParseError> {
+        self.parse_pipeline()
+    }
+
+    fn parse_pipeline(&mut self) -> Result<Pipeline, ParseError> {
         unimplemented!();
+    }
+
+    fn parse_function_call(&mut self) -> Result<Call, ParseError> {
+        let function = self.parse_expression()?;
+        let mut args = Vec::new();
+
+        // loop {}
+
+        Ok(Call {
+            function: Box::new(function),
+            args: args,
+        })
     }
 
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
         match self.scanner.peek() {
-            Some(b'{') => {
-                self.scanner.advance();
-                let block = self.parse_block()?;
-                self.expect(b'}')?;
-
-                Ok(block)
-            },
-            Some(b'(') => {
-                self.scanner.advance();
-                let expr = self.parse_expression()?;
-                self.expect(b')')?;
-
-                Ok(expr)
-            },
-            _ => {
-                unimplemented!();
-            },
+            Some(b'{') => self.parse_block_expr(),
+            Some(b'[') => self.parse_block_expr(),
+            Some(b'(') => self.parse_pipeline_expr(),
+            _ => self.parse_string(),
         }
     }
 
-    fn parse_string(&mut self) -> Result<Expr, ParseError> {
-        unimplemented!();
+    fn parse_block_expr(&mut self) -> Result<Expr, ParseError> {
+        let named_params = match self.scanner.peek() {
+            Some(b'[') => Some(self.parse_block_params()?),
+            _ => None,
+        };
+
+        let statements = self.parse_block_body()?;
+
+        Ok(Expr::Block(Block {
+            named_params: named_params,
+            statements: statements,
+        }))
     }
 
-    fn parse_pipeline(&mut self) -> Result<Expr, ParseError> {
-        unimplemented!();
+    fn parse_block_params(&mut self) -> Result<Vec<String>, ParseError> {
+        self.expect(b'[')?;
+        let mut params = Vec::new();
+
+        loop {
+            self.skip_horizontal_whitespace();
+
+            match self.scanner.peek() {
+                // End parameter list
+                Some(b']') => {
+                    self.scanner.advance();
+                    break;
+                },
+
+                // Another param
+                _ => params.push(self.parse_bare_string()?),
+            }
+        }
+
+        Ok(params)
+    }
+
+    fn parse_block_body(&mut self) -> Result<Vec<Pipeline>, ParseError> {
+        self.expect(b'{')?;
+        let statements = self.parse_statement_list()?;
+        self.expect(b'}')?;
+
+        Ok(statements)
+    }
+
+    fn parse_pipeline_expr(&mut self) -> Result<Expr, ParseError> {
+        self.expect(b'(')?;
+        let pipeline = self.parse_pipeline()?;
+        self.expect(b')')?;
+
+        Ok(Expr::Call(call))
+    }
+
+    fn parse_string(&mut self) -> Result<Expr, ParseError> {
+        match self.scanner.peek() {
+            Some(b'\'') => self.parse_single_quoted_string(),
+            Some(b'"') => self.parse_double_quoted_string(),
+            _ => Ok(Expr::String(self.parse_bare_string()?)),
+        }
+    }
+
+    fn parse_bare_string(&mut self) -> Result<String, ParseError> {
+        let mut bytes = Vec::new();
+
+        while let Some(c) = self.scanner.peek() {
+            if is_unquoted_string_char(c) {
+                bytes.push(c);
+            } else {
+                break;
+            }
+        }
+
+        if bytes.is_empty() {
+            return Err(self.error("expected bare string"));
+        }
+
+        match String::from_utf8(bytes) {
+            Ok(string) => Ok(string),
+            Err(_) => Err(self.error("invalid utf8")),
+        }
+    }
+
+    fn parse_single_quoted_string(&mut self) -> Result<Expr, ParseError> {
+        self.expect(b'\'')?;
+        let mut bytes = Vec::new();
+
+        loop {
+            match self.advance_required()? {
+                // End of the string
+                b'\'' => break,
+
+                // Character escape
+                b'\\' => bytes.push(translate_escape(self.advance_required()?)),
+
+                // Normal character
+                c => bytes.push(c),
+            }
+        }
+
+        match String::from_utf8(bytes) {
+            Ok(string) => Ok(Expr::String(string)),
+            Err(_) => Err(self.error("invalid utf8")),
+        }
+    }
+
+    fn parse_double_quoted_string(&mut self) -> Result<Expr, ParseError> {
+        self.expect(b'"')?;
+        let mut bytes = Vec::new();
+
+        loop {
+            match self.advance_required()? {
+                // End of the string
+                b'"' => break,
+
+                // Character escape
+                b'\\' => bytes.push(translate_escape(self.advance_required()?)),
+
+                // Normal character
+                c => bytes.push(c),
+            }
+        }
+
+        match String::from_utf8(bytes) {
+            Ok(string) => Ok(Expr::String(string)),
+            Err(_) => Err(self.error("invalid utf8")),
+        }
+    }
+
+    fn skip_horizontal_whitespace(&mut self) {
+        while let Some(c) = self.scanner.peek() {
+            if is_horizontal_whitespace(c) {
+                self.scanner.advance();
+            } else {
+                break;
+            }
+        }
     }
 
     /// Consume and skip over any whitespace and comments.
@@ -100,6 +246,13 @@ impl<R: Read> Parser<R> {
         }
     }
 
+    fn advance_required(&mut self) -> Result<u8, ParseError> {
+        match self.scanner.advance() {
+            Some(byte) => Ok(byte),
+            None => Err(self.error("unexpected eof")),
+        }
+    }
+
     fn error<S: Into<String>>(&self, message: S) -> ParseError {
         ParseError {
             message: message.into(),
@@ -108,13 +261,24 @@ impl<R: Read> Parser<R> {
     }
 }
 
-/// Get the value corresponding to a given escape character.
-fn translate_escape(c: char) -> char {
+fn is_unquoted_string_char(c: u8) -> bool {
     match c {
-        '\\' => '\\',
-        'n' => '\n',
-        'r' => '\r',
-        't' => '\t',
+        b'_' | b'-' => true,
+        c => c.is_ascii_alphanumeric(),
+    }
+}
+
+fn is_horizontal_whitespace(c: u8) -> bool {
+    c == b' ' || c == b'\t'
+}
+
+/// Get the value corresponding to a given escape character.
+fn translate_escape(c: u8) -> u8 {
+    match c {
+        b'\\' => b'\\',
+        b'n' => b'\n',
+        b'r' => b'\r',
+        b't' => b'\t',
         _ => c, // interpret all other chars as their literal
     }
 }
@@ -130,7 +294,13 @@ mod tests {
         ");
 
         assert_eq!(parser.parse().unwrap(), Expr::Block(Block {
-            statements: vec![],
+            named_params: None,
+            statements: vec![
+                Expr::Call(Call {
+                    function: Box::new(Expr::String("hello world".into())),
+                    args: vec![],
+                })
+            ],
         }));
     }
 }

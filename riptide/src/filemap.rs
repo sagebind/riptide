@@ -22,12 +22,10 @@ impl Default for FilePos {
 
 /// Line-aware source file reader that can be read incrementally as a stream of bytes.
 pub struct FileMap {
-    /// The name of the file.
     name: Option<String>,
     pos: FilePos,
     next_byte: Option<u8>,
     source: FileSource,
-    // stream: Bytes<Box<Read>>,
 }
 
 enum FileSource {
@@ -87,7 +85,7 @@ impl FileMap {
                 } else {
                     Ok(None)
                 }
-            }
+            },
             FileSource::File(ref mut r) => match r.next() {
                 Some(Ok(b)) => Ok(Some(b)),
                 Some(Err(e)) => Err(e),

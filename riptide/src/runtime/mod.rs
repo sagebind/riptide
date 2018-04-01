@@ -126,6 +126,7 @@ mod tests {
                 Expr::String("hello".into()),
                 Expr::Call(Call {
                     function: Box::new(Expr::Block(Block {
+                        named_params: None,
                         statements: vec![
                             Expr::String("read".into()),
                         ],
