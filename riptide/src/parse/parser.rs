@@ -1,0 +1,184 @@
+//! The language parser.
+//!
+//! This is a handwritten, recursive descent parser. This is done both for speed
+//! and simplicity, since the language syntax is relatively simple anyway.
+//!
+//! Thanks to the source, the parser can actually read and parse a file of
+//! theoretically infinite size incrementally (other than memory limits on
+//! storing the resulting AST).
+use ast::*;
+use super::Peekable;
+use super::lexer::*;
+
+/// Describes an error that occured in parsing.
+#[derive(Debug)]
+pub struct ParseError {
+    /// The error message. This is a string instead of an enum because the
+    /// messages can be highly specific.
+    pub message: String,
+
+    /// The position in the source the error occurred in.
+    pub pos: SourcePos,
+}
+
+pub struct Parser {
+    lexer: Peekable<Lexer>,
+}
+
+impl Parser {
+    pub fn new(lexer: Lexer) -> Self {
+        Self {
+            lexer: Peekable::new(lexer),
+        }
+    }
+
+    pub fn parse(mut self) -> Result<Block, ParseError> {
+        Ok(Block {
+            named_params: None,
+            statements: self.parse_statement_list()?,
+        })
+    }
+
+    fn parse_statement_list(&mut self) -> Result<Vec<Pipeline>, ParseError> {
+        let statements = Vec::new();
+
+        // loop {
+        //     self.skip_whitespace();
+        // }
+
+        Ok(statements)
+    }
+
+    fn parse_statement(&mut self) -> Result<Pipeline, ParseError> {
+        self.parse_pipeline()
+    }
+
+    fn parse_pipeline(&mut self) -> Result<Pipeline, ParseError> {
+        unimplemented!();
+    }
+
+    fn parse_function_call(&mut self) -> Result<Call, ParseError> {
+        let function = self.parse_expression()?;
+        let args = Vec::new();
+
+        // loop {}
+
+        Ok(Call {
+            function: Box::new(function),
+            args: args,
+        })
+    }
+
+    fn parse_expression(&mut self) -> Result<Expr, ParseError> {
+        match self.lexer.peek() {
+            Some(&Token::LeftBrace) => self.parse_block_expr(),
+            Some(&Token::LeftBracket) => self.parse_block_expr(),
+            Some(&Token::LeftParen) => self.parse_pipeline_expr(),
+            _ => self.parse_string(),
+        }
+    }
+
+    fn parse_block_expr(&mut self) -> Result<Expr, ParseError> {
+        let named_params = match self.lexer.peek() {
+            Some(&Token::LeftBracket) => Some(self.parse_block_params()?),
+            _ => None,
+        };
+
+        let statements = self.parse_block_body()?;
+
+        Ok(Expr::Block(Block {
+            named_params: named_params,
+            statements: statements,
+        }))
+    }
+
+    fn parse_block_params(&mut self) -> Result<Vec<String>, ParseError> {
+        self.expect(Token::LeftBracket)?;
+        let mut params = Vec::new();
+
+        loop {
+            match self.lexer.next() {
+                Some(Token::RightBracket) => break,
+                Some(Token::String(s)) => params.push(s),
+                token => return Err(self.error(format!("unexpected token: {:?}", token))),
+            }
+        }
+
+        Ok(params)
+    }
+
+    fn parse_block_body(&mut self) -> Result<Vec<Pipeline>, ParseError> {
+        self.expect(Token::LeftBrace)?;
+        let statements = self.parse_statement_list()?;
+        self.expect(Token::RightBrace)?;
+
+        Ok(statements)
+    }
+
+    fn parse_pipeline_expr(&mut self) -> Result<Expr, ParseError> {
+        self.expect(Token::LeftParen)?;
+        let pipeline = self.parse_pipeline()?;
+        self.expect(Token::RightParen)?;
+
+        Ok(Expr::Pipeline(pipeline))
+    }
+
+    fn parse_string(&mut self) -> Result<Expr, ParseError> {
+        match self.lexer.next() {
+            Some(Token::String(s)) => Ok(Expr::String(s)),
+            Some(Token::DoubleQuotedString(s)) => Ok(Expr::ExpandableString(s)),
+            _ => Err(self.error("expected string")),
+        }
+    }
+
+    fn expect(&mut self, token: Token) -> Result<(), ParseError> {
+        if self.lexer.next().as_ref() == Some(&token) {
+            Ok(())
+        } else {
+            Err(self.error(format!("expected token: {:?}", token)))
+        }
+    }
+
+    fn advance_required(&mut self) -> Result<Token, ParseError> {
+        match self.lexer.next() {
+            Some(token) => Ok(token),
+            None => Err(self.error("unexpected eof")),
+        }
+    }
+
+    fn error<S: Into<String>>(&self, message: S) -> ParseError {
+        ParseError {
+            message: message.into(),
+            pos: self.lexer.as_ref().pos().clone(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use filemap::FileMap;
+    use super::*;
+
+    #[test]
+    fn parse_string() {
+        let file = FileMap::buffer(None, "
+            'hello world'
+        ");
+        let lexer = Lexer::new(file);
+        let parser = Parser::new(lexer);
+
+        assert_eq!(parser.parse().unwrap(), Block {
+            named_params: None,
+            statements: vec![
+                Pipeline {
+                    items: vec![
+                        Call {
+                            function: Box::new(Expr::String("hello world".into())),
+                            args: vec![],
+                        }
+                    ]
+                }
+            ],
+        });
+    }
+}

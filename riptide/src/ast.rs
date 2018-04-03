@@ -1,6 +1,6 @@
 //! Abstract syntax tree.
 
-/// A function block.
+/// A function block, containing a list of pipelines to execute.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Block {
     /// A list of named parameters.
@@ -11,6 +11,7 @@ pub struct Block {
 }
 
 /// A pipeline of function calls.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Pipeline {
     pub items: Vec<Call>,
 }
@@ -30,15 +31,8 @@ pub struct Call {
 /// Contains a variant for each different expression type.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Expr {
-    /// A string literal that may have variable expansions in it.
     ExpandableString(String),
-
-    /// A string literal.
     String(String),
-
-    /// A function call.
-    Call(Call),
-
-    /// A function block, containing a list of expressions to execute.
     Block(Block),
+    Pipeline(Pipeline),
 }

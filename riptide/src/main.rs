@@ -2,11 +2,11 @@
 extern crate nix;
 
 mod ast;
-mod builtins;
+// mod builtins;
 mod filemap;
-mod parser;
+mod parse;
 mod process;
-mod runtime;
+// mod runtime;
 
 fn main() {
 }
