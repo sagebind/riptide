@@ -1,22 +1,6 @@
 /// Splits a source file into a stream of tokens.
 use filemap::*;
-use std::iter::Peekable;
-
-/// A reference to a location in a source file. Useful for error messages.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct SourcePos {
-    /// The line number. Begins at 1.
-    pub line: u32,
-
-    /// The column position in the current line. Begins at 1.
-    pub column: u32,
-}
-
-impl Default for SourcePos {
-    fn default() -> SourcePos {
-        SourcePos { line: 1, column: 1 }
-    }
-}
+use super::SourcePos;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Token {
@@ -26,16 +10,16 @@ pub enum Token {
     RightBrace,
     LeftBracket,
     RightBracket,
+    Semicolon,
     Pipe,
     Deref,
     DoubleQuotedString(String),
     String(String),
     EndOfLine,
-    EndOfFile,
 }
 
 pub struct Lexer {
-    file: Peekable<FileMap>,
+    file: FileMap,
     pos: SourcePos,
     peeked: Option<Token>,
 }
@@ -44,7 +28,7 @@ impl Lexer {
     /// Create a new lexer for the given file.
     pub fn new(file: FileMap) -> Lexer {
         Lexer {
-            file: file.peekable(),
+            file: file,
             pos: SourcePos::default(),
             peeked: None,
         }
@@ -54,19 +38,49 @@ impl Lexer {
     pub fn pos(&self) -> &SourcePos {
         &self.pos
     }
-}
 
-impl Iterator for Lexer {
-    type Item = Token;
+    /// Peek at the next token, if any, in the source.
+    pub fn peek(&mut self) -> Option<&Token> {
+        if self.peeked.is_none() {
+            self.peeked = self.lex();
+        }
+        self.peeked.as_ref()
+    }
 
-    fn next(&mut self) -> Option<Token> {
-        while let Some(byte) = self.file.next() {
+    /// Advance to the next token in the source.
+    pub fn advance(&mut self) -> Option<Token> {
+        match self.peeked.take() {
+            Some(token) => Some(token),
+            None => self.lex(),
+        }
+    }
+
+    fn next_byte(&mut self) -> Option<u8> {
+        match self.file.advance() {
+            Some(b'\n') => {
+                self.pos.line += 1;
+                self.pos.column = 1;
+                Some(b'\n')
+            },
+            Some(byte) => {
+                self.pos.column += 1;
+                Some(byte)
+            },
+            None => None,
+        }
+    }
+
+    fn lex(&mut self) -> Option<Token> {
+        while let Some(byte) = self.next_byte() {
             return Some(match byte {
                 // Simple one-character tokens.
                 b'(' => Token::LeftParen,
                 b')' => Token::RightParen,
                 b'{' => Token::LeftBrace,
                 b'}' => Token::RightBrace,
+                b'[' => Token::LeftBracket,
+                b']' => Token::RightBracket,
+                b';' => Token::Semicolon,
                 b'|' => Token::Pipe,
                 b'$' => Token::Deref,
 
@@ -77,8 +91,8 @@ impl Iterator for Lexer {
                 b'#' => {
                     loop {
                         match self.file.peek() {
-                            Some(&b'\r') | Some(&b'\n') => break,
-                            _ => self.file.next(),
+                            Some(b'\r') | Some(b'\n') => break,
+                            _ => self.next_byte(),
                         };
                     }
                     continue;
@@ -88,8 +102,8 @@ impl Iterator for Lexer {
                 // newline token: \r \r\n \n
                 b'\n' => Token::EndOfLine,
                 b'\r' => {
-                    if self.file.peek() == Some(&b'\n') {
-                        self.file.next();
+                    if self.file.peek() == Some(b'\n') {
+                        self.next_byte();
                     }
                     Token::EndOfLine
                 },
@@ -99,15 +113,15 @@ impl Iterator for Lexer {
                     let mut bytes = Vec::new();
 
                     loop {
-                        match self.file.next() {
+                        match self.next_byte() {
                             // End of the string.
                             Some(b'\'') => break,
 
                             // The only character escapes recognized in a single qouted string is \' and \\, so for all
                             // other characters we just proceed as normal.
-                            Some(b'\\') => match self.file.peek().cloned() {
+                            Some(b'\\') => match self.file.peek() {
                                 Some(b'\'') | Some(b'\\') => {
-                                    bytes.push(self.file.next().unwrap());
+                                    bytes.push(self.next_byte().unwrap());
                                 },
                                 _ => bytes.push(b'\\'),
                             },
@@ -127,12 +141,12 @@ impl Iterator for Lexer {
                     let mut bytes = Vec::new();
 
                     loop {
-                        match self.file.next() {
+                        match self.file.advance() {
                             // End of the string
                             Some(b'"') => break,
 
                             // Character escape
-                            Some(b'\\') => bytes.push(translate_escape(self.file.next().unwrap())),
+                            Some(b'\\') => bytes.push(translate_escape(self.next_byte().unwrap())),
 
                             // Normal character
                             Some(byte) => bytes.push(byte),
@@ -149,12 +163,12 @@ impl Iterator for Lexer {
                     let mut bytes = Vec::new();
                     bytes.push(byte);
 
-                    while let Some(byte) = self.file.peek().cloned() {
+                    while let Some(byte) = self.file.peek() {
                         if is_whitespace(byte) {
                             break;
                         }
 
-                        self.file.next();
+                        self.next_byte();
                         bytes.push(byte);
                     }
 
@@ -208,7 +222,7 @@ mod tests {
                 use $crate::parse::lexer::Token::*;
                 let mut lexer = Lexer::new(FileMap::buffer(None, $source));
                 $(
-                    assert_eq!(lexer.next().unwrap(), $token);
+                    assert_eq!(lexer.advance().unwrap(), $token);
                 )*
             })*
         };

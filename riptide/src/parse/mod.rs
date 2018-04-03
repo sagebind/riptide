@@ -1,48 +1,43 @@
+use ast::Block;
+use filemap::FileMap;
+
 mod lexer;
-pub mod parser;
+mod parser;
 
-/// Helper struct that provides the ability to peek from an iterator.
-#[derive(Clone, Debug)]
-pub struct Peekable<I: Iterator> {
-    iter: I,
-    peeked: Option<Option<I::Item>>,
+/// A reference to a location in a source file. Useful for error messages.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SourcePos {
+    /// The line number. Begins at 1.
+    pub line: u32,
+
+    /// The column position in the current line. Begins at 1.
+    pub column: u32,
 }
 
-impl<I: Iterator> Peekable<I> {
-    pub fn new(iter: I) -> Self {
+impl Default for SourcePos {
+    fn default() -> Self {
         Self {
-            iter: iter,
-            peeked: None,
-        }
-    }
-
-    #[inline]
-    pub fn peek(&mut self) -> Option<&I::Item> {
-        if self.peeked.is_none() {
-            self.peeked = Some(self.iter.next());
-        }
-        match self.peeked {
-            Some(Some(ref value)) => Some(value),
-            Some(None) => None,
-            _ => unreachable!(),
+            line: 1,
+            column: 1,
         }
     }
 }
 
-impl<I: Iterator> AsRef<I> for Peekable<I> {
-    fn as_ref(&self) -> &I {
-        &self.iter
-    }
+/// Describes an error that occured in parsing.
+#[derive(Debug)]
+pub struct ParseError {
+    /// The error message. This is a string instead of an enum because the
+    /// messages can be highly specific.
+    pub message: String,
+
+    /// The position in the source the error occurred in.
+    pub pos: SourcePos,
 }
 
-impl<I: Iterator> Iterator for Peekable<I> {
-    type Item = I::Item;
+/// Attempts to parse a source file into an abstract syntax tree.
+pub fn parse(file: FileMap) -> Result<Block, ParseError> {
+    let lexer = lexer::Lexer::new(file);
+    let mut parser = parser::Parser::new(lexer);
 
-    #[inline]
-    fn next(&mut self) -> Option<I::Item> {
-        match self.peeked.take() {
-            Some(v) => v,
-            None => self.iter.next(),
-        }
-    }
+    parser.parse_file()
 }

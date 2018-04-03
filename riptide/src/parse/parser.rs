@@ -2,59 +2,54 @@
 //!
 //! This is a handwritten, recursive descent parser. This is done both for speed
 //! and simplicity, since the language syntax is relatively simple anyway.
-//!
-//! Thanks to the source, the parser can actually read and parse a file of
-//! theoretically infinite size incrementally (other than memory limits on
-//! storing the resulting AST).
 use ast::*;
-use super::Peekable;
+use super::ParseError;
 use super::lexer::*;
 
-/// Describes an error that occured in parsing.
-#[derive(Debug)]
-pub struct ParseError {
-    /// The error message. This is a string instead of an enum because the
-    /// messages can be highly specific.
-    pub message: String,
-
-    /// The position in the source the error occurred in.
-    pub pos: SourcePos,
-}
-
 pub struct Parser {
-    lexer: Peekable<Lexer>,
+    lexer: Lexer,
 }
 
 impl Parser {
     pub fn new(lexer: Lexer) -> Self {
         Self {
-            lexer: Peekable::new(lexer),
+            lexer: lexer,
         }
     }
 
-    pub fn parse(mut self) -> Result<Block, ParseError> {
+    pub fn parse_file(&mut self) -> Result<Block, ParseError> {
+        let mut statements = Vec::new();
+
+        loop {
+            match self.lexer.peek() {
+                Some(&Token::EndOfLine) | Some(&Token::Semicolon) => {
+                    self.lexer.advance();
+                },
+                Some(_) => {
+                    statements.push(self.parse_pipeline()?);
+                },
+                None => break,
+            }
+        }
+
         Ok(Block {
             named_params: None,
-            statements: self.parse_statement_list()?,
+            statements: statements,
         })
     }
 
-    fn parse_statement_list(&mut self) -> Result<Vec<Pipeline>, ParseError> {
-        let statements = Vec::new();
-
-        // loop {
-        //     self.skip_whitespace();
-        // }
-
-        Ok(statements)
-    }
-
-    fn parse_statement(&mut self) -> Result<Pipeline, ParseError> {
-        self.parse_pipeline()
-    }
-
     fn parse_pipeline(&mut self) -> Result<Pipeline, ParseError> {
-        unimplemented!();
+        let mut calls = Vec::new();
+        calls.push(self.parse_function_call()?);
+
+        while self.lexer.peek() == Some(&Token::Pipe) {
+            self.lexer.advance();
+            calls.push(self.parse_function_call()?);
+        }
+
+        Ok(Pipeline {
+            items: calls,
+        })
     }
 
     fn parse_function_call(&mut self) -> Result<Call, ParseError> {
@@ -97,7 +92,7 @@ impl Parser {
         let mut params = Vec::new();
 
         loop {
-            match self.lexer.next() {
+            match self.lexer.advance() {
                 Some(Token::RightBracket) => break,
                 Some(Token::String(s)) => params.push(s),
                 token => return Err(self.error(format!("unexpected token: {:?}", token))),
@@ -109,8 +104,19 @@ impl Parser {
 
     fn parse_block_body(&mut self) -> Result<Vec<Pipeline>, ParseError> {
         self.expect(Token::LeftBrace)?;
-        let statements = self.parse_statement_list()?;
-        self.expect(Token::RightBrace)?;
+
+        let mut statements = Vec::new();
+
+        loop {
+            match self.lexer.peek() {
+                Some(&Token::RightBrace) => {
+                    self.lexer.advance();
+                    break;
+                },
+                Some(_) => statements.push(self.parse_pipeline()?),
+                None => return Err(self.error("unterminated block")),
+            }
+        }
 
         Ok(statements)
     }
@@ -124,15 +130,15 @@ impl Parser {
     }
 
     fn parse_string(&mut self) -> Result<Expr, ParseError> {
-        match self.lexer.next() {
+        match self.lexer.advance() {
             Some(Token::String(s)) => Ok(Expr::String(s)),
             Some(Token::DoubleQuotedString(s)) => Ok(Expr::ExpandableString(s)),
-            _ => Err(self.error("expected string")),
+            token => Err(self.error(format!("expected string, instead got {:?}", token))),
         }
     }
 
     fn expect(&mut self, token: Token) -> Result<(), ParseError> {
-        if self.lexer.next().as_ref() == Some(&token) {
+        if self.lexer.advance().as_ref() == Some(&token) {
             Ok(())
         } else {
             Err(self.error(format!("expected token: {:?}", token)))
@@ -140,7 +146,7 @@ impl Parser {
     }
 
     fn advance_required(&mut self) -> Result<Token, ParseError> {
-        match self.lexer.next() {
+        match self.lexer.advance() {
             Some(token) => Ok(token),
             None => Err(self.error("unexpected eof")),
         }
@@ -149,7 +155,7 @@ impl Parser {
     fn error<S: Into<String>>(&self, message: S) -> ParseError {
         ParseError {
             message: message.into(),
-            pos: self.lexer.as_ref().pos().clone(),
+            pos: self.lexer.pos().clone(),
         }
     }
 }
@@ -164,10 +170,9 @@ mod tests {
         let file = FileMap::buffer(None, "
             'hello world'
         ");
-        let lexer = Lexer::new(file);
-        let parser = Parser::new(lexer);
+        let mut parser = Parser::new(Lexer::new(file));
 
-        assert_eq!(parser.parse().unwrap(), Block {
+        assert_eq!(parser.parse_file().unwrap(), Block {
             named_params: None,
             statements: vec![
                 Pipeline {

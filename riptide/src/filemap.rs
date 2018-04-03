@@ -6,7 +6,7 @@ use std::path::Path;
 pub struct FileMap {
     name: Option<String>,
     buffer: Vec<u8>,
-    pos: usize,
+    offset: usize,
 }
 
 impl FileMap {
@@ -15,7 +15,7 @@ impl FileMap {
         Self {
             name: name.into(),
             buffer: buffer.into(),
-            pos: 0,
+            offset: 0,
         }
     }
 
@@ -40,15 +40,15 @@ impl FileMap {
             .map(String::as_str)
             .unwrap_or("<unknown>")
     }
-}
 
-impl Iterator for FileMap {
-    type Item = u8;
+    pub fn peek(&self) -> Option<u8> {
+        self.buffer.get(self.offset).cloned()
+    }
 
-    fn next(&mut self) -> Option<u8> {
-        match self.buffer.get(self.pos) {
+    pub fn advance(&mut self) -> Option<u8> {
+        match self.buffer.get(self.offset) {
             Some(byte) => {
-                self.pos += 1;
+                self.offset += 1;
                 Some(*byte)
             },
             None => None,
@@ -66,9 +66,9 @@ mod tests {
         let mut reader = FileMap::buffer(None, s);
 
         for expected in s.bytes() {
-            assert_eq!(reader.next(), Some(expected));
+            assert_eq!(reader.advance(), Some(expected));
         }
 
-        assert_eq!(reader.next(), None);
+        assert_eq!(reader.advance(), None);
     }
 }
