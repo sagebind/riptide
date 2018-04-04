@@ -5,5 +5,8 @@ authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "RipShell"
 
 [dependencies]
-lazy_static = "0.2"
-termion = "1.3"
+lazy_static = "1.0"
+termion = "1.5"
+
+[dependencies.riptide]
+path = "../riptide"

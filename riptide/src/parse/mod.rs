@@ -1,5 +1,6 @@
 use ast::Block;
 use filemap::FileMap;
+use std::fmt;
 
 mod lexer;
 mod parser;
@@ -32,6 +33,12 @@ pub struct ParseError {
 
     /// The position in the source the error occurred in.
     pub pos: SourcePos,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}: {}", self.pos.line, self.pos.column, self.message)
+    }
 }
 
 /// Attempts to parse a source file into an abstract syntax tree.
