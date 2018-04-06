@@ -1,5 +1,6 @@
 //! The Riptide runtime.
 use ast::*;
+use builtins;
 use self::value::Value;
 use self::value::table::Table;
 
@@ -33,6 +34,15 @@ impl Runtime {
         }
     }
 
+    pub fn with_stdlib() -> Self {
+        let mut runtime = Self::new();
+
+        runtime.set_global("print", Value::ForeignFunction(builtins::print));
+        runtime.set_global("println", Value::ForeignFunction(builtins::println));
+
+        runtime
+    }
+
     pub fn get_global(&self, name: &str) -> Value {
         self.globals.get(name)
     }
@@ -53,43 +63,59 @@ impl Runtime {
 
             Expr::Block(block) => Ok(Value::from(block)),
 
-            Expr::Call(call) => {
-                let mut function = self.evaluate(*call.function)?;
+            Expr::Pipeline(ref pipeline) => self.execute_pipeline(pipeline),
+        }
+    }
 
-                let mut args = Vec::with_capacity(call.args.len());
-                for expr in call.args {
-                    args.push(self.evaluate(expr)?);
-                }
+    /// Evaluate the given expression, returning the result.
+    ///
+    /// This function is re-entrant.
+    pub fn execute_block(&mut self, block: &Block, args: &[Value]) -> Result<Value, Exception> {
+        self.call_stack.push(CallFrame {
+            args: args.to_vec(),
+            bindings: Table::new(),
+        });
 
-                // If the function is a string, resolve binding names first before we try to eval the item as a function.
-                if let Some(mut value) = function.as_string().and_then(|name| self.resolve(name)) {
-                    function = value;
-                }
+        let mut r = Value::Nil;
 
-                // Execute the function.
-                match function {
-                    Value::Block(block) => {
-                        self.call_stack.push(CallFrame {
-                            args: args,
-                            bindings: Table::new(),
-                        });
+        for statement in block.statements.iter().rev() {
+            r = self.execute_pipeline(&statement)?;
+        }
 
-                        let mut r = Value::Nil;
+        self.call_stack.pop();
 
-                        for statement in block.statements.iter().rev() {
-                            r = self.evaluate(statement.clone())?;
-                        }
+        Ok(r)
+    }
 
-                        self.call_stack.pop();
+    fn execute_pipeline(&mut self, pipeline: &Pipeline) -> Result<Value, Exception> {
+        // If there's only one call in the pipeline, we don't need to fork and can just execute the function by itself.
+        if pipeline.items.len() == 1 {
+            self.execute_call(pipeline.items[0].clone())
+        } else {
+            Ok(Value::Nil)
+        }
+    }
 
-                        Ok(r)
-                    },
-                    Value::ForeignFunction(f) => {
-                        f(self, &args)
-                    },
-                    _ => Err(Exception(Value::from(format!("cannot execute {:?} as a function", function)))),
-                }
+    fn execute_call(&mut self, call: Call) -> Result<Value, Exception> {
+        let mut function = self.evaluate(*call.function)?;
+
+        let mut args = Vec::with_capacity(call.args.len());
+        for expr in call.args {
+            args.push(self.evaluate(expr)?);
+        }
+
+        // If the function is a string, resolve binding names first before we try to eval the item as a function.
+        if let Some(mut value) = function.as_string().and_then(|name| self.resolve(name)) {
+            function = value;
+        }
+
+        // Execute the function.
+        match function {
+            Value::Block(block) => self.execute_block(&block, &args),
+            Value::ForeignFunction(f) => {
+                f(self, &args)
             },
+            _ => Err(Exception(Value::from(format!("cannot execute {:?} as a function", function)))),
         }
     }
 

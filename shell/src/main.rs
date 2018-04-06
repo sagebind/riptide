@@ -7,6 +7,8 @@ mod editor;
 use riptide::fd;
 use riptide::filemap::FileMap;
 use riptide::parse::parse;
+use riptide::runtime::value::Value;
+use riptide::runtime::Runtime;
 use std::process;
 
 static mut EXIT_FLAG: bool = false;
@@ -23,14 +25,25 @@ fn main() {
     let stdin = fd::stdin();
 
     if stdin.is_tty() {
+        let mut runtime = Runtime::with_stdlib();
         let mut editor = editor::Editor::new();
 
         loop {
             let line = editor.read_line();
 
-            match parse(FileMap::buffer(Some("<input>".into()), line)) {
-                Ok(ast) => println!("ast: {:?}", ast),
-                Err(e) => eprintln!("error: {}", e),
+            if !line.is_empty() {
+                match parse(FileMap::buffer(Some("<input>".into()), line)) {
+                    Ok(ast) => {
+                        println!("ast: {:?}", ast);
+
+                        match runtime.execute_block(&ast, &[]) {
+                            Ok(Value::Nil) => {},
+                            Ok(value) => println!("{:?}", value),
+                            Err(e) => eprintln!("error: {:?}", e),
+                        }
+                    },
+                    Err(e) => eprintln!("error: {}", e),
+                }
             }
 
             unsafe {
