@@ -1,15 +1,23 @@
 extern crate riptide;
 extern crate termion;
 
+mod buffer;
 mod editor;
-mod prompt;
 
 use riptide::fd;
 use riptide::filemap::FileMap;
 use riptide::parse::parse;
 use std::process;
 
-pub static mut EXIT_CODE: i32 = 0;
+static mut EXIT_FLAG: bool = false;
+static mut EXIT_CODE: i32 = 0;
+
+pub fn exit(code: i32) {
+    unsafe {
+        EXIT_CODE = code;
+        EXIT_FLAG = true;
+    }
+}
 
 fn main() {
     let stdin = fd::stdin();
@@ -23,6 +31,12 @@ fn main() {
             match parse(FileMap::buffer(Some("<input>".into()), line)) {
                 Ok(ast) => println!("ast: {:?}", ast),
                 Err(e) => eprintln!("error: {}", e),
+            }
+
+            unsafe {
+                if EXIT_FLAG {
+                    break;
+                }
             }
         }
     }

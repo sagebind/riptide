@@ -10,12 +10,12 @@ pub enum Token {
     RightBrace,
     LeftBracket,
     RightBracket,
-    Semicolon,
+    StatementTerminator,
     Pipe,
     Deref,
     DoubleQuotedString(String),
     String(String),
-    EndOfLine,
+    LineTerminator,
 }
 
 pub struct Lexer {
@@ -80,9 +80,9 @@ impl Lexer {
                 b'}' => Token::RightBrace,
                 b'[' => Token::LeftBracket,
                 b']' => Token::RightBracket,
-                b';' => Token::Semicolon,
                 b'|' => Token::Pipe,
                 b'$' => Token::Deref,
+                b';' => Token::StatementTerminator,
 
                 // Ignore horizontal whitespace.
                 b' ' | 0x09 | 0x0c => continue,
@@ -100,12 +100,12 @@ impl Lexer {
 
                 // To handle newlines in a platform-generic way, any of the following sequences are treated as a single
                 // newline token: \r \r\n \n
-                b'\n' => Token::EndOfLine,
+                b'\n' => Token::LineTerminator,
                 b'\r' => {
                     if self.file.peek() == Some(b'\n') {
                         self.next_byte();
                     }
-                    Token::EndOfLine
+                    Token::LineTerminator
                 },
 
                 // Single-quoted string.

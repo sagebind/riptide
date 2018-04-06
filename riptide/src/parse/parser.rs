@@ -22,7 +22,7 @@ impl Parser {
 
         loop {
             match self.lexer.peek() {
-                Some(&Token::EndOfLine) | Some(&Token::Semicolon) => {
+                Some(&Token::LineTerminator) | Some(&Token::StatementTerminator) => {
                     self.lexer.advance();
                 },
                 Some(_) => {
@@ -54,9 +54,17 @@ impl Parser {
 
     fn parse_function_call(&mut self) -> Result<Call, ParseError> {
         let function = self.parse_expression()?;
-        let args = Vec::new();
+        let mut args = Vec::new();
 
-        // loop {}
+        loop {
+            match self.lexer.peek() {
+                Some(&Token::LineTerminator) => break,
+                Some(&Token::Pipe) => break,
+                Some(&Token::StatementTerminator) => break,
+                None => break,
+                _ => args.push(self.parse_expression()?),
+            }
+        }
 
         Ok(Call {
             function: Box::new(function),

@@ -1,11 +1,9 @@
-use prompt::Prompt;
+use buffer::Buffer;
 use riptide::fd::*;
 use std::borrow::Cow;
-use std::cmp;
-use std::fs::File;
 use std::io::{self, Write};
-use std::mem::swap;
 use std::os::unix::io::*;
+use super::exit;
 use termion::clear;
 use termion::cursor;
 use termion::event::Key;
@@ -20,7 +18,7 @@ pub struct Editor {
     stdin: ReadPipe,
     stdout: WritePipe,
     stderr: WritePipe,
-    prompt: Prompt,
+    buffer: Buffer,
     // Whether the command line needs redrawn.
     redraw_needed: bool,
 }
@@ -37,7 +35,7 @@ impl Editor {
             stderr: unsafe {
                 WritePipe::from_raw_fd(0)
             },
-            prompt: Prompt::new(),
+            buffer: Buffer::new(),
             redraw_needed: false,
         }
     }
@@ -62,49 +60,49 @@ impl Editor {
                     break;
                 }
                 Key::Left => {
-                    self.prompt.move_cursor_relative(-1);
+                    self.buffer.move_cursor_relative(-1);
                     self.redraw_needed();
                 },
                 Key::Right => {
-                    self.prompt.move_cursor_relative(1);
+                    self.buffer.move_cursor_relative(1);
                     self.redraw_needed();
                 },
                 Key::Home => {
-                    self.prompt.move_to_start_of_line();
+                    self.buffer.move_to_start_of_line();
                     self.redraw_needed();
                 },
                 Key::End => {
-                    self.prompt.move_to_end_of_line();
+                    self.buffer.move_to_end_of_line();
                     self.redraw_needed();
                 },
                 Key::Char(c) => {
-                    self.prompt.insert_char(c);
+                    self.buffer.insert_char(c);
                     self.redraw_needed();
                 },
                 Key::Backspace => {
-                    self.prompt.delete_before_cursor();
+                    self.buffer.delete_before_cursor();
                     self.redraw_needed();
                 },
                 Key::Delete => {
-                    self.prompt.delete_after_cursor();
+                    self.buffer.delete_after_cursor();
                     self.redraw_needed();
                 },
                 Key::Ctrl('c') => {
-                    self.prompt.clear();
+                    self.buffer.clear();
                     self.redraw_needed();
+                },
+                Key::Ctrl('x') => {
+                    exit(0);
+                    break;
                 },
                 _ => {},
             }
-
-            // if *exit::flag() {
-            //     break;
-            // }
 
             self.redraw_if_needed();
         }
 
         // Move the command line out of out buffer and return it.
-        self.prompt.take_text()
+        self.buffer.take_text()
     }
 
     /// Signal that the prompt needs to be redrawn.
@@ -119,13 +117,13 @@ impl Editor {
         }
     }
 
-    /// Redraw the prompt.
+    /// Redraw the buffer.
     pub fn redraw(&mut self) {
         let prompt = self.get_prompt_str();
-        write!(self.stdout, "\r{}{}{}", clear::AfterCursor, prompt, self.prompt.text()).unwrap();
+        write!(self.stdout, "\r{}{}{}", clear::AfterCursor, prompt, self.buffer.text()).unwrap();
 
         // Update the cursor position.
-        let diff = self.prompt.text().len() - self.prompt.cursor();
+        let diff = self.buffer.text().len() - self.buffer.cursor();
         if diff > 0 {
             write!(self.stdout, "{}", cursor::Left(diff as u16)).unwrap();
         }
