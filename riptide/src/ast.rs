@@ -1,7 +1,7 @@
 //! Abstract syntax tree.
 
 /// A function block, containing a list of pipelines to execute.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Block {
     /// A list of named parameters.
     pub named_params: Option<Vec<String>>,
@@ -11,13 +11,13 @@ pub struct Block {
 }
 
 /// A pipeline of function calls.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Pipeline {
     pub items: Vec<Call>,
 }
 
 /// A function call.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Call {
     /// The function to invoke. Could be a binding name or a block.
     pub function: Box<Expr>,
@@ -29,8 +29,9 @@ pub struct Call {
 /// Abstract representation of an expression.
 ///
 /// Contains a variant for each different expression type.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
+    Number(f64),
     ExpandableString(String),
     String(String),
     Block(Block),

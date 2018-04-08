@@ -2,7 +2,7 @@
 use filemap::*;
 use super::SourcePos;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     LeftParen,
     RightParen,
@@ -13,6 +13,7 @@ pub enum Token {
     StatementTerminator,
     Pipe,
     Deref,
+    Number(f64),
     DoubleQuotedString(String),
     String(String),
     LineTerminator,
@@ -72,6 +73,7 @@ impl Lexer {
 
     fn lex(&mut self) -> Option<Token> {
         while let Some(byte) = self.next_byte() {
+            println!("byte");
             return Some(match byte {
                 // Simple one-character tokens.
                 b'(' => Token::LeftParen,
@@ -158,10 +160,39 @@ impl Lexer {
                     Token::DoubleQuotedString(String::from_utf8(bytes).unwrap())
                 },
 
+                // Number.
+                byte if byte.is_ascii_digit() => {
+                    let mut bytes = vec![byte];
+                    let mut seen_decimal = false;
+
+                    while let Some(byte) = self.file.peek() {
+                        println!("{}", byte as char);
+                        if byte == b'.' {
+                            if seen_decimal {
+                                panic!("unexpected '.'");
+                            }
+                            seen_decimal = true;
+                            bytes.push(byte);
+                            self.file.advance();
+                        } else if byte.is_ascii_digit() {
+                            bytes.push(byte);
+                            self.file.advance();
+                        } else {
+                            break;
+                        }
+                    }
+
+                    let string = unsafe {
+                        String::from_utf8_unchecked(bytes)
+                    };
+
+                    println!("num {}", string);
+                    Token::Number(string.parse().unwrap())
+                },
+
                 // Unquoted string.
                 byte if is_unquoted_string_char(byte) => {
-                    let mut bytes = Vec::new();
-                    bytes.push(byte);
+                    let mut bytes = vec![byte];
 
                     while let Some(byte) = self.file.peek() {
                         if is_whitespace(byte) {

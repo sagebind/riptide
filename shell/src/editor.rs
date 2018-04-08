@@ -3,7 +3,6 @@ use riptide::fd::*;
 use std::borrow::Cow;
 use std::io::{self, Write};
 use std::os::unix::io::*;
-use super::exit;
 use termion::clear;
 use termion::cursor;
 use termion::event::Key;
@@ -90,10 +89,6 @@ impl Editor {
                 Key::Ctrl('c') => {
                     self.buffer.clear();
                     self.redraw_needed();
-                },
-                Key::Ctrl('x') => {
-                    exit(0);
-                    break;
                 },
                 _ => {},
             }

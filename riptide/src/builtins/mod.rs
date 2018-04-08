@@ -48,6 +48,18 @@ pub fn require(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     unimplemented!();
 }
 
+/// Terminate the current process.
+pub fn exit(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    let code = match args.first() {
+        Some(&Value::Number(number)) => number as i32,
+        _ => 0,
+    };
+
+    runtime.request_exit(code);
+
+    Ok(Value::Nil)
+}
+
 #[cfg(test)]
 mod tests {
     use ast::*;

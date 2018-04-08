@@ -18,6 +18,10 @@ pub struct Runtime {
 
     /// Function call stack containing call frames.
     call_stack: Vec<CallFrame>,
+
+    exit_code: i32,
+
+    exit_requested: bool,
 }
 
 /// Contains information about the current function call.
@@ -31,16 +35,32 @@ impl Runtime {
         Self {
             globals: Table::new(),
             call_stack: Vec::new(),
+            exit_code: 0,
+            exit_requested: false,
         }
     }
 
     pub fn with_stdlib() -> Self {
         let mut runtime = Self::new();
 
+        runtime.set_global("exit", Value::ForeignFunction(builtins::exit));
         runtime.set_global("print", Value::ForeignFunction(builtins::print));
         runtime.set_global("println", Value::ForeignFunction(builtins::println));
 
         runtime
+    }
+
+    pub fn exit_code(&self) -> i32 {
+        self.exit_code
+    }
+
+    pub fn exit_requested(&self) -> bool {
+        self.exit_requested
+    }
+
+    pub fn request_exit(&mut self, code: i32) {
+        self.exit_code = code;
+        self.exit_requested = true;
     }
 
     pub fn get_global(&self, name: &str) -> Value {
@@ -56,6 +76,7 @@ impl Runtime {
     /// This function is re-entrant.
     pub fn evaluate(&mut self, expr: Expr) -> Result<Value, Exception> {
         match expr {
+            Expr::Number(number) => Ok(Value::Number(number)),
             Expr::String(string) => Ok(Value::from(string)),
 
             // TODO: Handle expands

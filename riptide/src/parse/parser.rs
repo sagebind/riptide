@@ -77,6 +77,7 @@ impl Parser {
             Some(&Token::LeftBrace) => self.parse_block_expr(),
             Some(&Token::LeftBracket) => self.parse_block_expr(),
             Some(&Token::LeftParen) => self.parse_pipeline_expr(),
+            Some(&Token::Number(number)) => Ok(Expr::Number(number)),
             _ => self.parse_string(),
         }
     }

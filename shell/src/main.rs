@@ -11,24 +11,14 @@ use riptide::runtime::value::Value;
 use riptide::runtime::Runtime;
 use std::process;
 
-static mut EXIT_FLAG: bool = false;
-static mut EXIT_CODE: i32 = 0;
-
-pub fn exit(code: i32) {
-    unsafe {
-        EXIT_CODE = code;
-        EXIT_FLAG = true;
-    }
-}
-
 fn main() {
     let stdin = fd::stdin();
+    let mut runtime = Runtime::with_stdlib();
 
     if stdin.is_tty() {
-        let mut runtime = Runtime::with_stdlib();
         let mut editor = editor::Editor::new();
 
-        loop {
+        while !runtime.exit_requested() {
             let line = editor.read_line();
 
             if !line.is_empty() {
@@ -45,16 +35,8 @@ fn main() {
                     Err(e) => eprintln!("error: {}", e),
                 }
             }
-
-            unsafe {
-                if EXIT_FLAG {
-                    break;
-                }
-            }
         }
     }
 
-    unsafe {
-        process::exit(EXIT_CODE);
-    }
+    process::exit(runtime.exit_code());
 }
