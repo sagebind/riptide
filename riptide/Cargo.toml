@@ -6,3 +6,6 @@ description = "The Riptide language interpreter"
 
 [dependencies]
 nix = "0.8.1"
+
+[dependencies.riptide-syntax]
+path = "../syntax"

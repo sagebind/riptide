@@ -10,3 +10,6 @@ termion = "1.5"
 
 [dependencies.riptide]
 path = "../riptide"
+
+[dependencies.riptide-syntax]
+path = "../syntax"

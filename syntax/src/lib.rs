@@ -2,6 +2,8 @@ use ast::Block;
 use filemap::{FileMap, SourcePos};
 use std::fmt;
 
+pub mod ast;
+pub mod filemap;
 mod lexer;
 mod parser;
 

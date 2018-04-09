@@ -1,5 +1,5 @@
 //! Structures and implementations of the built-in data types.
-use ast;
+use riptide_syntax::ast;
 use runtime::ForeignFunction;
 use std::fmt;
 use std::rc::Rc;
@@ -75,6 +75,19 @@ impl From<ForeignFunction> for Value {
 }
 
 impl Value {
+    /// Get the type of value, rendered as a string.
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            &Value::Nil => "nil",
+            &Value::Number(_) => "number",
+            &Value::String(_) => "string",
+            &Value::List(_) => "list",
+            &Value::Table(_) => "table",
+            &Value::Block(_) => "block",
+            &Value::ForeignFunction(_) => "native",
+        }
+    }
+
     /// Determine if this expression is considered a truthy value.
     ///
     /// Nil, the empty string, and the empty list are considered falsey, and all
@@ -159,10 +172,7 @@ impl fmt::Debug for Value {
             &Value::Nil => write!(f, "nil"),
             &Value::Number(number) => write!(f, "{}", number),
             &Value::String(ref string) => write!(f, "\"{}\"", string),
-            &Value::List(_) => write!(f, "<list>"),
-            &Value::Table(_) => write!(f, "<table>"),
-            &Value::Block(_) => write!(f, "<block>"),
-            &Value::ForeignFunction(_) => write!(f, "<function>"),
+            _ => write!(f, "<{}>", self.type_name()),
         }
     }
 }

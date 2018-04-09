@@ -59,20 +59,3 @@ pub fn exit(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 
     Ok(Value::Nil)
 }
-
-#[cfg(test)]
-mod tests {
-    use ast::*;
-    use super::*;
-
-    #[test]
-    fn test_println() {
-        let mut runtime = Runtime::new();
-        runtime.set_global("println", println as ForeignFunction);
-
-        runtime.evaluate(Expr::Call(Call {
-            function: Box::new(Expr::String("println".into())),
-            args: vec![Expr::String("hello world".into())],
-        })).unwrap();
-    }
-}

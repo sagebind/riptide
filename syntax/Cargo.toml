@@ -1,0 +1,5 @@
+[package]
+name = "riptide-syntax"
+version = "0.2.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+description = "The Riptide language parser"

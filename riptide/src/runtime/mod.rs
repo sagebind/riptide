@@ -1,6 +1,8 @@
 //! The Riptide runtime.
-use ast::*;
 use builtins;
+use riptide_syntax;
+use riptide_syntax::filemap::FileMap;
+use riptide_syntax::ast::*;
 use self::value::Value;
 use self::value::table::Table;
 
@@ -71,10 +73,24 @@ impl Runtime {
         self.globals.set(name, value);
     }
 
+    /// Execute the given script within this runtime context.
+    pub fn execute(&mut self, script: &str) -> Result<Value, Exception> {
+        self.execute_filemap(FileMap::buffer(None, script))
+    }
+
+    fn execute_filemap(&mut self, filemap: FileMap) -> Result<Value, Exception> {
+        let block = match riptide_syntax::parse(filemap) {
+            Ok(block) => block,
+            Err(e) => return Err(Exception(Value::from(format!("error parsing: {}", e.message)))),
+        };
+
+        self.execute_block(&block, &[])
+    }
+
     /// Evaluate the given expression, returning the result.
     ///
     /// This function is re-entrant.
-    pub fn evaluate(&mut self, expr: Expr) -> Result<Value, Exception> {
+    pub fn evaluate_expr(&mut self, expr: Expr) -> Result<Value, Exception> {
         match expr {
             Expr::Number(number) => Ok(Value::Number(number)),
             Expr::String(string) => Ok(Value::from(string)),
@@ -118,11 +134,11 @@ impl Runtime {
     }
 
     fn execute_call(&mut self, call: Call) -> Result<Value, Exception> {
-        let mut function = self.evaluate(*call.function)?;
+        let mut function = self.evaluate_expr(*call.function)?;
 
         let mut args = Vec::with_capacity(call.args.len());
         for expr in call.args {
-            args.push(self.evaluate(expr)?);
+            args.push(self.evaluate_expr(expr)?);
         }
 
         // If the function is a string, resolve binding names first before we try to eval the item as a function.
@@ -160,7 +176,7 @@ impl Runtime {
 
 #[cfg(test)]
 mod tests {
-    use ast::Expr;
+    use riptide_syntax::ast::Expr;
     use super::*;
 
     #[test]

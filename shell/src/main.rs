@@ -1,14 +1,15 @@
 extern crate riptide;
+extern crate riptide_syntax;
 extern crate termion;
 
 mod buffer;
 mod editor;
 
 use riptide::fd;
-use riptide::filemap::FileMap;
-use riptide::parse::parse;
 use riptide::runtime::value::Value;
 use riptide::runtime::Runtime;
+use riptide_syntax::filemap::FileMap;
+use riptide_syntax::parse;
 use std::process;
 
 fn main() {
