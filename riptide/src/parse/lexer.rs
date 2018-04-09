@@ -1,6 +1,6 @@
 /// Splits a source file into a stream of tokens.
 use filemap::*;
-use super::SourcePos;
+use super::ParseError;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
@@ -10,18 +10,18 @@ pub enum Token {
     RightBrace,
     LeftBracket,
     RightBracket,
-    StatementTerminator,
+    EndOfStatement,
     Pipe,
     Deref,
     Number(f64),
     DoubleQuotedString(String),
     String(String),
-    LineTerminator,
+    EndOfLine,
+    EndOfFile,
 }
 
 pub struct Lexer {
     file: FileMap,
-    pos: SourcePos,
     peeked: Option<Token>,
 }
 
@@ -30,71 +30,54 @@ impl Lexer {
     pub fn new(file: FileMap) -> Lexer {
         Lexer {
             file: file,
-            pos: SourcePos::default(),
             peeked: None,
         }
     }
 
-    /// Get the current position in the source.
-    pub fn pos(&self) -> &SourcePos {
-        &self.pos
+    /// Get the file being lexed.
+    pub fn file(&self) -> &FileMap {
+        &self.file
     }
 
     /// Peek at the next token, if any, in the source.
-    pub fn peek(&mut self) -> Option<&Token> {
+    pub fn peek(&mut self) -> Result<&Token, ParseError> {
         if self.peeked.is_none() {
-            self.peeked = self.lex();
+            self.peeked = Some(self.lex()?);
         }
-        self.peeked.as_ref()
+        Ok(self.peeked.as_ref().unwrap())
     }
 
     /// Advance to the next token in the source.
-    pub fn advance(&mut self) -> Option<Token> {
+    pub fn advance(&mut self) -> Result<Token, ParseError> {
         match self.peeked.take() {
-            Some(token) => Some(token),
+            Some(token) => Ok(token),
             None => self.lex(),
         }
     }
 
-    fn next_byte(&mut self) -> Option<u8> {
-        match self.file.advance() {
-            Some(b'\n') => {
-                self.pos.line += 1;
-                self.pos.column = 1;
-                Some(b'\n')
-            },
-            Some(byte) => {
-                self.pos.column += 1;
-                Some(byte)
-            },
-            None => None,
-        }
-    }
-
-    fn lex(&mut self) -> Option<Token> {
-        while let Some(byte) = self.next_byte() {
-            println!("byte");
-            return Some(match byte {
+    fn lex(&mut self) -> Result<Token, ParseError> {
+        loop {
+            match self.file.advance() {
                 // Simple one-character tokens.
-                b'(' => Token::LeftParen,
-                b')' => Token::RightParen,
-                b'{' => Token::LeftBrace,
-                b'}' => Token::RightBrace,
-                b'[' => Token::LeftBracket,
-                b']' => Token::RightBracket,
-                b'|' => Token::Pipe,
-                b'$' => Token::Deref,
-                b';' => Token::StatementTerminator,
+                Some(b'(') => return Ok(Token::LeftParen),
+                Some(b')') => return Ok(Token::RightParen),
+                Some(b'{') => return Ok(Token::LeftBrace),
+                Some(b'}') => return Ok(Token::RightBrace),
+                Some(b'[') => return Ok(Token::LeftBracket),
+                Some(b']') => return Ok(Token::RightBracket),
+                Some(b'|') => return Ok(Token::Pipe),
+                Some(b'$') => return Ok(Token::Deref),
+                Some(b';') => return Ok(Token::EndOfStatement),
 
                 // Ignore horizontal whitespace.
-                b' ' | 0x09 | 0x0c => continue,
+                Some(b' ') | Some(0x09) | Some(0x0c) => continue,
 
                 // Start of a line comment, ignore all following characters until end of line.
-                b'#' => {
+                Some(b'#') => {
                     loop {
                         match self.file.peek() {
                             Some(b'\r') | Some(b'\n') => break,
-                            _ => self.next_byte(),
+                            _ => self.file.advance(),
                         };
                     }
                     continue;
@@ -102,20 +85,20 @@ impl Lexer {
 
                 // To handle newlines in a platform-generic way, any of the following sequences are treated as a single
                 // newline token: \r \r\n \n
-                b'\n' => Token::LineTerminator,
-                b'\r' => {
+                Some(b'\n') => return Ok(Token::EndOfLine),
+                Some(b'\r') => {
                     if self.file.peek() == Some(b'\n') {
-                        self.next_byte();
+                        self.file.advance();
                     }
-                    Token::LineTerminator
+                    return Ok(Token::EndOfLine);
                 },
 
                 // Single-quoted string.
-                b'\'' => {
+                Some(b'\'') => {
                     let mut bytes = Vec::new();
 
                     loop {
-                        match self.next_byte() {
+                        match self.file.advance() {
                             // End of the string.
                             Some(b'\'') => break,
 
@@ -123,7 +106,7 @@ impl Lexer {
                             // other characters we just proceed as normal.
                             Some(b'\\') => match self.file.peek() {
                                 Some(b'\'') | Some(b'\\') => {
-                                    bytes.push(self.next_byte().unwrap());
+                                    bytes.push(self.file.advance().unwrap());
                                 },
                                 _ => bytes.push(b'\\'),
                             },
@@ -135,11 +118,11 @@ impl Lexer {
                         }
                     }
 
-                    Token::String(String::from_utf8(bytes).unwrap())
+                    return Ok(Token::String(String::from_utf8(bytes).unwrap()));
                 },
 
                 // Double quoted string.
-                b'"' => {
+                Some(b'"') => {
                     let mut bytes = Vec::new();
 
                     loop {
@@ -148,7 +131,7 @@ impl Lexer {
                             Some(b'"') => break,
 
                             // Character escape
-                            Some(b'\\') => bytes.push(translate_escape(self.next_byte().unwrap())),
+                            Some(b'\\') => bytes.push(translate_escape(self.file.advance().unwrap())),
 
                             // Normal character
                             Some(byte) => bytes.push(byte),
@@ -157,11 +140,11 @@ impl Lexer {
                         }
                     }
 
-                    Token::DoubleQuotedString(String::from_utf8(bytes).unwrap())
+                    return Ok(Token::DoubleQuotedString(String::from_utf8(bytes).unwrap()));
                 },
 
                 // Number.
-                byte if byte.is_ascii_digit() => {
+                Some(byte) if byte.is_ascii_digit() => {
                     let mut bytes = vec![byte];
                     let mut seen_decimal = false;
 
@@ -187,11 +170,11 @@ impl Lexer {
                     };
 
                     println!("num {}", string);
-                    Token::Number(string.parse().unwrap())
+                    return Ok(Token::Number(string.parse().unwrap()));
                 },
 
                 // Unquoted string.
-                byte if is_unquoted_string_char(byte) => {
+                Some(byte) if is_unquoted_string_char(byte) => {
                     let mut bytes = vec![byte];
 
                     while let Some(byte) = self.file.peek() {
@@ -199,20 +182,21 @@ impl Lexer {
                             break;
                         }
 
-                        self.next_byte();
+                        self.file.advance();
                         bytes.push(byte);
                     }
 
-                    Token::String(String::from_utf8(bytes).unwrap())
+                    return Ok(Token::String(String::from_utf8(bytes).unwrap()));
                 },
 
-                _ => {
+
+                Some(_) => {
                     panic!("unexpected byte");
                 },
-            });
-        }
 
-        None
+                None => return Ok(Token::EndOfFile),
+            }
+        }
     }
 }
 

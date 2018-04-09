@@ -5,9 +5,9 @@ use runtime::value::*;
 /// Spawns a new child process and executes a given block in it.
 ///
 /// Returns the child process PID.
-pub fn spawn(interpreter: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+pub fn spawn(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     let pid = process::spawn(|| {
-        let child_interpreter = Runtime::new();
+        // let child_interpreter = Runtime::new();
         // child_interpreter.execute(Exp)
     }).unwrap();
 

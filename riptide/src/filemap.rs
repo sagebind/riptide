@@ -3,10 +3,30 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
 
+/// A reference to a location in a source file. Useful for error messages.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SourcePos {
+    /// The line number. Begins at 1.
+    pub line: u32,
+
+    /// The column position in the current line. Begins at 1.
+    pub column: u32,
+}
+
+impl Default for SourcePos {
+    fn default() -> Self {
+        Self {
+            line: 1,
+            column: 1,
+        }
+    }
+}
+
 pub struct FileMap {
     name: Option<String>,
     buffer: Vec<u8>,
     offset: usize,
+    pos: SourcePos,
 }
 
 impl FileMap {
@@ -16,6 +36,7 @@ impl FileMap {
             name: name.into(),
             buffer: buffer.into(),
             offset: 0,
+            pos: SourcePos::default(),
         }
     }
 
@@ -41,14 +62,26 @@ impl FileMap {
             .unwrap_or("<unknown>")
     }
 
+    /// Get the current position in the file.
+    pub fn pos(&self) -> SourcePos {
+        self.pos
+    }
+
     pub fn peek(&self) -> Option<u8> {
         self.buffer.get(self.offset).cloned()
     }
 
     pub fn advance(&mut self) -> Option<u8> {
         match self.buffer.get(self.offset) {
+            Some(&b'\n') => {
+                self.offset += 1;
+                self.pos.line += 1;
+                self.pos.column = 1;
+                Some(b'\n')
+            },
             Some(byte) => {
                 self.offset += 1;
+                self.pos.column += 1;
                 Some(*byte)
             },
             None => None,

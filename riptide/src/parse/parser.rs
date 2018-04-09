@@ -21,14 +21,14 @@ impl Parser {
         let mut statements = Vec::new();
 
         loop {
-            match self.lexer.peek() {
-                Some(&Token::LineTerminator) | Some(&Token::StatementTerminator) => {
-                    self.lexer.advance();
+            match self.lexer.peek()? {
+                &Token::EndOfLine | &Token::EndOfStatement => {
+                    self.lexer.advance()?;
                 },
-                Some(_) => {
+                &Token::EndOfFile => break,
+                _ => {
                     statements.push(self.parse_pipeline()?);
                 },
-                None => break,
             }
         }
 
@@ -42,8 +42,8 @@ impl Parser {
         let mut calls = Vec::new();
         calls.push(self.parse_function_call()?);
 
-        while self.lexer.peek() == Some(&Token::Pipe) {
-            self.lexer.advance();
+        while self.lexer.peek()? == &Token::Pipe {
+            self.lexer.advance()?;
             calls.push(self.parse_function_call()?);
         }
 
@@ -57,11 +57,11 @@ impl Parser {
         let mut args = Vec::new();
 
         loop {
-            match self.lexer.peek() {
-                Some(&Token::LineTerminator) => break,
-                Some(&Token::Pipe) => break,
-                Some(&Token::StatementTerminator) => break,
-                None => break,
+            match self.lexer.peek()? {
+                &Token::EndOfLine => break,
+                &Token::Pipe => break,
+                &Token::EndOfStatement => break,
+                &Token::EndOfFile => break,
                 _ => args.push(self.parse_expression()?),
             }
         }
@@ -73,18 +73,21 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        match self.lexer.peek() {
-            Some(&Token::LeftBrace) => self.parse_block_expr(),
-            Some(&Token::LeftBracket) => self.parse_block_expr(),
-            Some(&Token::LeftParen) => self.parse_pipeline_expr(),
-            Some(&Token::Number(number)) => Ok(Expr::Number(number)),
+        match self.lexer.peek()? {
+            &Token::LeftBrace => self.parse_block_expr(),
+            &Token::LeftBracket => self.parse_block_expr(),
+            &Token::LeftParen => self.parse_pipeline_expr(),
+            &Token::Number(number) => {
+                self.lexer.advance()?;
+                Ok(Expr::Number(number))
+            },
             _ => self.parse_string(),
         }
     }
 
     fn parse_block_expr(&mut self) -> Result<Expr, ParseError> {
-        let named_params = match self.lexer.peek() {
-            Some(&Token::LeftBracket) => Some(self.parse_block_params()?),
+        let named_params = match self.lexer.peek()? {
+            &Token::LeftBracket => Some(self.parse_block_params()?),
             _ => None,
         };
 
@@ -101,9 +104,9 @@ impl Parser {
         let mut params = Vec::new();
 
         loop {
-            match self.lexer.advance() {
-                Some(Token::RightBracket) => break,
-                Some(Token::String(s)) => params.push(s),
+            match self.lexer.advance()? {
+                Token::RightBracket => break,
+                Token::String(s) => params.push(s),
                 token => return Err(self.error(format!("unexpected token: {:?}", token))),
             }
         }
@@ -117,13 +120,13 @@ impl Parser {
         let mut statements = Vec::new();
 
         loop {
-            match self.lexer.peek() {
-                Some(&Token::RightBrace) => {
-                    self.lexer.advance();
+            match self.lexer.peek()? {
+                &Token::RightBrace => {
+                    self.lexer.advance()?;
                     break;
                 },
-                Some(_) => statements.push(self.parse_pipeline()?),
-                None => return Err(self.error("unterminated block")),
+                &Token::EndOfFile => return Err(self.error("unterminated block")),
+                _ => statements.push(self.parse_pipeline()?),
             }
         }
 
@@ -139,15 +142,15 @@ impl Parser {
     }
 
     fn parse_string(&mut self) -> Result<Expr, ParseError> {
-        match self.lexer.advance() {
-            Some(Token::String(s)) => Ok(Expr::String(s)),
-            Some(Token::DoubleQuotedString(s)) => Ok(Expr::ExpandableString(s)),
+        match self.lexer.advance()? {
+            Token::String(s) => Ok(Expr::String(s)),
+            Token::DoubleQuotedString(s) => Ok(Expr::ExpandableString(s)),
             token => Err(self.error(format!("expected string, instead got {:?}", token))),
         }
     }
 
     fn expect(&mut self, token: Token) -> Result<(), ParseError> {
-        if self.lexer.advance().as_ref() == Some(&token) {
+        if self.lexer.advance()? == token {
             Ok(())
         } else {
             Err(self.error(format!("expected token: {:?}", token)))
@@ -155,17 +158,14 @@ impl Parser {
     }
 
     fn advance_required(&mut self) -> Result<Token, ParseError> {
-        match self.lexer.advance() {
-            Some(token) => Ok(token),
-            None => Err(self.error("unexpected eof")),
+        match self.lexer.advance()? {
+            Token::EndOfFile => Err(self.error("unexpected eof")),
+            token => Ok(token),
         }
     }
 
     fn error<S: Into<String>>(&self, message: S) -> ParseError {
-        ParseError {
-            message: message.into(),
-            pos: self.lexer.pos().clone(),
-        }
+        ParseError::new(message, self.lexer.file().pos())
     }
 }
 

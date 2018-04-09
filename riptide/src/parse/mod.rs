@@ -1,28 +1,9 @@
 use ast::Block;
-use filemap::FileMap;
+use filemap::{FileMap, SourcePos};
 use std::fmt;
 
 mod lexer;
 mod parser;
-
-/// A reference to a location in a source file. Useful for error messages.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct SourcePos {
-    /// The line number. Begins at 1.
-    pub line: u32,
-
-    /// The column position in the current line. Begins at 1.
-    pub column: u32,
-}
-
-impl Default for SourcePos {
-    fn default() -> Self {
-        Self {
-            line: 1,
-            column: 1,
-        }
-    }
-}
 
 /// Describes an error that occured in parsing.
 #[derive(Debug)]
@@ -33,6 +14,15 @@ pub struct ParseError {
 
     /// The position in the source the error occurred in.
     pub pos: SourcePos,
+}
+
+impl ParseError {
+    pub fn new<S: Into<String>>(message: S, pos: SourcePos) -> Self {
+        Self {
+            message: message.into(),
+            pos: pos,
+        }
+    }
 }
 
 impl fmt::Display for ParseError {
