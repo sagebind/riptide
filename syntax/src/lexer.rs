@@ -49,10 +49,13 @@ impl Lexer {
 
     /// Advance to the next token in the source.
     pub fn advance(&mut self) -> Result<Token, ParseError> {
-        match self.peeked.take() {
+        let r = match self.peeked.take() {
             Some(token) => Ok(token),
             None => self.lex(),
-        }
+        };
+
+        println!("advance: {:?}", r);
+        r
     }
 
     fn lex(&mut self) -> Result<Token, ParseError> {
@@ -178,7 +181,7 @@ impl Lexer {
                     let mut bytes = vec![byte];
 
                     while let Some(byte) = self.file.peek() {
-                        if is_whitespace(byte) {
+                        if !is_unquoted_string_char(byte) {
                             break;
                         }
 
@@ -234,7 +237,7 @@ mod tests {
             ];)*
         ) => {
             $({
-                use $crate::parse::lexer::Token::*;
+                use $crate::lexer::Token::*;
                 let mut lexer = Lexer::new(FileMap::buffer(None, $source));
                 $(
                     assert_eq!(lexer.advance().unwrap(), $token);

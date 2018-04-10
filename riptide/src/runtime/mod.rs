@@ -173,38 +173,3 @@ impl Runtime {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use riptide_syntax::ast::Expr;
-    use super::*;
-
-    #[test]
-    fn basic() {
-        let mut runtime = Runtime::new();
-
-        runtime.evaluate(Expr::Call(Call {
-            function: Box::new(Expr::String("println".into())),
-            args: vec![
-                Expr::String("hello".into()),
-                Expr::Call(Call {
-                    function: Box::new(Expr::Block(Block {
-                        named_params: None,
-                        statements: vec![
-                            Expr::String("read".into()),
-                        ],
-                    })),
-                    args: vec![
-                        Expr::String("THE".into()),
-                    ],
-                }),
-                Expr::Call(Call {
-                    function: Box::new(Expr::String("uppercase".into())),
-                    args: vec![
-                        Expr::String("World".into()),
-                    ],
-                }),
-            ],
-        })).unwrap();
-    }
-}

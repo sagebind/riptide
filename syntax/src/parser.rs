@@ -58,10 +58,12 @@ impl Parser {
 
         loop {
             match self.lexer.peek()? {
-                &Token::EndOfLine => break,
-                &Token::Pipe => break,
-                &Token::EndOfStatement => break,
                 &Token::EndOfFile => break,
+                &Token::EndOfLine => break,
+                &Token::EndOfStatement => break,
+                &Token::Pipe => break,
+                &Token::RightBrace => break,
+                &Token::RightParen => break,
                 _ => args.push(self.parse_expression()?),
             }
         }
@@ -150,10 +152,12 @@ impl Parser {
     }
 
     fn expect(&mut self, token: Token) -> Result<(), ParseError> {
-        if self.lexer.advance()? == token {
+        let actual = self.lexer.advance()?;
+
+        if actual == token {
             Ok(())
         } else {
-            Err(self.error(format!("expected token: {:?}", token)))
+            Err(self.error(format!("expected token: {:?}, instead got {:?}", token, actual)))
         }
     }
 
@@ -166,33 +170,5 @@ impl Parser {
 
     fn error<S: Into<String>>(&self, message: S) -> ParseError {
         ParseError::new(message, self.lexer.file().pos())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use filemap::FileMap;
-    use super::*;
-
-    #[test]
-    fn parse_string() {
-        let file = FileMap::buffer(None, "
-            'hello world'
-        ");
-        let mut parser = Parser::new(Lexer::new(file));
-
-        assert_eq!(parser.parse_file().unwrap(), Block {
-            named_params: None,
-            statements: vec![
-                Pipeline {
-                    items: vec![
-                        Call {
-                            function: Box::new(Expr::String("hello world".into())),
-                            args: vec![],
-                        }
-                    ]
-                }
-            ],
-        });
     }
 }
