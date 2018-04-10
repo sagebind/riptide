@@ -6,8 +6,8 @@ mod buffer;
 mod editor;
 
 use riptide::fd;
-use riptide::runtime::value::Value;
 use riptide::runtime::Runtime;
+use riptide::value::Value;
 use riptide_syntax::filemap::FileMap;
 use riptide_syntax::parse;
 use std::process;
@@ -29,7 +29,7 @@ fn main() {
 
                         match runtime.execute_block(&ast, &[]) {
                             Ok(Value::Nil) => {},
-                            Ok(value) => println!("{:?}", value),
+                            Ok(value) => println!("{}", value),
                             Err(e) => eprintln!("error: {:?}", e),
                         }
                     },

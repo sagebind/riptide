@@ -1,7 +1,7 @@
 use buffer::Buffer;
 use riptide::fd::*;
 use std::borrow::Cow;
-use std::io::{self, Write};
+use std::io::Write;
 use std::os::unix::io::*;
 use termion::clear;
 use termion::cursor;
@@ -18,8 +18,6 @@ pub struct Editor {
     stdout: WritePipe,
     stderr: WritePipe,
     buffer: Buffer,
-    // Whether the command line needs redrawn.
-    redraw_needed: bool,
 }
 
 impl Editor {
@@ -35,7 +33,6 @@ impl Editor {
                 WritePipe::from_raw_fd(0)
             },
             buffer: Buffer::new(),
-            redraw_needed: false,
         }
     }
 
@@ -60,56 +57,36 @@ impl Editor {
                 }
                 Key::Left => {
                     self.buffer.move_cursor_relative(-1);
-                    self.redraw_needed();
                 },
                 Key::Right => {
                     self.buffer.move_cursor_relative(1);
-                    self.redraw_needed();
                 },
                 Key::Home => {
                     self.buffer.move_to_start_of_line();
-                    self.redraw_needed();
                 },
                 Key::End => {
                     self.buffer.move_to_end_of_line();
-                    self.redraw_needed();
                 },
                 Key::Char(c) => {
                     self.buffer.insert_char(c);
-                    self.redraw_needed();
                 },
                 Key::Backspace => {
                     self.buffer.delete_before_cursor();
-                    self.redraw_needed();
                 },
                 Key::Delete => {
                     self.buffer.delete_after_cursor();
-                    self.redraw_needed();
                 },
                 Key::Ctrl('c') => {
                     self.buffer.clear();
-                    self.redraw_needed();
                 },
                 _ => {},
             }
 
-            self.redraw_if_needed();
+            self.redraw();
         }
 
         // Move the command line out of out buffer and return it.
         self.buffer.take_text()
-    }
-
-    /// Signal that the prompt needs to be redrawn.
-    pub fn redraw_needed(&mut self) {
-        self.redraw_needed = true;
-    }
-
-    /// Redraw the prompt if it is needed.
-    pub fn redraw_if_needed(&mut self) {
-        if self.redraw_needed {
-            self.redraw();
-        }
     }
 
     /// Redraw the buffer.
@@ -125,8 +102,6 @@ impl Editor {
 
         // Flush all changes from the IO buffer.
         self.stdout.flush().unwrap();
-
-        self.redraw_needed = false;
     }
 
     fn get_prompt_str(&self) -> Cow<'static, str> {

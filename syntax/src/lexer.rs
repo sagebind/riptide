@@ -49,13 +49,10 @@ impl Lexer {
 
     /// Advance to the next token in the source.
     pub fn advance(&mut self) -> Result<Token, ParseError> {
-        let r = match self.peeked.take() {
+        match self.peeked.take() {
             Some(token) => Ok(token),
             None => self.lex(),
-        };
-
-        println!("advance: {:?}", r);
-        r
+        }
     }
 
     fn lex(&mut self) -> Result<Token, ParseError> {
@@ -152,7 +149,6 @@ impl Lexer {
                     let mut seen_decimal = false;
 
                     while let Some(byte) = self.file.peek() {
-                        println!("{}", byte as char);
                         if byte == b'.' {
                             if seen_decimal {
                                 panic!("unexpected '.'");
@@ -172,7 +168,6 @@ impl Lexer {
                         String::from_utf8_unchecked(bytes)
                     };
 
-                    println!("num {}", string);
                     return Ok(Token::Number(string.parse().unwrap()));
                 },
 

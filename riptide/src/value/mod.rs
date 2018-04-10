@@ -9,9 +9,6 @@ use self::table::Table;
 pub mod string;
 pub mod table;
 
-/// A plain number.
-pub type Number = f64;
-
 /// A Riptide value. This is a small enum that can rerepresent any of the possible data types. Since Riptide is loosely
 /// typed, a value can be any of these types at runtime.
 ///
@@ -23,7 +20,7 @@ pub enum Value {
     Nil,
 
     /// A plain number. Stored by value.
-    Number(Number),
+    Number(f64),
 
     /// A string. Immutable, and stored by reference.
     String(RString),
@@ -44,8 +41,8 @@ pub enum Value {
     ForeignFunction(ForeignFunction),
 }
 
-impl From<Number> for Value {
-    fn from(value: Number) -> Self {
+impl From<f64> for Value {
+    fn from(value: f64) -> Self {
         Value::Number(value)
     }
 }
@@ -104,7 +101,7 @@ impl Value {
     }
 
     /// If this value is a number, get its numeric value.
-    pub fn as_number(&self) -> Option<Number> {
+    pub fn as_number(&self) -> Option<f64> {
         match self {
             &Value::Number(number) => Some(number),
             _ => None,
@@ -134,16 +131,6 @@ impl Value {
             _ => None,
         }
     }
-
-    /// Get a string representation of this value.
-    pub fn to_string(&self) -> RString {
-        match self {
-            &Value::Nil => RString::EMPTY,
-            &Value::Number(number) => number.to_string().into(),
-            &Value::String(ref string) => string.clone(),
-            _ => RString::from(format!("{:?}", self)),
-        }
-    }
 }
 
 impl PartialEq for Value {
@@ -169,9 +156,35 @@ impl<S> PartialEq<S> for Value where S: AsRef<str> {
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Value::Nil => write!(f, "nil"),
+            &Value::Nil => write!(f, ""),
             &Value::Number(number) => write!(f, "{}", number),
             &Value::String(ref string) => write!(f, "\"{}\"", string),
+            _ => write!(f, "<{}>", self.type_name()),
+        }
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &Value::Nil => write!(f, "nil"),
+            &Value::Number(number) => write!(f, "{}", number),
+            &Value::String(ref string) => write!(f, "{}", string),
+            &Value::List(ref items) => {
+                write!(f, "[")?;
+                let mut first = true;
+
+                for item in items {
+                    if first {
+                        write!(f, "{}", item)?;
+                        first = false;
+                    } else {
+                        write!(f, ",{}", item)?;
+                    }
+                }
+
+                write!(f, "]")
+            },
             _ => write!(f, "<{}>", self.type_name()),
         }
     }

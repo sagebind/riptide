@@ -1,6 +1,6 @@
 use process;
 use runtime::*;
-use runtime::value::*;
+use value::*;
 
 /// Spawns a new child process and executes a given block in it.
 ///
@@ -44,7 +44,28 @@ pub fn println(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
+/// Returns the name of the primitive type of the given arguments.
+pub fn type_of(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    Ok(Value::List(args.iter().map(|arg| {
+        Value::from(arg.type_name())
+    }).collect()))
+}
+
+/// Constructs a list from the given arguments.
+pub fn list(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    Ok(Value::List(args.to_vec()))
+}
+
+/// Function that always returns Nil.
+pub fn nil(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+    Ok(Value::Nil)
+}
+
 pub fn require(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+    unimplemented!();
+}
+
+pub fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     unimplemented!();
 }
 

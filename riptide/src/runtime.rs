@@ -3,10 +3,8 @@ use builtins;
 use riptide_syntax;
 use riptide_syntax::filemap::FileMap;
 use riptide_syntax::ast::*;
-use self::value::Value;
-use self::value::table::Table;
-
-pub mod value;
+use value::Value;
+use value::table::Table;
 
 pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception>;
 
@@ -48,6 +46,9 @@ impl Runtime {
         runtime.set_global("exit", Value::ForeignFunction(builtins::exit));
         runtime.set_global("print", Value::ForeignFunction(builtins::print));
         runtime.set_global("println", Value::ForeignFunction(builtins::println));
+        runtime.set_global("typeof", Value::ForeignFunction(builtins::type_of));
+        runtime.set_global("list", Value::ForeignFunction(builtins::list));
+        runtime.set_global("nil", Value::ForeignFunction(builtins::nil));
 
         runtime
     }
@@ -142,7 +143,7 @@ impl Runtime {
         }
 
         // If the function is a string, resolve binding names first before we try to eval the item as a function.
-        if let Some(mut value) = function.as_string().and_then(|name| self.resolve(name)) {
+        if let Some(value) = function.as_string().and_then(|name| self.resolve(name)) {
             function = value;
         }
 
