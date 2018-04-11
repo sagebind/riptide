@@ -9,7 +9,7 @@ use value::table::Table;
 pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception>;
 
 #[derive(Clone, Debug)]
-pub struct Exception(Value);
+pub struct Exception(pub Value);
 
 /// Holds all of the state of a Riptide runtime.
 pub struct Runtime {
@@ -25,9 +25,9 @@ pub struct Runtime {
 }
 
 /// Contains information about the current function call.
-struct CallFrame {
-    args: Vec<Value>,
-    bindings: Table,
+pub struct CallFrame {
+    pub args: Vec<Value>,
+    pub bindings: Table,
 }
 
 impl Runtime {
@@ -49,6 +49,9 @@ impl Runtime {
         runtime.set_global("typeof", Value::ForeignFunction(builtins::type_of));
         runtime.set_global("list", Value::ForeignFunction(builtins::list));
         runtime.set_global("nil", Value::ForeignFunction(builtins::nil));
+        runtime.set_global("throw", Value::ForeignFunction(builtins::throw));
+        runtime.set_global("catch", Value::ForeignFunction(builtins::catch));
+        runtime.set_global("args", Value::ForeignFunction(builtins::args));
 
         runtime
     }
@@ -66,12 +69,28 @@ impl Runtime {
         self.exit_requested = true;
     }
 
-    pub fn get_global(&self, name: &str) -> Value {
+    pub fn get_global(&self, name: &str) -> Option<Value> {
         self.globals.get(name)
     }
 
     pub fn set_global<V: Into<Value>>(&mut self, name: &str, value: V) {
         self.globals.set(name, value);
+    }
+
+    /// Lookup a variable name in the current scope.
+    pub fn get(&self, name: &str) -> Option<Value> {
+        for frame in self.call_stack.iter().rev() {
+            if let Some(value) = frame.bindings.get(name) {
+                return Some(value);
+            }
+        }
+
+        self.get_global(name)
+    }
+
+    /// Get a reference to the current call stack frame.
+    pub fn current_frame(&self) -> &CallFrame {
+        self.call_stack.last().unwrap()
     }
 
     /// Execute the given script within this runtime context.
@@ -85,56 +104,46 @@ impl Runtime {
             Err(e) => return Err(Exception(Value::from(format!("error parsing: {}", e.message)))),
         };
 
-        self.execute_block(&block, &[])
+        self.invoke_block(&block, &[])
     }
 
-    /// Evaluate the given expression, returning the result.
-    ///
-    /// This function is re-entrant.
-    pub fn evaluate_expr(&mut self, expr: Expr) -> Result<Value, Exception> {
-        match expr {
-            Expr::Number(number) => Ok(Value::Number(number)),
-            Expr::String(string) => Ok(Value::from(string)),
-
-            // TODO: Handle expands
-            Expr::ExpandableString(string) => Ok(Value::from(string)),
-
-            Expr::Block(block) => Ok(Value::from(block)),
-
-            Expr::Pipeline(ref pipeline) => self.execute_pipeline(pipeline),
-        }
-    }
-
-    /// Evaluate the given expression, returning the result.
-    ///
-    /// This function is re-entrant.
-    pub fn execute_block(&mut self, block: &Block, args: &[Value]) -> Result<Value, Exception> {
+    /// Invoke a block with an array of arguments.
+    pub fn invoke_block(&mut self, block: &Block, args: &[Value]) -> Result<Value, Exception> {
+        // Set up a new stack frame.
         self.call_stack.push(CallFrame {
             args: args.to_vec(),
             bindings: Table::new(),
         });
 
-        let mut r = Value::Nil;
+        let mut last_return_value = Value::Nil;
 
+        // Evaluate each statement in order.
         for statement in block.statements.iter().rev() {
-            r = self.execute_pipeline(&statement)?;
+            match self.evaluate_pipeline(&statement) {
+                Ok(return_value) => last_return_value = return_value,
+                Err(exception) => {
+                    // Exception thrown; abort and unwind stack.
+                    self.call_stack.pop();
+                    return Err(exception);
+                },
+            }
         }
 
         self.call_stack.pop();
 
-        Ok(r)
+        Ok(last_return_value)
     }
 
-    fn execute_pipeline(&mut self, pipeline: &Pipeline) -> Result<Value, Exception> {
+    fn evaluate_pipeline(&mut self, pipeline: &Pipeline) -> Result<Value, Exception> {
         // If there's only one call in the pipeline, we don't need to fork and can just execute the function by itself.
         if pipeline.items.len() == 1 {
-            self.execute_call(pipeline.items[0].clone())
+            self.evaluate_call(pipeline.items[0].clone())
         } else {
             Ok(Value::Nil)
         }
     }
 
-    fn execute_call(&mut self, call: Call) -> Result<Value, Exception> {
+    fn evaluate_call(&mut self, call: Call) -> Result<Value, Exception> {
         let mut function = self.evaluate_expr(*call.function)?;
 
         let mut args = Vec::with_capacity(call.args.len());
@@ -143,13 +152,13 @@ impl Runtime {
         }
 
         // If the function is a string, resolve binding names first before we try to eval the item as a function.
-        if let Some(value) = function.as_string().and_then(|name| self.resolve(name)) {
+        if let Some(value) = function.as_string().and_then(|name| self.get(name)) {
             function = value;
         }
 
         // Execute the function.
         match function {
-            Value::Block(block) => self.execute_block(&block, &args),
+            Value::Block(block) => self.invoke_block(&block, &args),
             Value::ForeignFunction(f) => {
                 f(self, &args)
             },
@@ -157,20 +166,14 @@ impl Runtime {
         }
     }
 
-    fn resolve(&self, name: &str) -> Option<Value> {
-        for frame in self.call_stack.iter().rev() {
-            let value = frame.bindings.get(name);
-
-            if value != Value::Nil {
-                return Some(value);
-            }
-        }
-
-        let value = self.get_global(name);
-        if value != Value::Nil {
-            Some(value)
-        } else {
-            None
+    fn evaluate_expr(&mut self, expr: Expr) -> Result<Value, Exception> {
+        match expr {
+            Expr::Number(number) => Ok(Value::Number(number)),
+            Expr::String(string) => Ok(Value::from(string)),
+            // TODO: Handle expands
+            Expr::ExpandableString(string) => Ok(Value::from(string)),
+            Expr::Block(block) => Ok(Value::from(block)),
+            Expr::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
         }
     }
 }

@@ -24,9 +24,9 @@ impl Table {
 
     /// Get the value indexed by a key.
     ///
-    /// If the key does not exist, `Nil` is returned.
-    pub fn get(&self, key: &str) -> Value {
-        self.map.borrow().get(key).cloned().unwrap_or(Value::Nil)
+    /// If the key does not exist, `None` is returned.
+    pub fn get(&self, key: &str) -> Option<Value> {
+        self.map.borrow().get(key).cloned()
     }
 
     /// Set the value for a given key.

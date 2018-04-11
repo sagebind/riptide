@@ -27,7 +27,7 @@ fn main() {
                     Ok(ast) => {
                         println!("ast: {:?}", ast);
 
-                        match runtime.execute_block(&ast, &[]) {
+                        match runtime.invoke_block(&ast, &[]) {
                             Ok(Value::Nil) => {},
                             Ok(value) => println!("{}", value),
                             Err(e) => eprintln!("error: {:?}", e),
