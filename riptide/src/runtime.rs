@@ -8,11 +8,64 @@ use value::table::Table;
 
 pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception>;
 
+pub type ModuleLoaderFn = fn(&str) -> Result<Value, Exception>;
+
 #[derive(Clone, Debug)]
 pub struct Exception(pub Value);
 
+pub struct RuntimeBuilder {
+    module_resolver: Option<ModuleLoaderFn>,
+    globals: Table,
+}
+
+impl Default for RuntimeBuilder {
+    fn default() -> Self {
+        Self {
+            module_resolver: None,
+            globals: Table::new(),
+        }
+    }
+}
+
+impl RuntimeBuilder {
+    pub fn preload(mut self, module: &str) -> Self {
+        self
+    }
+
+    pub fn with_stdlib(mut self) -> Self {
+        self.globals.set("exit", Value::ForeignFunction(builtins::exit));
+        self.globals.set("print", Value::ForeignFunction(builtins::print));
+        self.globals.set("println", Value::ForeignFunction(builtins::println));
+        self.globals.set("typeof", Value::ForeignFunction(builtins::type_of));
+        self.globals.set("list", Value::ForeignFunction(builtins::list));
+        self.globals.set("nil", Value::ForeignFunction(builtins::nil));
+        self.globals.set("throw", Value::ForeignFunction(builtins::throw));
+        self.globals.set("catch", Value::ForeignFunction(builtins::catch));
+        self.globals.set("args", Value::ForeignFunction(builtins::args));
+
+        self
+    }
+
+    pub fn build(self) -> Runtime {
+        Runtime {
+            module_resolver: self.module_resolver,
+            module_cache: Table::new(),
+            globals: self.globals,
+            call_stack: Vec::new(),
+            exit_code: 0,
+            exit_requested: false,
+        }
+    }
+}
+
 /// Holds all of the state of a Riptide runtime.
 pub struct Runtime {
+    /// Module loaders to use when requiring a module.
+    module_resolver: Option<ModuleLoaderFn>,
+
+    /// Cache of modules already required.
+    module_cache: Table,
+
     /// Holds global variable bindings.
     globals: Table,
 
@@ -31,29 +84,22 @@ pub struct CallFrame {
 }
 
 impl Runtime {
-    pub fn new() -> Self {
-        Self {
-            globals: Table::new(),
-            call_stack: Vec::new(),
-            exit_code: 0,
-            exit_requested: false,
+    pub fn load_module(&mut self, name: &str) -> Result<Value, Exception> {
+        if let Some(value) = self.module_cache.get(name) {
+            return Ok(value);
         }
-    }
 
-    pub fn with_stdlib() -> Self {
-        let mut runtime = Self::new();
+        if let Some(loader) = self.module_resolver {
+            match (loader)(name) {
+                Ok(value) => {
+                    self.module_cache.set(name, value.clone());
+                    return Ok(value);
+                },
+                Err(exception) => return Err(exception),
+            }
+        }
 
-        runtime.set_global("exit", Value::ForeignFunction(builtins::exit));
-        runtime.set_global("print", Value::ForeignFunction(builtins::print));
-        runtime.set_global("println", Value::ForeignFunction(builtins::println));
-        runtime.set_global("typeof", Value::ForeignFunction(builtins::type_of));
-        runtime.set_global("list", Value::ForeignFunction(builtins::list));
-        runtime.set_global("nil", Value::ForeignFunction(builtins::nil));
-        runtime.set_global("throw", Value::ForeignFunction(builtins::throw));
-        runtime.set_global("catch", Value::ForeignFunction(builtins::catch));
-        runtime.set_global("args", Value::ForeignFunction(builtins::args));
-
-        runtime
+        Err(Exception(Value::from("module not found")))
     }
 
     pub fn exit_code(&self) -> i32 {

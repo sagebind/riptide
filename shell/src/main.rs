@@ -6,7 +6,7 @@ mod buffer;
 mod editor;
 
 use riptide::fd;
-use riptide::runtime::Runtime;
+use riptide::runtime::*;
 use riptide::value::Value;
 use riptide_syntax::filemap::FileMap;
 use riptide_syntax::parse;
@@ -14,7 +14,9 @@ use std::process;
 
 fn main() {
     let stdin = fd::stdin();
-    let mut runtime = Runtime::with_stdlib();
+    let mut runtime = RuntimeBuilder::default()
+        .with_stdlib()
+        .build();
 
     if stdin.is_tty() {
         let mut editor = editor::Editor::new();
