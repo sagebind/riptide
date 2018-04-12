@@ -48,8 +48,8 @@ impl FileMap {
     }
 
     /// Open a file as a file map.
-    pub fn open(path: &Path) -> io::Result<Self> {
-        let name = path.file_name().map(|s| s.to_string_lossy().into_owned());
+    pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let name = path.as_ref().file_name().map(|s| s.to_string_lossy().into_owned());
         let mut file = File::open(path)?;
         Self::file(name, &mut file)
     }

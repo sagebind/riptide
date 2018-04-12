@@ -1,3 +1,4 @@
+use exceptions::Exception;
 use process;
 use runtime::*;
 use value::*;
@@ -64,8 +65,8 @@ pub fn nil(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
 /// Throw an exception.
 pub fn throw(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     match args.first() {
-        Some(value) => Err(Exception(value.clone())),
-        None => Err(Exception(Value::Nil)),
+        Some(value) => Err(Exception::from(value.clone())),
+        None => Err(Exception::from(Value::Nil)),
     }
 }
 
@@ -75,9 +76,9 @@ pub fn catch(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> 
         None => Ok(Value::Nil),
         Some(&Value::Block(ref block)) => match runtime.invoke_block(block, &[]) {
             Ok(_) => Ok(Value::Nil),
-            Err(Exception(value)) => Ok(value),
+            Err(exception) => Ok(exception.into()),
         },
-        Some(_) => Err(Exception(Value::from("block to invoke required"))),
+        Some(_) => Err(Exception::from("block to invoke required")),
     }
 }
 
@@ -86,8 +87,11 @@ pub fn args(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     Ok(Value::List(runtime.current_frame().args.to_vec()))
 }
 
-pub fn require(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
-    unimplemented!();
+pub fn require(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    match args.first() {
+        Some(&Value::String(ref string)) => runtime.load_module(string),
+        _ => Err(Exception::from("module name required")),
+    }
 }
 
 pub fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {

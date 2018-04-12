@@ -14,9 +14,7 @@ use std::process;
 
 fn main() {
     let stdin = fd::stdin();
-    let mut runtime = RuntimeBuilder::default()
-        .with_stdlib()
-        .build();
+    let mut runtime = Runtime::default();
 
     if stdin.is_tty() {
         let mut editor = editor::Editor::new();
@@ -32,7 +30,7 @@ fn main() {
                         match runtime.invoke_block(&ast, &[]) {
                             Ok(Value::Nil) => {},
                             Ok(value) => println!("{}", value),
-                            Err(e) => eprintln!("error: {:?}", e),
+                            Err(e) => eprintln!("error: {}", e),
                         }
                     },
                     Err(e) => eprintln!("error: {}", e),

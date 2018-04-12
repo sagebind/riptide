@@ -1,35 +1,38 @@
 //! The Riptide runtime.
 use builtins;
+use exceptions::Exception;
+use modules;
 use riptide_syntax;
 use riptide_syntax::filemap::FileMap;
 use riptide_syntax::ast::*;
+use std::path::Path;
+use std::rc::Rc;
 use value::Value;
 use value::table::Table;
 
 pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception>;
 
-pub type ModuleLoaderFn = fn(&str) -> Result<Value, Exception>;
-
-#[derive(Clone, Debug)]
-pub struct Exception(pub Value);
-
+/// Configure a runtime.
 pub struct RuntimeBuilder {
-    module_resolver: Option<ModuleLoaderFn>,
+    module_loaders: Vec<Rc<modules::ModuleLoader>>,
     globals: Table,
 }
 
 impl Default for RuntimeBuilder {
     fn default() -> Self {
-        Self {
-            module_resolver: None,
-            globals: Table::new(),
-        }
+        Self::new()
+            .module_loader(modules::relative_loader)
+            .module_loader(modules::system_loader)
+            .with_stdlib()
     }
 }
 
 impl RuntimeBuilder {
-    pub fn preload(mut self, module: &str) -> Self {
-        self
+    pub fn new() -> Self {
+        Self {
+            module_loaders: Vec::new(),
+            globals: Table::new(),
+        }
     }
 
     pub fn with_stdlib(mut self) -> Self {
@@ -42,13 +45,20 @@ impl RuntimeBuilder {
         self.globals.set("throw", Value::ForeignFunction(builtins::throw));
         self.globals.set("catch", Value::ForeignFunction(builtins::catch));
         self.globals.set("args", Value::ForeignFunction(builtins::args));
+        self.globals.set("require", Value::ForeignFunction(builtins::require));
 
+        self
+    }
+
+    /// Register a module loader.
+    pub fn module_loader<T>(mut self, loader: T) -> Self where T: modules::ModuleLoader + 'static {
+        self.module_loaders.push(Rc::new(loader));
         self
     }
 
     pub fn build(self) -> Runtime {
         Runtime {
-            module_resolver: self.module_resolver,
+            module_loaders: self.module_loaders,
             module_cache: Table::new(),
             globals: self.globals,
             call_stack: Vec::new(),
@@ -60,20 +70,11 @@ impl RuntimeBuilder {
 
 /// Holds all of the state of a Riptide runtime.
 pub struct Runtime {
-    /// Module loaders to use when requiring a module.
-    module_resolver: Option<ModuleLoaderFn>,
-
-    /// Cache of modules already required.
+    module_loaders: Vec<Rc<modules::ModuleLoader>>,
     module_cache: Table,
-
-    /// Holds global variable bindings.
     globals: Table,
-
-    /// Function call stack containing call frames.
     call_stack: Vec<CallFrame>,
-
     exit_code: i32,
-
     exit_requested: bool,
 }
 
@@ -83,23 +84,30 @@ pub struct CallFrame {
     pub bindings: Table,
 }
 
+impl Default for Runtime {
+    fn default() -> Self {
+        RuntimeBuilder::default().build()
+    }
+}
+
 impl Runtime {
     pub fn load_module(&mut self, name: &str) -> Result<Value, Exception> {
         if let Some(value) = self.module_cache.get(name) {
             return Ok(value);
         }
 
-        if let Some(loader) = self.module_resolver {
-            match (loader)(name) {
+        for loader in self.module_loaders.clone() {
+            match loader.load(self, name) {
+                Ok(Value::Nil) => continue,
+                Err(exception) => return Err(exception),
                 Ok(value) => {
                     self.module_cache.set(name, value.clone());
                     return Ok(value);
                 },
-                Err(exception) => return Err(exception),
             }
         }
 
-        Err(Exception(Value::from("module not found")))
+        Err(Exception::from("module not found"))
     }
 
     pub fn exit_code(&self) -> i32 {
@@ -144,10 +152,14 @@ impl Runtime {
         self.execute_filemap(FileMap::buffer(None, script))
     }
 
+    pub fn execute_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Value, Exception> {
+        self.execute_filemap(FileMap::open(path)?)
+    }
+
     fn execute_filemap(&mut self, filemap: FileMap) -> Result<Value, Exception> {
         let block = match riptide_syntax::parse(filemap) {
             Ok(block) => block,
-            Err(e) => return Err(Exception(Value::from(format!("error parsing: {}", e.message)))),
+            Err(e) => return Err(Exception::from(format!("error parsing: {}", e.message))),
         };
 
         self.invoke_block(&block, &[])
@@ -208,7 +220,7 @@ impl Runtime {
             Value::ForeignFunction(f) => {
                 f(self, &args)
             },
-            _ => Err(Exception(Value::from(format!("cannot execute {:?} as a function", function)))),
+            _ => Err(Exception::from(format!("cannot execute {:?} as a function", function))),
         }
     }
 
