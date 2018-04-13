@@ -59,6 +59,12 @@ impl From<String> for Value {
     }
 }
 
+impl From<Table> for Value {
+    fn from(table: Table) -> Self {
+        Value::Table(Rc::new(table))
+    }
+}
+
 impl From<ast::Block> for Value {
     fn from(block: ast::Block) -> Self {
         Value::Block(Rc::new(block))

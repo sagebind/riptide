@@ -36,6 +36,7 @@ impl RuntimeBuilder {
     }
 
     pub fn with_stdlib(mut self) -> Self {
+        self.globals.set("def", Value::ForeignFunction(builtins::def));
         self.globals.set("exit", Value::ForeignFunction(builtins::exit));
         self.globals.set("print", Value::ForeignFunction(builtins::print));
         self.globals.set("println", Value::ForeignFunction(builtins::println));
@@ -96,6 +97,8 @@ impl Runtime {
             return Ok(value);
         }
 
+        debug!("module '{}' not loaded, calling loader chain", name);
+
         for loader in self.module_loaders.clone() {
             match loader.load(self, name) {
                 Ok(Value::Nil) => continue,
@@ -119,6 +122,7 @@ impl Runtime {
     }
 
     pub fn request_exit(&mut self, code: i32) {
+        info!("runtime exit requested with exit code {}", code);
         self.exit_code = code;
         self.exit_requested = true;
     }
@@ -140,6 +144,19 @@ impl Runtime {
         }
 
         self.get_global(name)
+    }
+
+    /// Set a variable value in the current scope.
+    pub fn set(&mut self, name: &str, value: Value) {
+        info!("set {} = {}", name, value);
+
+        // if let Some(ref mut frame) = self.call_stack.last_mut() {
+        //     frame.bindings.set(name, value);
+        //     return;
+        // }
+
+        warn!("set called with an empty call stack");
+        self.set_global(name, value);
     }
 
     /// Get a reference to the current call stack frame.
@@ -230,8 +247,16 @@ impl Runtime {
             Expr::String(string) => Ok(Value::from(string)),
             // TODO: Handle expands
             Expr::ExpandableString(string) => Ok(Value::from(string)),
+            Expr::Substitution(substitution) => self.evaluate_substitution(substitution),
             Expr::Block(block) => Ok(Value::from(block)),
             Expr::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
+        }
+    }
+
+    fn evaluate_substitution(&mut self, substitution: Substitution) -> Result<Value, Exception> {
+        match self.get(&substitution.path[0]) {
+            Some(name) => Ok(Value::from(name)),
+            None => Err(Exception::from("undefined variable")),
         }
     }
 }

@@ -1,3 +1,0 @@
-println "test module loaded"
-
-typeof string

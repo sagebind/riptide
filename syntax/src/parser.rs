@@ -79,6 +79,7 @@ impl Parser {
             &Token::LeftBrace => self.parse_block_expr(),
             &Token::LeftBracket => self.parse_block_expr(),
             &Token::LeftParen => self.parse_pipeline_expr(),
+            &Token::SubstitutionSigil => self.parse_substitution_expr(),
             &Token::Number(number) => {
                 self.lexer.advance()?;
                 Ok(Expr::Number(number))
@@ -141,6 +142,17 @@ impl Parser {
         self.expect(Token::RightParen)?;
 
         Ok(Expr::Pipeline(pipeline))
+    }
+
+    fn parse_substitution_expr(&mut self) -> Result<Expr, ParseError> {
+        self.expect(Token::SubstitutionSigil)?;
+
+        match self.lexer.advance()? {
+            Token::String(s) => Ok(Expr::Substitution(Substitution {
+                path: vec![s],
+            })),
+            token => Err(self.error(format!("expected string, instead got {:?}", token))),
+        }
     }
 
     fn parse_string(&mut self) -> Result<Expr, ParseError> {

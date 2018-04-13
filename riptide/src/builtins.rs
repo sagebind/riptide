@@ -3,6 +3,20 @@ use process;
 use runtime::*;
 use value::*;
 
+/// Binds a value to a new variable or updates an existing variable.
+pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    let name = match args.get(0).and_then(Value::as_string) {
+        Some(s) => s,
+        None => return Err(Exception::from("variable name required")),
+    };
+
+    let value = args.get(1).cloned().unwrap_or(Value::Nil);
+
+    runtime.set(name, value);
+
+    Ok(Value::Nil)
+}
+
 /// Spawns a new child process and executes a given block in it.
 ///
 /// Returns the child process PID.

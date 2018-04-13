@@ -32,8 +32,15 @@ pub struct Call {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
     Number(f64),
+    Substitution(Substitution),
     ExpandableString(String),
     String(String),
     Block(Block),
     Pipeline(Pipeline),
+}
+
+/// A variable substitution expression.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Substitution {
+    pub path: Vec<String>,
 }

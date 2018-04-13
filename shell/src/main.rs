@@ -1,5 +1,7 @@
 extern crate riptide;
+extern crate riptide_stdlib;
 extern crate riptide_syntax;
+extern crate stderrlog;
 extern crate termion;
 
 mod buffer;
@@ -13,8 +15,15 @@ use riptide_syntax::parse;
 use std::process;
 
 fn main() {
+    stderrlog::new()
+        .verbosity(3)
+        .init()
+        .unwrap();
+
     let stdin = fd::stdin();
-    let mut runtime = Runtime::default();
+    let mut runtime = RuntimeBuilder::default()
+        .module_loader(riptide_stdlib::loader)
+        .build();
 
     if stdin.is_tty() {
         let mut editor = editor::Editor::new();
@@ -25,8 +34,6 @@ fn main() {
             if !line.is_empty() {
                 match parse(FileMap::buffer(Some("<input>".into()), line)) {
                     Ok(ast) => {
-                        println!("ast: {:?}", ast);
-
                         match runtime.invoke_block(&ast, &[]) {
                             Ok(Value::Nil) => {},
                             Ok(value) => println!("{}", value),

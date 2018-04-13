@@ -6,10 +6,14 @@ description = "RipShell"
 
 [dependencies]
 lazy_static = "1.0"
+stderrlog = "0.3"
 termion = "1.5"
 
 [dependencies.riptide]
 path = "../riptide"
+
+[dependencies.riptide-stdlib]
+path = "../stdlib"
 
 [dependencies.riptide-syntax]
 path = "../syntax"

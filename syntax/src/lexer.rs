@@ -12,7 +12,7 @@ pub enum Token {
     RightBracket,
     EndOfStatement,
     Pipe,
-    Deref,
+    SubstitutionSigil,
     Number(f64),
     DoubleQuotedString(String),
     String(String),
@@ -66,7 +66,7 @@ impl Lexer {
                 Some(b'[') => return Ok(Token::LeftBracket),
                 Some(b']') => return Ok(Token::RightBracket),
                 Some(b'|') => return Ok(Token::Pipe),
-                Some(b'$') => return Ok(Token::Deref),
+                Some(b'$') => return Ok(Token::SubstitutionSigil),
                 Some(b';') => return Ok(Token::EndOfStatement),
 
                 // Ignore horizontal whitespace.
