@@ -5,7 +5,7 @@ authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "RipShell"
 
 [dependencies]
-lazy_static = "1.0"
+log = "0.4"
 stderrlog = "0.3"
 termion = "1.5"
 

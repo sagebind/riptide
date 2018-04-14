@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate log;
 extern crate riptide;
 extern crate riptide_stdlib;
 extern crate riptide_syntax;
@@ -34,6 +36,7 @@ fn main() {
             if !line.is_empty() {
                 match parse(FileMap::buffer(Some("<input>".into()), line)) {
                     Ok(ast) => {
+                        debug!("ast: {:?}", ast);
                         match runtime.invoke_block(&ast, &[]) {
                             Ok(Value::Nil) => {},
                             Ok(value) => println!("{}", value),

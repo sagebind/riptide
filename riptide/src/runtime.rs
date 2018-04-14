@@ -150,10 +150,10 @@ impl Runtime {
     pub fn set(&mut self, name: &str, value: Value) {
         info!("set {} = {}", name, value);
 
-        // if let Some(ref mut frame) = self.call_stack.last_mut() {
-        //     frame.bindings.set(name, value);
-        //     return;
-        // }
+        if let Some(ref mut frame) = self.call_stack.last_mut() {
+            frame.bindings.set(name, value);
+            return;
+        }
 
         warn!("set called with an empty call stack");
         self.set_global(name, value);
@@ -193,7 +193,7 @@ impl Runtime {
         let mut last_return_value = Value::Nil;
 
         // Evaluate each statement in order.
-        for statement in block.statements.iter().rev() {
+        for statement in block.statements.iter() {
             match self.evaluate_pipeline(&statement) {
                 Ok(return_value) => last_return_value = return_value,
                 Err(exception) => {
