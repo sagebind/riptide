@@ -4,19 +4,35 @@ use super::ParseError;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
+    /// Indicates the beginning of a sub-expression.
     LeftParen,
+    /// Closes a sub-expression.
     RightParen,
+    /// Indicates the beginning of a block.
     LeftBrace,
+    /// Closes a block.
     RightBrace,
+    /// Prefixes a named argument list for the following block.
     LeftBracket,
+    /// Closes a named argument list.
     RightBracket,
+    /// Semicolon separating statements.
     EndOfStatement,
+    /// Separates function calls in a pipeline.
     Pipe,
+    /// Prefixes simple variable substitution.
     SubstitutionSigil,
+    /// Indicates the beginning of a complex expression substitution.
+    SubstitutionParen,
+    /// A number literal.
     Number(f64),
-    DoubleQuotedString(String),
+    /// A string literal.
     String(String),
+    /// A string with possible substitutions.
+    DoubleQuotedString(String),
+    /// Newline separator.
     EndOfLine,
+    /// Indicates the end of file has been reached and no more tokens will be produced.
     EndOfFile,
 }
 
@@ -66,8 +82,16 @@ impl Lexer {
                 Some(b'[') => return Ok(Token::LeftBracket),
                 Some(b']') => return Ok(Token::RightBracket),
                 Some(b'|') => return Ok(Token::Pipe),
-                Some(b'$') => return Ok(Token::SubstitutionSigil),
                 Some(b';') => return Ok(Token::EndOfStatement),
+
+                // Could be the start of a simple substitution or a complex one.
+                Some(b'$') => match self.file.peek() {
+                    Some(b'(') => {
+                        self.file.advance();
+                        return Ok(Token::SubstitutionParen);
+                    },
+                    _ => return Ok(Token::SubstitutionSigil),
+                },
 
                 // Ignore horizontal whitespace.
                 Some(b' ') | Some(0x09) | Some(0x0c) => continue,

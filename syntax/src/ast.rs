@@ -44,3 +44,27 @@ pub enum Expr {
 pub struct Substitution {
     pub path: Vec<String>,
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InterpolatedString(Vec<InterpolatedStringPart>);
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum InterpolatedStringPart {
+    /// A string literal.
+    String(String),
+
+    /// A simple variable substitution.
+    Variable(VariablePath),
+
+    /// An expression substitution.
+    Expr(Expr),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VariablePath(Vec<VariablePathPart>);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VariablePathPart {
+    /// An identifier referencing a variable by name.
+    Ident(String),
+}

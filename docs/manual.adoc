@@ -307,13 +307,30 @@ main
 ----
 
 
+== String interpolation
+
+----
+def foo world
+println "Hello $foo"
+println "Hello $(uppercase foo)"
+println "Hello dynamic string: ${
+    return $foo
+}"
+
+# Format options
+def a-float 3.14159
+println "PI = ${a-float:.3}" # Prints "PI = 3.142"
+----
+
+
 == Exceptions
 
 ----
-catch {
+def exception (try {
     raise "an exception"
-} {
-    print "exeption caught"
+})
+if $exception {
+    println "exception caught: $exception"
 }
 ----
 
