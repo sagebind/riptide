@@ -20,10 +20,14 @@ pub enum Token {
     EndOfStatement,
     /// Separates function calls in a pipeline.
     Pipe,
+    /// Separates the format specifier from the variable name in a format substitution.
+    Colon,
     /// Prefixes simple variable substitution.
     SubstitutionSigil,
     /// Indicates the beginning of a complex expression substitution.
     SubstitutionParen,
+    /// Indicates the beginning of a string format substitution.
+    SubstitutionBrace,
     /// A number literal.
     Number(f64),
     /// A string literal.
@@ -71,6 +75,10 @@ impl Lexer {
         }
     }
 
+    pub fn create_error<S: Into<String>>(&self, message: S) -> ParseError {
+        ParseError::new(message, self.file.pos())
+    }
+
     fn lex(&mut self) -> Result<Token, ParseError> {
         loop {
             match self.file.advance() {
@@ -82,6 +90,7 @@ impl Lexer {
                 Some(b'[') => return Ok(Token::LeftBracket),
                 Some(b']') => return Ok(Token::RightBracket),
                 Some(b'|') => return Ok(Token::Pipe),
+                Some(b':') => return Ok(Token::Colon),
                 Some(b';') => return Ok(Token::EndOfStatement),
 
                 // Could be the start of a simple substitution or a complex one.
@@ -89,6 +98,10 @@ impl Lexer {
                     Some(b'(') => {
                         self.file.advance();
                         return Ok(Token::SubstitutionParen);
+                    },
+                    Some(b'{') => {
+                        self.file.advance();
+                        return Ok(Token::SubstitutionBrace);
                     },
                     _ => return Ok(Token::SubstitutionSigil),
                 },
@@ -138,7 +151,7 @@ impl Lexer {
                             // Just a regular byte in the string.
                             Some(byte) => bytes.push(byte),
 
-                            None => panic!("unexpected eof, expecting end of string '"),
+                            None => return Err(self.create_error("unexpected eof, expecting end of string '")),
                         }
                     }
 
@@ -160,7 +173,7 @@ impl Lexer {
                             // Normal character
                             Some(byte) => bytes.push(byte),
 
-                            None => panic!("unexpected eof, expecting end of string '"),
+                            None => return Err(self.create_error("unexpected eof, expecting end of string '")),
                         }
                     }
 
@@ -175,7 +188,7 @@ impl Lexer {
                     while let Some(byte) = self.file.peek() {
                         if byte == b'.' {
                             if seen_decimal {
-                                panic!("unexpected '.'");
+                                return Err(self.create_error("unexpected '.'"));
                             }
                             seen_decimal = true;
                             bytes.push(byte);
@@ -212,9 +225,7 @@ impl Lexer {
                 },
 
 
-                Some(_) => {
-                    panic!("unexpected byte");
-                },
+                Some(_) => return Err(self.create_error("unexpected byte")),
 
                 None => return Ok(Token::EndOfFile),
             }

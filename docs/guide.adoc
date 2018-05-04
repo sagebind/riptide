@@ -313,9 +313,9 @@ main
 def foo world
 println "Hello $foo"
 println "Hello $(uppercase foo)"
-println "Hello dynamic string: ${
+println "Hello dynamic string: $({
     return $foo
-}"
+})"
 
 # Format options
 def a-float 3.14159

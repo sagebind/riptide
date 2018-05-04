@@ -31,40 +31,62 @@ pub struct Call {
 /// Contains a variant for each different expression type.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
+    /// A number literal.
     Number(f64),
-    Substitution(Substitution),
-    ExpandableString(String),
-    String(String),
-    Block(Block),
-    Pipeline(Pipeline),
-}
 
-/// A variable substitution expression.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Substitution {
-    pub path: Vec<String>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct InterpolatedString(Vec<InterpolatedStringPart>);
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum InterpolatedStringPart {
     /// A string literal.
     String(String),
 
-    /// A simple variable substitution.
+    /// A substitution.
+    Substitution(Substitution),
+
+    /// An interpolated string literal.
+    InterpolatedString(InterpolatedString),
+
+    /// A function block.
+    Block(Block),
+
+    /// A function pipeline.
+    Pipeline(Pipeline),
+}
+
+/// Value substitution.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Substitution {
+    /// A simple variable substitution, such as `$foo`.
+    ///
+    /// This gets evaluated to the current value of the variable identified.
     Variable(VariablePath),
 
-    /// An expression substitution.
-    Expr(Expr),
+    /// A format substitution with a variable and parameters, such as `${foo:.2}`.
+    ///
+    /// This always evaluates to a string, unless the referenced variable is not defined.
+    Format(VariablePath, Option<String>),
+
+    /// A pipeline substitution, such as `$(add 1 2 3)`.
+    ///
+    /// Evaluates to the final return value after executing the pipeline.
+    Pipeline(Pipeline),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VariablePath(Vec<VariablePathPart>);
+pub struct VariablePath(pub Vec<VariablePathPart>);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VariablePathPart {
     /// An identifier referencing a variable by name.
     Ident(String),
+}
+
+/// An interpolated string literal.
+///
+/// An interpolated string is made up of a sequence of parts that, when stringified and concatenated in order, form the
+/// desired string value.
+#[derive(Clone, Debug, PartialEq)]
+pub struct InterpolatedString(Vec<InterpolatedStringPart>);
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum InterpolatedStringPart {
+    String(String),
+    Substitution(Substitution),
 }

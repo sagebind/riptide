@@ -146,6 +146,11 @@ impl Runtime {
         self.get_global(name)
     }
 
+    fn get_path(&self, path: &VariablePath) -> Option<Value> {
+        // todo
+        None
+    }
+
     /// Set a variable value in the current scope.
     pub fn set(&mut self, name: &str, value: Value) {
         info!("set {} = {}", name, value);
@@ -246,7 +251,7 @@ impl Runtime {
             Expr::Number(number) => Ok(Value::Number(number)),
             Expr::String(string) => Ok(Value::from(string)),
             // TODO: Handle expands
-            Expr::ExpandableString(string) => Ok(Value::from(string)),
+            Expr::InterpolatedString(_) => Ok(Value::Nil),
             Expr::Substitution(substitution) => self.evaluate_substitution(substitution),
             Expr::Block(block) => Ok(Value::from(block)),
             Expr::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
@@ -254,9 +259,13 @@ impl Runtime {
     }
 
     fn evaluate_substitution(&mut self, substitution: Substitution) -> Result<Value, Exception> {
-        match self.get(&substitution.path[0]) {
-            Some(name) => Ok(Value::from(name)),
-            None => Err(Exception::from("undefined variable")),
+        match substitution {
+            Substitution::Variable(path) => match self.get_path(&path) {
+                Some(name) => Ok(Value::from(name)),
+                None => Err(Exception::from("undefined variable")),
+            },
+            Substitution::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
+            _ => unimplemented!(),
         }
     }
 }

@@ -80,6 +80,8 @@ impl Parser {
             &Token::LeftBracket => self.parse_block_expr(),
             &Token::LeftParen => self.parse_pipeline_expr(),
             &Token::SubstitutionSigil => self.parse_substitution_expr(),
+            &Token::SubstitutionBrace => self.parse_substitution_expr(),
+            &Token::SubstitutionParen => self.parse_substitution_expr(),
             &Token::Number(number) => {
                 self.lexer.advance()?;
                 Ok(Expr::Number(number))
@@ -145,20 +147,55 @@ impl Parser {
     }
 
     fn parse_substitution_expr(&mut self) -> Result<Expr, ParseError> {
-        self.expect(Token::SubstitutionSigil)?;
+        Ok(Expr::Substitution(self.parse_substitution()?))
+    }
 
+    fn parse_substitution(&mut self) -> Result<Substitution, ParseError> {
         match self.lexer.advance()? {
-            Token::String(s) => Ok(Expr::Substitution(Substitution {
-                path: vec![s],
-            })),
-            token => Err(self.error(format!("expected string, instead got {:?}", token))),
+            Token::SubstitutionSigil => {
+                Ok(Substitution::Variable(self.parse_variable_path()?))
+            },
+
+            Token::SubstitutionBrace => {
+                let variable = self.parse_variable_path()?;
+
+                match self.advance_required()? {
+                    Token::Colon => {
+                        let format_specifier = match self.advance_required()? {
+                            Token::String(string) => string,
+                            Token::RightBrace => String::new(),
+                            _ => return Err(self.error("expected format specifier")),
+                        };
+
+                        Ok(Substitution::Format(variable, Some(format_specifier)))
+                    },
+                    Token::RightBrace => Ok(Substitution::Format(variable, None)),
+                    token => Err(self.error(format!("expected either ':' or '}}', instead got {:?}", token))),
+                }
+            },
+
+            Token::SubstitutionParen => {
+                let pipeline = self.parse_pipeline()?;
+                self.expect(Token::RightParen)?;
+
+                Ok(Substitution::Pipeline(pipeline))
+            },
+
+            _ => Err(self.error("expected substitution")),
+        }
+    }
+
+    fn parse_variable_path(&mut self) -> Result<VariablePath, ParseError> {
+        match self.lexer.advance()? {
+            Token::String(s) => Ok(VariablePath(vec![VariablePathPart::Ident(s)])),
+            token => Err(self.error(format!("expected variable path, instead got {:?}", token))),
         }
     }
 
     fn parse_string(&mut self) -> Result<Expr, ParseError> {
         match self.lexer.advance()? {
             Token::String(s) => Ok(Expr::String(s)),
-            Token::DoubleQuotedString(s) => Ok(Expr::ExpandableString(s)),
+            Token::DoubleQuotedString(s) => Ok(Expr::String(s)),
             token => Err(self.error(format!("expected string, instead got {:?}", token))),
         }
     }
@@ -181,6 +218,6 @@ impl Parser {
     }
 
     fn error<S: Into<String>>(&self, message: S) -> ParseError {
-        ParseError::new(message, self.lexer.file().pos())
+        self.lexer.create_error(message)
     }
 }
