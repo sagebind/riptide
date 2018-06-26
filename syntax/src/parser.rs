@@ -3,15 +3,18 @@
 //! This is a handwritten, recursive descent parser. This is done both for speed
 //! and simplicity, since the language syntax is relatively simple anyway.
 use ast::*;
-use super::ParseError;
+use source::*;
+use std::borrow::Borrow;
+use super::errors::ParseError;
 use super::lexer::*;
+use super::tokens::*;
 
-pub struct Parser {
-    lexer: Lexer,
+pub struct Parser<F> {
+    lexer: Lexer<F>,
 }
 
-impl Parser {
-    pub fn new(lexer: Lexer) -> Self {
+impl<F: Borrow<SourceFile>> Parser<F> {
+    pub fn new(lexer: Lexer<F>) -> Self {
         Self {
             lexer: lexer,
         }

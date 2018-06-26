@@ -1,40 +1,21 @@
-use ast::Block;
-use filemap::{FileMap, SourcePos};
-use std::fmt;
+//! The core Riptide syntax implementation.
+//!
+//! The provided Riptide parser parses source code into a high-level abstract syntax tree, which can be used for
+//! evaluation directly, optimization, formatting tools, etc.
+use source::SourceFile;
 
 pub mod ast;
-pub mod filemap;
-mod lexer;
-mod parser;
-
-/// Describes an error that occured in parsing.
-#[derive(Debug)]
-pub struct ParseError {
-    /// The error message. This is a string instead of an enum because the
-    /// messages can be highly specific.
-    pub message: String,
-
-    /// The position in the source the error occurred in.
-    pub pos: SourcePos,
-}
-
-impl ParseError {
-    pub fn new<S: Into<String>>(message: S, pos: SourcePos) -> Self {
-        Self {
-            message: message.into(),
-            pos: pos,
-        }
-    }
-}
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}: {}", self.pos.line, self.pos.column, self.message)
-    }
-}
+pub mod errors;
+pub mod lexer;
+pub mod parser;
+pub mod source;
+pub mod tokens;
 
 /// Attempts to parse a source file into an abstract syntax tree.
-pub fn parse(file: FileMap) -> Result<Block, ParseError> {
+///
+/// If the given file contains a valid Riptide program, a root AST node is returned representing the program. If the
+/// program instead contains any syntax errors, the errors are returned instead.
+pub fn parse(file: SourceFile) -> Result<ast::Block, errors::ParseError> {
     let lexer = lexer::Lexer::new(file);
     let mut parser = parser::Parser::new(lexer);
 

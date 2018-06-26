@@ -1,87 +1,61 @@
 /// Splits a source file into a stream of tokens.
-use filemap::*;
-use super::ParseError;
+use source::*;
+use std::borrow::Borrow;
+use super::errors::ParseError;
+use super::tokens::*;
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum Token {
-    /// Indicates the beginning of a sub-expression.
-    LeftParen,
-    /// Closes a sub-expression.
-    RightParen,
-    /// Indicates the beginning of a block.
-    LeftBrace,
-    /// Closes a block.
-    RightBrace,
-    /// Prefixes a named argument list for the following block.
-    LeftBracket,
-    /// Closes a named argument list.
-    RightBracket,
-    /// Semicolon separating statements.
-    EndOfStatement,
-    /// Separates function calls in a pipeline.
-    Pipe,
-    /// Separates the format specifier from the variable name in a format substitution.
-    Colon,
-    /// Prefixes simple variable substitution.
-    SubstitutionSigil,
-    /// Indicates the beginning of a complex expression substitution.
-    SubstitutionParen,
-    /// Indicates the beginning of a string format substitution.
-    SubstitutionBrace,
-    /// A number literal.
-    Number(f64),
-    /// A string literal.
-    String(String),
-    /// A string with possible substitutions.
-    DoubleQuotedString(String),
-    /// Newline separator.
-    EndOfLine,
-    /// Indicates the end of file has been reached and no more tokens will be produced.
-    EndOfFile,
+/// Possible "modes" a lexer can be in.
+///
+/// Riptide cannot be tokenized context-free, so the lexer enters in and out of various modes that control tokenization
+/// behavior.
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub enum LexerMode {
+    /// Normal mode: This mode tokenizes regular source code. The lexer starts and ends in this mode.
+    Normal,
+
+    /// Interpolation mode: The lexer enters into this mode when it begins to tokenize a double-quoted string.
+    Interpolation,
 }
 
-pub struct Lexer {
-    file: FileMap,
-    peeked: Option<Token>,
+/// Tokenizes a file into a series of tokens.
+pub struct Lexer<F> {
+    cursor: SourceCursor<F>,
 }
 
-impl Lexer {
-    /// Create a new lexer for the given file.
-    pub fn new(file: FileMap) -> Lexer {
-        Lexer {
-            file: file,
-            peeked: None,
+impl<F: Borrow<SourceFile>> From<F> for Lexer<F> {
+    fn from(file: F) -> Self {
+        Self {
+            cursor: SourceCursor::from(file),
         }
     }
+}
 
+impl<F: Borrow<SourceFile>> Lexer<F> {
     /// Get the file being lexed.
-    pub fn file(&self) -> &FileMap {
-        &self.file
-    }
-
-    /// Peek at the next token, if any, in the source.
-    pub fn peek(&mut self) -> Result<&Token, ParseError> {
-        if self.peeked.is_none() {
-            self.peeked = Some(self.lex()?);
-        }
-        Ok(self.peeked.as_ref().unwrap())
+    #[inline]
+    pub fn file(&self) -> &SourceFile {
+        self.cursor.file()
     }
 
     /// Advance to the next token in the source.
-    pub fn advance(&mut self) -> Result<Token, ParseError> {
-        match self.peeked.take() {
-            Some(token) => Ok(token),
-            None => self.lex(),
+    ///
+    /// The token will be lexed according to the rules for the given mode.
+    pub fn lex(&mut self, mode: LexerMode) -> Result<TokenInfo, ParseError> {
+        self.cursor.mark();
+
+        match mode {
+            LexerMode::Normal => Ok(self.create_token(self.lex_normal()?)),
+            LexerMode::Interpolation => unimplemented!(),
         }
     }
 
     pub fn create_error<S: Into<String>>(&self, message: S) -> ParseError {
-        ParseError::new(message, self.file.pos())
+        ParseError::new(message, self.cursor.pos())
     }
 
-    fn lex(&mut self) -> Result<Token, ParseError> {
+    fn lex_normal(&mut self) -> Result<Token, ParseError> {
         loop {
-            match self.file.advance() {
+            match self.cursor.advance() {
                 // Simple one-character tokens.
                 Some(b'(') => return Ok(Token::LeftParen),
                 Some(b')') => return Ok(Token::RightParen),
@@ -94,13 +68,13 @@ impl Lexer {
                 Some(b';') => return Ok(Token::EndOfStatement),
 
                 // Could be the start of a simple substitution or a complex one.
-                Some(b'$') => match self.file.peek() {
+                Some(b'$') => match self.cursor.peek() {
                     Some(b'(') => {
-                        self.file.advance();
+                        self.cursor.advance();
                         return Ok(Token::SubstitutionParen);
                     },
                     Some(b'{') => {
-                        self.file.advance();
+                        self.cursor.advance();
                         return Ok(Token::SubstitutionBrace);
                     },
                     _ => return Ok(Token::SubstitutionSigil),
@@ -112,9 +86,9 @@ impl Lexer {
                 // Start of a line comment, ignore all following characters until end of line.
                 Some(b'#') => {
                     loop {
-                        match self.file.peek() {
+                        match self.cursor.peek() {
                             Some(b'\r') | Some(b'\n') => break,
-                            _ => self.file.advance(),
+                            _ => self.cursor.advance(),
                         };
                     }
                     continue;
@@ -124,106 +98,23 @@ impl Lexer {
                 // newline token: \r \r\n \n
                 Some(b'\n') => return Ok(Token::EndOfLine),
                 Some(b'\r') => {
-                    if self.file.peek() == Some(b'\n') {
-                        self.file.advance();
+                    if self.cursor.peek() == Some(b'\n') {
+                        self.cursor.advance();
                     }
                     return Ok(Token::EndOfLine);
                 },
 
                 // Single-quoted string.
-                Some(b'\'') => {
-                    let mut bytes = Vec::new();
-
-                    loop {
-                        match self.file.advance() {
-                            // End of the string.
-                            Some(b'\'') => break,
-
-                            // The only character escapes recognized in a single qouted string is \' and \\, so for all
-                            // other characters we just proceed as normal.
-                            Some(b'\\') => match self.file.peek() {
-                                Some(b'\'') | Some(b'\\') => {
-                                    bytes.push(self.file.advance().unwrap());
-                                },
-                                _ => bytes.push(b'\\'),
-                            },
-
-                            // Just a regular byte in the string.
-                            Some(byte) => bytes.push(byte),
-
-                            None => return Err(self.create_error("unexpected eof, expecting end of string '")),
-                        }
-                    }
-
-                    return Ok(Token::String(String::from_utf8(bytes).unwrap()));
-                },
+                Some(b'\'') => return self.lex_single_quoted_string(),
 
                 // Double quoted string.
-                Some(b'"') => {
-                    let mut bytes = Vec::new();
-
-                    loop {
-                        match self.file.advance() {
-                            // End of the string
-                            Some(b'"') => break,
-
-                            // Character escape
-                            Some(b'\\') => bytes.push(translate_escape(self.file.advance().unwrap())),
-
-                            // Normal character
-                            Some(byte) => bytes.push(byte),
-
-                            None => return Err(self.create_error("unexpected eof, expecting end of string '")),
-                        }
-                    }
-
-                    return Ok(Token::DoubleQuotedString(String::from_utf8(bytes).unwrap()));
-                },
+                Some(b'"') => return self.lex_double_quoted_string(),
 
                 // Number.
-                Some(byte) if byte.is_ascii_digit() => {
-                    let mut bytes = vec![byte];
-                    let mut seen_decimal = false;
-
-                    while let Some(byte) = self.file.peek() {
-                        if byte == b'.' {
-                            if seen_decimal {
-                                return Err(self.create_error("unexpected '.'"));
-                            }
-                            seen_decimal = true;
-                            bytes.push(byte);
-                            self.file.advance();
-                        } else if byte.is_ascii_digit() {
-                            bytes.push(byte);
-                            self.file.advance();
-                        } else {
-                            break;
-                        }
-                    }
-
-                    let string = unsafe {
-                        String::from_utf8_unchecked(bytes)
-                    };
-
-                    return Ok(Token::Number(string.parse().unwrap()));
-                },
+                Some(byte) if byte.is_ascii_digit() => return self.lex_number_literal(byte),
 
                 // Unquoted string.
-                Some(byte) if is_unquoted_string_char(byte) => {
-                    let mut bytes = vec![byte];
-
-                    while let Some(byte) = self.file.peek() {
-                        if !is_unquoted_string_char(byte) {
-                            break;
-                        }
-
-                        self.file.advance();
-                        bytes.push(byte);
-                    }
-
-                    return Ok(Token::String(String::from_utf8(bytes).unwrap()));
-                },
-
+                Some(byte) if is_unquoted_string_char(byte) => return self.lex_unquoted_string(byte),
 
                 Some(_) => return Err(self.create_error("unexpected byte")),
 
@@ -231,8 +122,104 @@ impl Lexer {
             }
         }
     }
-}
 
+    fn lex_single_quoted_string(&mut self) -> Result<Token, ParseError> {
+        let mut bytes = Vec::new();
+
+        loop {
+            match self.cursor.advance() {
+                // End of the string.
+                Some(b'\'') => break,
+
+                // The only character escapes recognized in a single qouted string is \' and \\, so for all
+                // other characters we just proceed as normal.
+                Some(b'\\') => match self.cursor.peek() {
+                    Some(b'\'') | Some(b'\\') => {
+                        bytes.push(self.cursor.advance().unwrap());
+                    },
+                    _ => bytes.push(b'\\'),
+                },
+
+                // Just a regular byte in the string.
+                Some(byte) => bytes.push(byte),
+
+                None => return Err(self.create_error("unexpected eof, expecting end of string '")),
+            }
+        }
+
+        return Ok(Token::StringLiteral(String::from_utf8(bytes).unwrap()));
+    }
+
+    fn lex_double_quoted_string(&mut self) -> Result<Token, ParseError> {
+        let mut bytes = Vec::new();
+
+        loop {
+            match self.cursor.advance() {
+                // End of the string
+                Some(b'"') => break,
+
+                // Character escape
+                Some(b'\\') => bytes.push(translate_escape(self.cursor.advance().unwrap())),
+
+                // Normal character
+                Some(byte) => bytes.push(byte),
+
+                None => return Err(self.create_error("unexpected eof, expecting end of string '")),
+            }
+        }
+
+        return Ok(Token::DoubleQuotedString(String::from_utf8(bytes).unwrap()));
+    }
+
+    fn lex_unquoted_string(&mut self, first_byte: u8) -> Result<Token, ParseError> {
+        let mut bytes = vec![first_byte];
+
+        while let Some(byte) = self.cursor.peek() {
+            if !is_unquoted_string_char(byte) {
+                break;
+            }
+
+            self.cursor.advance();
+            bytes.push(byte);
+        }
+
+        return Ok(Token::StringLiteral(String::from_utf8(bytes).unwrap()));
+    }
+
+    fn lex_number_literal(&mut self, first_byte: u8) -> Result<Token, ParseError> {
+        let mut bytes = vec![first_byte];
+        let mut seen_decimal = false;
+
+        while let Some(byte) = self.cursor.peek() {
+            if byte == b'.' {
+                if seen_decimal {
+                    return Err(self.create_error("unexpected '.'"));
+                }
+                seen_decimal = true;
+                bytes.push(byte);
+                self.cursor.advance();
+            } else if byte.is_ascii_digit() {
+                bytes.push(byte);
+                self.cursor.advance();
+            } else {
+                break;
+            }
+        }
+
+        let string = unsafe {
+            String::from_utf8_unchecked(bytes)
+        };
+
+        return Ok(Token::Number(string.parse().unwrap()));
+    }
+
+    fn create_token(&self, token: Token) -> TokenInfo {
+        TokenInfo {
+            token: token,
+            span: self.cursor.span(),
+        }
+    }
+}
 
 /// Get the value corresponding to a given escape character.
 fn translate_escape(byte: u8) -> u8 {
