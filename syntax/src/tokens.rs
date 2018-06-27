@@ -26,6 +26,8 @@ pub enum Token {
     Pipe,
     /// Separates the format specifier from the variable name in a format substitution.
     Colon,
+    /// Delimits an interpolated string.
+    DoubleQuote,
     /// Prefixes simple variable substitution.
     SubstitutionSigil,
     /// Indicates the beginning of a complex expression substitution.
@@ -42,6 +44,4 @@ pub enum Token {
     EndOfLine,
     /// Indicates the end of file has been reached and no more tokens will be produced.
     EndOfFile,
-    /// Chunk of literal text inside an interpolated string.
-    InterpolationStringLiteral(String),
 }

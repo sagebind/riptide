@@ -49,16 +49,17 @@ impl<F: Borrow<SourceFile>> Lexer<F> {
     pub fn lex(&mut self, mode: LexerMode) -> Result<TokenInfo, ParseError> {
         self.cursor.mark();
 
-        match mode {
-            LexerMode::Normal => {
-                let token = self.lex_normal()?;
-                Ok(TokenInfo {
-                    token: token,
-                    span: self.cursor.span(),
-                })
-            },
-            LexerMode::Interpolation => unimplemented!(),
-        }
+        let token = match mode {
+            LexerMode::Normal => self.lex_normal()?,
+            LexerMode::Interpolation => self.lex_interpolation()?,
+        };
+
+        debug!("token: {:?}", token);
+
+        Ok(TokenInfo {
+            token: token,
+            span: self.cursor.span(),
+        })
     }
 
     fn lex_normal(&mut self) -> Result<Token, ParseError> {
@@ -75,18 +76,8 @@ impl<F: Borrow<SourceFile>> Lexer<F> {
                 Some(b':') => return Ok(Token::Colon),
                 Some(b';') => return Ok(Token::EndOfStatement),
 
-                // Could be the start of a simple substitution or a complex one.
-                Some(b'$') => match self.cursor.peek() {
-                    Some(b'(') => {
-                        self.cursor.advance();
-                        return Ok(Token::SubstitutionParen);
-                    },
-                    Some(b'{') => {
-                        self.cursor.advance();
-                        return Ok(Token::SubstitutionBrace);
-                    },
-                    _ => return Ok(Token::SubstitutionSigil),
-                },
+                // Dollar sign indicates the start of a substitution.
+                Some(b'$') => return self.lex_substitution_opening(),
 
                 // Ignore horizontal whitespace.
                 Some(b' ') | Some(0x09) | Some(0x0c) => continue,
@@ -116,7 +107,7 @@ impl<F: Borrow<SourceFile>> Lexer<F> {
                 Some(b'\'') => return self.lex_single_quoted_string(),
 
                 // Double quoted string.
-                Some(b'"') => return self.lex_double_quoted_string(),
+                Some(b'"') => return Ok(Token::DoubleQuote),
 
                 // Number.
                 Some(byte) if byte.is_ascii_digit() => return self.lex_number_literal(byte),
@@ -128,6 +119,40 @@ impl<F: Borrow<SourceFile>> Lexer<F> {
 
                 None => return Ok(Token::EndOfFile),
             }
+        }
+    }
+
+    fn lex_interpolation(&mut self) -> Result<Token, ParseError> {
+        match self.cursor.advance() {
+            // Double qoutes are recognized as the end of the interpolation.
+            Some(b'"') => Ok(Token::DoubleQuote),
+
+            // Substitutions are also recognized inside interpolations.
+            Some(b'$') => self.lex_substitution_opening(),
+
+            // Any other byte indicates a literal interpolation part.
+            Some(byte) => self.lex_interpolation_literal_part(byte),
+
+            None => Ok(Token::EndOfFile),
+        }
+    }
+
+    fn lex_interpolation_literal_part(&mut self, first_byte: u8) -> Result<Token, ParseError> {
+        unimplemented!();
+    }
+
+    fn lex_substitution_opening(&mut self) -> Result<Token, ParseError> {
+        // Could be the start of a simple substitution or a complex one.
+        match self.cursor.peek() {
+            Some(b'(') => {
+                self.cursor.advance();
+                return Ok(Token::SubstitutionParen);
+            },
+            Some(b'{') => {
+                self.cursor.advance();
+                return Ok(Token::SubstitutionBrace);
+            },
+            _ => return Ok(Token::SubstitutionSigil),
         }
     }
 

@@ -27,7 +27,7 @@ impl<F: Borrow<SourceFile>> Parser<F> {
     /// Get the current token.
     fn current_token(&mut self) -> Result<&Token, ParseError> {
         if self.current_token.is_none() {
-            self.consume_token()?;
+            self.read_next_token()?;
         }
 
         Ok(&self.current_token.as_ref().unwrap().token)
@@ -36,13 +36,18 @@ impl<F: Borrow<SourceFile>> Parser<F> {
     /// Consume the current token, moving to the next token in the file.
     fn consume_token(&mut self) -> Result<TokenInfo, ParseError> {
         if self.current_token.is_none() {
-            self.current_token = Some(self.lexer.lex(self.lexer_mode)?);
+            self.read_next_token()?;
         }
 
         let current = self.current_token.take();
-        self.current_token = Some(self.lexer.lex(self.lexer_mode)?);
+        self.read_next_token()?;
 
         Ok(current.unwrap())
+    }
+
+    fn read_next_token(&mut self) -> Result<(), ParseError> {
+        self.current_token = Some(self.lexer.lex(self.lexer_mode)?);
+        Ok(())
     }
 
     /// If the current token matches the given token, consume it, otherwise raise an error.
@@ -113,6 +118,8 @@ impl<F: Borrow<SourceFile>> Parser<F> {
     }
 
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
+        debug!("parse expr, starting at {:?}", self.current_token()?);
+
         match self.current_token()? {
             &Token::LeftBrace => self.parse_block_expr(),
             &Token::LeftBracket => self.parse_block_expr(),

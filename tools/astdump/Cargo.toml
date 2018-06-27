@@ -1,8 +1,11 @@
 [package]
-name = "riptide-syntax"
+name = "astdump"
 version = "0.2.0"
 authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
-description = "The Riptide language parser"
 
 [dependencies]
 log = "0.4"
+simple-logging = "2.0"
+
+[dependencies.riptide-syntax]
+path = "../../syntax"
