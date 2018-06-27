@@ -1,12 +1,12 @@
 extern crate riptide_syntax;
 
 use riptide_syntax::ast::*;
-use riptide_syntax::filemap::FileMap;
 use riptide_syntax::parse;
+use riptide_syntax::source::*;
 
 #[test]
 fn parse_string() {
-    let file = FileMap::buffer(None, "
+    let file = SourceFile::buffer(None, "
         'hello world'
     ");
 
@@ -27,7 +27,7 @@ fn parse_string() {
 
 #[test]
 fn nested_function_calls() {
-    let file = FileMap::buffer(None, "
+    let file = SourceFile::buffer(None, "
         println hello ({read} THE) (uppercase World)
     ");
 

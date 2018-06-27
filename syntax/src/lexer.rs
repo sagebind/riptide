@@ -17,6 +17,12 @@ pub enum LexerMode {
     Interpolation,
 }
 
+impl Default for LexerMode {
+    fn default() -> Self {
+        LexerMode::Normal
+    }
+}
+
 /// Tokenizes a file into a series of tokens.
 pub struct Lexer<F> {
     cursor: SourceCursor<F>,
@@ -44,13 +50,15 @@ impl<F: Borrow<SourceFile>> Lexer<F> {
         self.cursor.mark();
 
         match mode {
-            LexerMode::Normal => Ok(self.create_token(self.lex_normal()?)),
+            LexerMode::Normal => {
+                let token = self.lex_normal()?;
+                Ok(TokenInfo {
+                    token: token,
+                    span: self.cursor.span(),
+                })
+            },
             LexerMode::Interpolation => unimplemented!(),
         }
-    }
-
-    pub fn create_error<S: Into<String>>(&self, message: S) -> ParseError {
-        ParseError::new(message, self.cursor.pos())
     }
 
     fn lex_normal(&mut self) -> Result<Token, ParseError> {
@@ -213,11 +221,8 @@ impl<F: Borrow<SourceFile>> Lexer<F> {
         return Ok(Token::Number(string.parse().unwrap()));
     }
 
-    fn create_token(&self, token: Token) -> TokenInfo {
-        TokenInfo {
-            token: token,
-            span: self.cursor.span(),
-        }
+    fn create_error<S: Into<String>>(&self, message: S) -> ParseError {
+        ParseError::new(message, self.cursor.pos().into())
     }
 }
 
@@ -255,9 +260,9 @@ mod tests {
         ) => {
             $({
                 use $crate::lexer::Token::*;
-                let mut lexer = Lexer::new(FileMap::buffer(None, $source));
+                let mut lexer = Lexer::from(SourceFile::buffer(None, $source));
                 $(
-                    assert_eq!(lexer.advance().unwrap(), $token);
+                    assert_eq!(lexer.lex(LexerMode::Normal).unwrap().token, $token);
                 )*
             })*
         };
@@ -267,9 +272,9 @@ mod tests {
     fn test_unquoted_strings() {
         assert_tokens!{
             "echo foo bar" => [
-                String("echo".into()),
-                String("foo".into()),
-                String("bar".into()),
+                StringLiteral("echo".into()),
+                StringLiteral("foo".into()),
+                StringLiteral("bar".into()),
             ];
         }
     }
@@ -278,8 +283,8 @@ mod tests {
     fn test_single_quotes() {
         assert_tokens! {
             "echo 'foo bar'" => [
-                String("echo".into()),
-                String("foo bar".into()),
+                StringLiteral("echo".into()),
+                StringLiteral("foo bar".into()),
             ];
         }
     }
@@ -300,17 +305,17 @@ mod tests {
                 EndOfLine,
                 EndOfLine,
                 EndOfLine,
-                String("def".into()),
-                String("main".into()),
+                StringLiteral("def".into()),
+                StringLiteral("main".into()),
                 LeftBrace,
                 EndOfLine,
-                String("println".into()),
+                StringLiteral("println".into()),
                 DoubleQuotedString("Hello world!".into()),
                 EndOfLine,
                 RightBrace,
                 EndOfLine,
                 EndOfLine,
-                String("main".into()),
+                StringLiteral("main".into()),
                 EndOfLine,
                 EndOfLine,
             ];

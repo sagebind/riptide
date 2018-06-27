@@ -1,5 +1,5 @@
 use std::fmt;
-use super::source::SourcePos;
+use super::source::*;
 
 #[derive(Debug)]
 pub struct ErrorList {
@@ -31,21 +31,21 @@ pub struct ParseError {
     /// messages can be highly specific.
     pub message: String,
 
-    /// The position in the source the error occurred in.
-    pub pos: SourcePos,
+    /// The span in the source the error occurred in.
+    pub span: Span,
 }
 
 impl ParseError {
-    pub fn new<S: Into<String>>(message: S, pos: SourcePos) -> Self {
+    pub fn new<S: Into<String>>(message: S, span: Span) -> Self {
         Self {
             message: message.into(),
-            pos: pos,
+            span: span,
         }
     }
 }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}: {}", self.pos.line, self.pos.column, self.message)
+        write!(f, "{}:{}: {}", self.span.start.line, self.span.start.column, self.message)
     }
 }

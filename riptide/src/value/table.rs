@@ -50,9 +50,9 @@ mod tests {
     fn tables() {
         let mut table = Table::new();
 
-        assert!(table.get("foo") == Value::Nil);
+        assert!(table.get("foo") == None);
         assert!(table.set("foo", "hello").is_none());
-        assert!(table.get("foo") == "hello");
-        assert!(table.get("foo") == Value::from("hello"));
+        assert!(table.get("foo").unwrap() == "hello");
+        assert!(table.get("foo").unwrap() == Value::from("hello"));
     }
 }

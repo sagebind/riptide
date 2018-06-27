@@ -38,6 +38,15 @@ pub struct Span {
     pub end: Position,
 }
 
+impl From<Position> for Span {
+    fn from(pos: Position) -> Self {
+        Self {
+            start: pos,
+            end: pos,
+        }
+    }
+}
+
 /// Holds information about a source file being parsed in memory.
 pub struct SourceFile {
     name: Option<String>,
@@ -140,8 +149,9 @@ impl<F: Borrow<SourceFile>> SourceCursor<F> {
 
     /// Advance to the next character.
     pub fn advance(&mut self) -> Option<u8> {
-        match self.file().buffer.get(self.pos.offset) {
-            Some(&b'\n') => {
+        let byte = self.file().buffer.get(self.pos.offset).cloned();
+        match byte {
+            Some(b'\n') => {
                 self.pos.offset += 1;
                 self.pos.line += 1;
                 self.pos.column = 1;
@@ -150,7 +160,7 @@ impl<F: Borrow<SourceFile>> SourceCursor<F> {
             Some(byte) => {
                 self.pos.offset += 1;
                 self.pos.column += 1;
-                Some(*byte)
+                Some(byte)
             },
             None => None,
         }

@@ -3,8 +3,8 @@ use builtins;
 use exceptions::Exception;
 use modules;
 use riptide_syntax;
-use riptide_syntax::filemap::FileMap;
 use riptide_syntax::ast::*;
+use riptide_syntax::source::*;
 use std::path::Path;
 use std::rc::Rc;
 use value::Value;
@@ -171,15 +171,15 @@ impl Runtime {
 
     /// Execute the given script within this runtime context.
     pub fn execute(&mut self, script: &str) -> Result<Value, Exception> {
-        self.execute_filemap(FileMap::buffer(None, script))
+        self.execute_filemap(SourceFile::buffer(None, script))
     }
 
     pub fn execute_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Value, Exception> {
-        self.execute_filemap(FileMap::open(path)?)
+        self.execute_filemap(SourceFile::open(path)?)
     }
 
-    fn execute_filemap(&mut self, filemap: FileMap) -> Result<Value, Exception> {
-        let block = match riptide_syntax::parse(filemap) {
+    fn execute_filemap(&mut self, file: SourceFile) -> Result<Value, Exception> {
+        let block = match riptide_syntax::parse(file) {
             Ok(block) => block,
             Err(e) => return Err(Exception::from(format!("error parsing: {}", e.message))),
         };

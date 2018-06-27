@@ -16,7 +16,7 @@ pub mod tokens;
 /// If the given file contains a valid Riptide program, a root AST node is returned representing the program. If the
 /// program instead contains any syntax errors, the errors are returned instead.
 pub fn parse(file: SourceFile) -> Result<ast::Block, errors::ParseError> {
-    let lexer = lexer::Lexer::new(file);
+    let lexer = lexer::Lexer::from(file);
     let mut parser = parser::Parser::new(lexer);
 
     parser.parse_file()
