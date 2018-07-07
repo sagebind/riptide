@@ -1,0 +1,41 @@
+--SRC--
+println 100
+println 102.5
+println 0.25
+--AST--
+<?xml version="1.0"?>
+<block>
+    <named-params/>
+    <statements>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="println"/>
+                </function>
+                <args>
+                    <number value="100"/>
+                </args>
+            </call>
+        </pipeline>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="println"/>
+                </function>
+                <args>
+                    <number value="102.5"/>
+                </args>
+            </call>
+        </pipeline>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="println"/>
+                </function>
+                <args>
+                    <number value="0.25"/>
+                </args>
+            </call>
+        </pipeline>
+    </statements>
+</block>

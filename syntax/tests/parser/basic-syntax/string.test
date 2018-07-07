@@ -3,15 +3,14 @@
 --AST--
 <?xml version="1.0"?>
 <block>
-    <named-params>
-    </named-params>
+    <named-params/>
     <statements>
         <pipeline>
             <call>
                 <function>
-                    <string value="hello world"></string>
+                    <string value="hello world"/>
                 </function>
-                <args></args>
+                <args/>
             </call>
         </pipeline>
     </statements>

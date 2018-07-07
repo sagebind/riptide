@@ -1,0 +1,84 @@
+--SRC--
+# One-liner
+call { println }
+
+# With newlines
+call {
+    println
+}
+
+# Scrunched up
+call{println}
+--AST--
+<?xml version="1.0"?>
+<block>
+    <named-params/>
+    <statements>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="call"/>
+                </function>
+                <args>
+                    <block>
+                        <named-params/>
+                        <statements>
+                            <pipeline>
+                                <call>
+                                    <function>
+                                        <string value="println"/>
+                                    </function>
+                                    <args/>
+                                </call>
+                            </pipeline>
+                        </statements>
+                    </block>
+                </args>
+            </call>
+        </pipeline>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="call"/>
+                </function>
+                <args>
+                    <block>
+                        <named-params/>
+                        <statements>
+                            <pipeline>
+                                <call>
+                                    <function>
+                                        <string value="println"/>
+                                    </function>
+                                    <args/>
+                                </call>
+                            </pipeline>
+                        </statements>
+                    </block>
+                </args>
+            </call>
+        </pipeline>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="call"/>
+                </function>
+                <args>
+                    <block>
+                        <named-params/>
+                        <statements>
+                            <pipeline>
+                                <call>
+                                    <function>
+                                        <string value="println"/>
+                                    </function>
+                                    <args/>
+                                </call>
+                            </pipeline>
+                        </statements>
+                    </block>
+                </args>
+            </call>
+        </pipeline>
+    </statements>
+</block>

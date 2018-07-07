@@ -3,47 +3,44 @@ println hello ({read} THE) (uppercase World)
 --AST--
 <?xml version="1.0"?>
 <block>
-    <named-params>
-    </named-params>
+    <named-params/>
     <statements>
         <pipeline>
             <call>
                 <function>
-                    <string value="println"></string>
+                    <string value="println"/>
                 </function>
                 <args>
-                    <string value="hello"></string>
+                    <string value="hello"/>
                     <pipeline>
                         <call>
                             <function>
                                 <block>
-                                    <named-params>
-                                    </named-params>
+                                    <named-params/>
                                     <statements>
                                         <pipeline>
                                             <call>
                                                 <function>
-                                                    <string value="read"></string>
+                                                    <string value="read"/>
                                                 </function>
-                                                <args>
-                                                </args>
+                                                <args/>
                                             </call>
                                         </pipeline>
                                     </statements>
                                 </block>
                             </function>
                             <args>
-                                <string value="THE"></string>
+                                <string value="THE"/>
                             </args>
                         </call>
                     </pipeline>
                     <pipeline>
                         <call>
                             <function>
-                                <string value="uppercase"></string>
+                                <string value="uppercase"/>
                             </function>
                             <args>
-                                <string value="World"></string>
+                                <string value="World"/>
                             </args>
                         </call>
                     </pipeline>

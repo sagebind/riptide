@@ -1,26 +1,14 @@
+extern crate glob;
 extern crate riptide_syntax;
 extern crate riptide_syntax_extra;
 extern crate riptide_testing;
+extern crate stderrlog;
 extern crate xmltree;
 
 use riptide_syntax::parse;
 use riptide_syntax::source::*;
 use riptide_syntax_extra::xml::AsXml;
 use riptide_testing::TestFile;
-
-use std::fs;
-
-#[test]
-pub fn run_all_tests() {
-    for entry in fs::read_dir("tests/parser").unwrap() {
-        let entry = entry.unwrap();
-
-        if entry.file_type().unwrap().is_file() {
-            let test = ParserTest::from(TestFile::load(entry.path()).unwrap());
-            test.run();
-        }
-    }
-}
 
 struct ParserTest {
     src: SourceFile,
@@ -47,6 +35,19 @@ impl ParserTest {
                 pretty_print_xml(&self.ast),
             );
         }
+    }
+}
+
+#[test]
+pub fn run_all_tests() {
+    stderrlog::new()
+        .verbosity(3)
+        .init()
+        .unwrap();
+
+    for entry in glob::glob("tests/parser/**/*.test").unwrap() {
+        let test = ParserTest::from(TestFile::load(entry.unwrap()).unwrap());
+        test.run();
     }
 }
 

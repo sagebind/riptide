@@ -8,6 +8,8 @@ description = "The Riptide language parser"
 log = "0.4"
 
 [dev-dependencies]
+glob = "0.2"
+stderrlog = "0.3"
 xmltree = "0.8"
 
 [dev-dependencies.riptide-syntax-extra]

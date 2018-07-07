@@ -121,8 +121,7 @@ impl<F: Borrow<SourceFile>> Parser<F> {
         debug!("parse expr, starting at {:?}", self.current_token()?);
 
         match self.current_token()? {
-            &Token::LeftBrace => self.parse_block_expr(),
-            &Token::LeftBracket => self.parse_block_expr(),
+            &Token::LeftBrace | &Token::LeftBracket => self.parse_block_expr(),
             &Token::LeftParen => self.parse_pipeline_expr(),
             &Token::SubstitutionSigil => self.parse_substitution_expr(),
             &Token::SubstitutionBrace => self.parse_substitution_expr(),
@@ -171,6 +170,9 @@ impl<F: Borrow<SourceFile>> Parser<F> {
 
         loop {
             match self.current_token()? {
+                &Token::EndOfLine | &Token::EndOfStatement => {
+                    self.consume_token()?;
+                },
                 &Token::RightBrace => {
                     self.consume_token()?;
                     break;
