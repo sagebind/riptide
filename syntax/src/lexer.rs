@@ -138,7 +138,19 @@ impl<F: Borrow<SourceFile>> Lexer<F> {
     }
 
     fn lex_interpolation_literal_part(&mut self, first_byte: u8) -> Result<Token, ParseError> {
-        unimplemented!();
+        let mut bytes = vec![first_byte];
+
+        while let Some(byte) = self.cursor.peek() {
+            match byte {
+                b'"' | b'$' => break,
+                _ => {
+                    bytes.push(byte);
+                    self.cursor.advance();
+                }
+            }
+        }
+
+        Ok(Token::StringLiteral(String::from_utf8(bytes).unwrap()))
     }
 
     fn lex_substitution_opening(&mut self) -> Result<Token, ParseError> {
@@ -321,7 +333,7 @@ mod tests {
             #!/usr/bin/env riptide
 
             def main {
-                println "Hello world!"
+                println 'Hello world!'
             }
 
             main
@@ -335,7 +347,7 @@ mod tests {
                 LeftBrace,
                 EndOfLine,
                 StringLiteral("println".into()),
-                DoubleQuotedString("Hello world!".into()),
+                StringLiteral("Hello world!".into()),
                 EndOfLine,
                 RightBrace,
                 EndOfLine,

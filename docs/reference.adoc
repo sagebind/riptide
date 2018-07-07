@@ -241,6 +241,16 @@ Execute an external command as a function.
 Print out user help for using Riptide.
 
 
+==== `clone`
+
+Perform a deep clone of the given value and return it.
+
+
+==== `call`
+
+Invoke a block with the given arguments.
+
+
 === Input and output
 
 ==== `print`
@@ -266,6 +276,25 @@ Writes each argument given to standard error.
 ==== `eprintln`
 
 Writes each argument given to standard error, with a trailing newline separator.
+
+
+==== `lines`
+
+Split standard input into lines and executes a block for each line.
+
+----
+# Filter out lines starting with "//"
+cat 'file.txt' | lines {
+    if not (str:starts-with '//' $1) {
+        println $1
+    }
+}
+
+# Transform every line to upper case
+cat 'file.txt' | lines {
+    println (str:upper $1)
+}
+----
 
 
 === Working with strings

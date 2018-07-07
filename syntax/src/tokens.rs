@@ -39,6 +39,7 @@ pub enum Token {
     /// A string literal.
     StringLiteral(String),
     /// A string with possible substitutions.
+    #[deprecated]
     DoubleQuotedString(String),
     /// Newline separator.
     EndOfLine,

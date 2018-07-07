@@ -1,81 +1,60 @@
 extern crate riptide_syntax;
+extern crate riptide_syntax_extra;
+extern crate riptide_testing;
+extern crate xmltree;
 
-use riptide_syntax::ast::*;
 use riptide_syntax::parse;
 use riptide_syntax::source::*;
+use riptide_syntax_extra::xml::AsXml;
+use riptide_testing::TestFile;
+
+use std::fs;
 
 #[test]
-fn parse_string() {
-    let file = SourceFile::buffer(None, "
-        'hello world'
-    ");
+pub fn run_all_tests() {
+    for entry in fs::read_dir("tests/parser").unwrap() {
+        let entry = entry.unwrap();
 
-    assert_eq!(parse(file).unwrap(), Block {
-        named_params: None,
-        statements: vec![
-            Pipeline {
-                items: vec![
-                    Call {
-                        function: Box::new(Expr::String("hello world".into())),
-                        args: vec![],
-                    }
-                ]
-            }
-        ],
-    });
+        if entry.file_type().unwrap().is_file() {
+            let test = ParserTest::from(TestFile::load(entry.path()).unwrap());
+            test.run();
+        }
+    }
 }
 
-#[test]
-fn nested_function_calls() {
-    let file = SourceFile::buffer(None, "
-        println hello ({read} THE) (uppercase World)
-    ");
+struct ParserTest {
+    src: SourceFile,
+    ast: xmltree::Element,
+}
 
-    assert_eq!(parse(file).unwrap(), Block {
-        named_params: None,
-        statements: vec![
-            Pipeline {
-                items: vec![
-                    Call {
-                        function: Box::new(Expr::String("println".into())),
-                        args: vec![
-                            Expr::String("hello".into()),
-                            Expr::Pipeline(Pipeline {
-                                items: vec![
-                                    Call {
-                                        function: Box::new(Expr::Block(Block {
-                                            named_params: None,
-                                            statements: vec![
-                                                Pipeline {
-                                                    items: vec![
-                                                        Call {
-                                                            function: Box::new(Expr::String("read".into())),
-                                                            args: vec![],
-                                                        },
-                                                    ],
-                                                },
-                                            ],
-                                        })),
-                                        args: vec![
-                                            Expr::String("THE".into()),
-                                        ],
-                                    },
-                                ],
-                            }),
-                            Expr::Pipeline(Pipeline {
-                                items: vec![
-                                    Call {
-                                        function: Box::new(Expr::String("uppercase".into())),
-                                        args: vec![
-                                            Expr::String("World".into()),
-                                        ],
-                                    },
-                                ],
-                            }),
-                        ],
-                    },
-                ],
-            },
-        ],
-    });
+impl From<TestFile> for ParserTest {
+    fn from(file: TestFile) -> Self {
+        ParserTest {
+            src: SourceFile::buffer(file.name().to_string(), file.get_section("SRC").unwrap()),
+            ast: xmltree::Element::parse(file.get_section_reader("AST").unwrap()).unwrap(),
+        }
+    }
+}
+
+impl ParserTest {
+    fn run(self) {
+        let actual = parse(self.src).unwrap().as_xml();
+
+        if actual != self.ast {
+            panic!(
+                "AST are not equal!\n--ACUAL--\n{}\n--EXPECTED--\n{}",
+                pretty_print_xml(&actual),
+                pretty_print_xml(&self.ast),
+            );
+        }
+    }
+}
+
+fn pretty_print_xml(element: &xmltree::Element) -> String {
+    let config = xmltree::EmitterConfig::new()
+        .perform_indent(true);
+
+    let mut buf = Vec::new();
+    element.write_with_config(&mut buf, config).unwrap();
+    String::from_utf8(buf).unwrap()
 }

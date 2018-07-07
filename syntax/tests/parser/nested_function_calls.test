@@ -1,0 +1,54 @@
+--SRC--
+println hello ({read} THE) (uppercase World)
+--AST--
+<?xml version="1.0"?>
+<block>
+    <named-params>
+    </named-params>
+    <statements>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="println"></string>
+                </function>
+                <args>
+                    <string value="hello"></string>
+                    <pipeline>
+                        <call>
+                            <function>
+                                <block>
+                                    <named-params>
+                                    </named-params>
+                                    <statements>
+                                        <pipeline>
+                                            <call>
+                                                <function>
+                                                    <string value="read"></string>
+                                                </function>
+                                                <args>
+                                                </args>
+                                            </call>
+                                        </pipeline>
+                                    </statements>
+                                </block>
+                            </function>
+                            <args>
+                                <string value="THE"></string>
+                            </args>
+                        </call>
+                    </pipeline>
+                    <pipeline>
+                        <call>
+                            <function>
+                                <string value="uppercase"></string>
+                            </function>
+                            <args>
+                                <string value="World"></string>
+                            </args>
+                        </call>
+                    </pipeline>
+                </args>
+            </call>
+        </pipeline>
+    </statements>
+</block>

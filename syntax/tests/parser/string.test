@@ -1,0 +1,18 @@
+--SRC--
+'hello world'
+--AST--
+<?xml version="1.0"?>
+<block>
+    <named-params>
+    </named-params>
+    <statements>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="hello world"></string>
+                </function>
+                <args></args>
+            </call>
+        </pipeline>
+    </statements>
+</block>

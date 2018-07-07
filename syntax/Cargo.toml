@@ -6,3 +6,12 @@ description = "The Riptide language parser"
 
 [dependencies]
 log = "0.4"
+
+[dev-dependencies]
+xmltree = "0.8"
+
+[dev-dependencies.riptide-syntax-extra]
+path = "../syntax-extra"
+
+[dev-dependencies.riptide-testing]
+path = "../testing"
