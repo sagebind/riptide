@@ -1,0 +1,19 @@
+--SRC--
+println 'hello world'
+--AST--
+<?xml version="1.0"?>
+<block>
+    <named-params/>
+    <statements>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="println"/>
+                </function>
+                <args>
+                    <string value="hello world"/>
+                </args>
+            </call>
+        </pipeline>
+    </statements>
+</block>

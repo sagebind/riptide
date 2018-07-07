@@ -15,19 +15,21 @@ impl AsXml for Block {
     fn as_xml(&self) -> Element {
         let mut root_element = Element::new("block");
 
-        let mut named_params = Element::new("named-params");
+        let mut named_params_element = Element::new("named-params");
         if let Some(ref params) = self.named_params {
             for named_param in params.iter() {
-                named_params.children.push(Element::new("param"));
+                let mut param_element = Element::new("param");
+                param_element.attributes.insert(String::from("name"), named_param.clone());
+                named_params_element.children.push(param_element);
             }
         }
-        root_element.children.push(named_params);
+        root_element.children.push(named_params_element);
 
-        let mut statements = Element::new("statements");
+        let mut statements_element = Element::new("statements");
         for statement in self.statements.iter() {
-            statements.children.push(statement.as_xml());
+            statements_element.children.push(statement.as_xml());
         }
-        root_element.children.push(statements);
+        root_element.children.push(statements_element);
 
         root_element
     }

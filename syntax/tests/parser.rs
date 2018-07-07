@@ -1,4 +1,6 @@
 extern crate glob;
+#[macro_use]
+extern crate log;
 extern crate riptide_syntax;
 extern crate riptide_syntax_extra;
 extern crate riptide_testing;
@@ -26,6 +28,7 @@ impl From<TestFile> for ParserTest {
 
 impl ParserTest {
     fn run(self) {
+        info!("running test: {}", self.src.name());
         let actual = parse(self.src).unwrap().as_xml();
 
         if actual != self.ast {
