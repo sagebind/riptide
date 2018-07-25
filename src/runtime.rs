@@ -1,5 +1,6 @@
 use builtins;
 use lua;
+use lua::ThreadStatus;
 
 
 /// Coroutine-enabled Lua runtime environment.
@@ -21,16 +22,45 @@ impl Runtime {
         }
     }
 
-    /// Execute Lua code.
+    /// Execute Lua code. The code is executed in an independent coroutine.
     pub fn eval(&mut self, code: &str) {
-        if self.state.do_string(code).is_err() {
-            self.set_status(1);
-        } else {
-            self.set_status(0);
+        // Spawn a new coroutine.
+        let mut coroutine = self.state.new_thread();
+
+        if coroutine.load_string(code).is_err() {
+            // TODO: handle error
         }
 
-        if let Some(result) = self.state.to_str(-1) {
-            println!("{}", result);
+        loop {
+            match coroutine.resume(None, 0) {
+                ThreadStatus::Yield => {
+                    // Coroutine yielded some output, pipe it out.
+                    if coroutine.get_top() > 0 {
+                        if let Some(s) = coroutine.to_str(1) {
+                            println!("{}", s);
+                        }
+                    }
+                }
+                ThreadStatus::Ok => {
+                    // Coroutine completed, we are finished executing.
+                    if coroutine.get_top() > 0 {
+                        if let Some(s) = coroutine.to_str(1) {
+                            println!("{}", s);
+                        }
+                    }
+
+                    break;
+                }
+                _ => {
+                    if coroutine.get_top() > 0 {
+                        if let Some(s) = coroutine.to_str(1) {
+                            println!("error: {}", s);
+                        }
+                    }
+
+                    break;
+                }
+            }
         }
     }
 

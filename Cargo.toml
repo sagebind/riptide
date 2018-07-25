@@ -5,4 +5,5 @@ authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 
 [dependencies]
 lua = "0.0.10"
+nix = "0.8.1"
 rustyline = "1.0.0"

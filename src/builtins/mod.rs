@@ -1,3 +1,7 @@
+pub mod command;
+pub mod exit;
+pub mod pipe;
+
 use lua;
 use lua::ffi::lua_State;
 use std::env;
@@ -16,6 +20,12 @@ pub fn load(state: &mut lua::State) {
 
     state.push_fn(Some(export));
     state.set_global("export");
+
+    state.push_fn(Some(command::command));
+    state.set_global("command");
+
+    state.push_fn(Some(exit::exit));
+    state.set_global("exit");
 }
 
 /// Sets the current working directory.
@@ -74,10 +84,11 @@ unsafe extern fn export(state: *mut lua_State) -> i32 {
     0
 }
 
+
 /// Throw an error.
-fn throw(state: &mut lua::State, message: &str) -> ! {
+fn throw<S: AsRef<str>>(state: &mut lua::State, message: S) -> ! {
     state.location(1);
-    state.push_string(message);
+    state.push_string(message.as_ref());
     state.concat(2);
     state.error();
 }
