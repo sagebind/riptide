@@ -1,4 +1,4 @@
-= Riptide Manual
+= Riptide Guide
 
 == Introduction
 
