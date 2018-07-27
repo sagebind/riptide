@@ -58,22 +58,41 @@ WhitespaceChar          = '\x20' | '\x09' | '\x0a' | '\x0d'
 Riptide has a simple data model and only offers a few basic data types.
 
 
+=== Symbols
+
+
 === Strings
 
-The string is the most fundamental data type in Riptide.
+The string is the most fundamental data type in Riptide. A _string_ is a fixed-length array of bytes. Usually it contains text encoded using the UTF-8 encoding, but non-text strings are also valid.
+
+String are immutable values; functions that combine or modify text return new strings rather than modify existing strings.
+
+Since strings are immutable, it is implementation-defined as to whether strings are passed by value or by reference, as it makes no difference in program behavior.
+
+Strings can be created without quotes, single quotes (`'`), or double quotes (`"`), each with a slightly different meaning.
 
 
 === Numbers
 
+Only one number type os offered. All numbers are double-precision floating-point numbers.
+
+Numbers are immutable values.
+
 
 === Lists
 
-Lists are the first _compound_ data type, or a container type that can hold multiple other data items.
+Lists are the first _compound_ data type, or a container type that can hold multiple other data items. A _list_ is a fixed-length array containing zero or more values in sequence. The contained values can be of any data type.
+
+Lists are immutable values, and cannot be modified once they are created.
+
+It is implementation-defined as to whether lists are passed by value or by reference, as it makes no difference in program behavior.
 
 
 === Tables
 
 A table (or associative array) is a collection of key-value pairs, where each key appears at most once in the collection.
+
+Unlike other data types, tables are _mutable_ and can be modified in place.
 
 Tables are passed by reference instead of by value.
 
@@ -279,18 +298,6 @@ Execute a command, replacing the current process with the executed process.
 NOTE: Like `exit`, `exec` will do its best to clean up the current process as safely as possible before replacing the current process.
 
 WARNING: This replaces the current _process_, which includes all fibers in the current process.
-
-
-=== Fiber management
-
-==== `current-fiber`
-
-Returns the ID of the current fiber.
-
-
-==== `fiber-set`
-
-Set a fiber-local value.
 
 
 === Exceptions
