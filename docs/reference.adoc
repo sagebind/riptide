@@ -10,20 +10,11 @@ This manual is the primary reference for the Riptide programming language and de
 Riptide has a very small syntax with only a few rules and only a few forms. This makes Riptide easy to learn, and also allows the Riptide interpreter to be really small and fast.
 
 
-=== Expressions
+=== Lines and whitespace
 
-Riptide is an expression based language, where nearly every construct is an expression.
+Horizontal whitespace has no meaning, except when used as a separator. When whitespace is used to separate syntactic elements, any one or more combination of horizontal whitespace counts as one separator.
 
-
-=== Lexical scope and variables
-
-Variables must be explicitly declared before they are used. By default, a variable is confined to the lexical scope in which it is defined.
-
-
-=== Function calls
-
-
-=== Pipelines
+Line separators are treated just like horizontal whitespace, except inside blocks.
 
 
 === Formal grammar
@@ -53,12 +44,64 @@ WhitespaceChar          = '\x20' | '\x09' | '\x0a' | '\x0d'
 ----
 
 
+== Expressions
+
+Riptide is an expression based language, where nearly every construct is an expression. All expression types are legal in the same places.
+
+Every expression has a resulting value when it is executed.
+
+
+=== Literal expressions
+
+A _literal expression_ consists of a single literal value.
+
+The resulting value for a literal expression is always the the literal value written.
+
+
+=== Pipeline expressions
+
+
+=== Block expressions
+
+A _block expression_ defines a new _block_.
+
+
+== Lexical scope and variables
+
+Variables must be explicitly declared before they are used. By default, a variable is confined to the lexical scope in which it is defined.
+
+
+=== Function calls
+
+
+=== Pipelines
+
+
+=== Blocks
+
+A _block_ is a special section of code whose execution is deferred until at a later point in a program. A block is also a means of executing multiple statements in sequential order.
+
+A block is defined using curly braces (`{` and `}`) and includes all code between the opening and closing braces.
+
+----
+{
+    println "I am in a block."
+}
+----
+
+Inside a block is a list of _statements_, which are each pipelines to be executed. Statements may be separated by newlines or optionally by the _statement terminator_, a single semicolon (`;`). Both separators are equivalent.
+
+----
+{
+    println "Statement one."
+    println "Statement two."; println "Statement three."
+}
+----
+
+
 == Data types
 
 Riptide has a simple data model and only offers a few basic data types.
-
-
-=== Symbols
 
 
 === Strings
@@ -102,6 +145,10 @@ The storage representation of a table is implementation-defined.
 == Execution model
 
 === Local variables
+
+Local variables are _lexically scoped_ bindings of names to values, and only exist inside the function they are defined in.
+
+Local variables are mutable in the sense that they can be redefined at any time.
 
 
 === Context variables
