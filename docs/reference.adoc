@@ -1,8 +1,8 @@
-= Riptide Reference
+= Riptide Language Reference
 
 == Introduction
 
-This document is the primary reference for the Riptide programming language.
+This manual is the primary reference for the Riptide programming language and defines its core syntax and semantics. IThe intended audience is for developers working on the language itself and for curious users who wish to dig deeper into the language. This document is not a complete formal specification at this time.
 
 
 == Syntax
@@ -10,20 +10,11 @@ This document is the primary reference for the Riptide programming language.
 Riptide has a very small syntax with only a few rules and only a few forms. This makes Riptide easy to learn, and also allows the Riptide interpreter to be really small and fast.
 
 
-=== Expressions
+=== Lines and whitespace
 
-Riptide is an expression based language, where nearly every construct is an expression.
+Horizontal whitespace has no meaning, except when used as a separator. When whitespace is used to separate syntactic elements, any one or more combination of horizontal whitespace counts as one separator.
 
-
-=== Lexical scope and variables
-
-Variables must be explicitly declared before they are used. By default, a variable is confined to the lexical scope in which it is defined.
-
-
-=== Function calls
-
-
-=== Pipelines
+Line separators are treated just like horizontal whitespace, except inside blocks.
 
 
 === Formal grammar
@@ -53,58 +44,177 @@ WhitespaceChar          = '\x20' | '\x09' | '\x0a' | '\x0d'
 ----
 
 
+== Expressions
+
+Riptide is an expression based language, where nearly every construct is an expression. All expression types are legal in the same places.
+
+Every expression has a resulting value when it is executed.
+
+
+=== Literal expressions
+
+A _literal expression_ consists of a single literal value.
+
+The resulting value for a literal expression is always the the literal value written.
+
+
+=== Pipeline expressions
+
+
+=== Block expressions
+
+A _block expression_ defines a new _block_.
+
+
+== Lexical scope and variables
+
+Variables must be explicitly declared before they are used. By default, a variable is confined to the lexical scope in which it is defined.
+
+
+=== Function calls
+
+
+=== Pipelines
+
+
+=== Blocks
+
+A _block_ is a special section of code whose execution is deferred until at a later point in a program. A block is also a means of executing multiple statements in sequential order.
+
+A block is defined using curly braces (`{` and `}`) and includes all code between the opening and closing braces.
+
+----
+{
+    println "I am in a block."
+}
+----
+
+Inside a block is a list of _statements_, which are each pipelines to be executed. Statements may be separated by newlines or optionally by the _statement terminator_, a single semicolon (`;`). Both separators are equivalent.
+
+----
+{
+    println "Statement one."
+    println "Statement two."; println "Statement three."
+}
+----
+
+
 == Data types
+
+Riptide has a simple data model and only offers a few basic data types.
+
 
 === Strings
 
-The string is the most fundamental data type in Riptide.
+The string is the most fundamental data type in Riptide. A _string_ is a fixed-length array of bytes. Usually it contains text encoded using the UTF-8 encoding, but non-text strings are also valid.
+
+String are immutable values; functions that combine or modify text return new strings rather than modify existing strings.
+
+Since strings are immutable, it is implementation-defined as to whether strings are passed by value or by reference, as it makes no difference in program behavior.
+
+Strings can be created without quotes, single quotes (`'`), or double quotes (`"`), each with a slightly different meaning.
 
 
 === Numbers
 
+Only one number type os offered. All numbers are double-precision floating-point numbers.
+
+Numbers are immutable values.
+
 
 === Lists
+
+Lists are the first _compound_ data type, or a container type that can hold multiple other data items. A _list_ is a fixed-length array containing zero or more values in sequence. The contained values can be of any data type.
+
+Lists are immutable values, and cannot be modified once they are created.
+
+It is implementation-defined as to whether lists are passed by value or by reference, as it makes no difference in program behavior.
 
 
 === Tables
 
 A table (or associative array) is a collection of key-value pairs, where each key appears at most once in the collection.
 
+Unlike other data types, tables are _mutable_ and can be modified in place.
+
 Tables are passed by reference instead of by value.
 
 The storage representation of a table is implementation-defined.
 
 
-== The runtime
+== Execution model
 
-At its core, Riptide is an asynchronous pipeline processor.
+=== Local variables
+
+Local variables are _lexically scoped_ bindings of names to values, and only exist inside the function they are defined in.
+
+Local variables are mutable in the sense that they can be redefined at any time.
 
 
-=== Fibers
+=== Context variables
 
-A single interpeter process is divided up into multiple execution units, called _fibers_. A fiber represents a single thread of execution in the runtime. Unlike system-level threads or processes which are switched preemptively, a fiber is executed _cooperatively_ with other threads in the process, and only yields to another fiber at specific points.
+In contrast with local variables, which are lexically scoped, _context variables_ are a form of global variables that offers _dynamic scoping_.
 
-The runtime schedules these fibers cooperatively within a single process.
 
-Each fiber has a unique ID.
-
-Each fiber has its own standard input, standard output, and standard error streams. All functions called in a fiber that references a standard stream will use the streams from the current fiber by default. If a command is executed, the command process's standard streams are inherited from the current fiber.
+=== Binding resolution
 
 
 === Exceptions
 
+As is common in many languages, exceptions offer a means of breaking out of regular control flow when runtime errors are encountered or other exceptional situations arise.
 
-== Commands
+When the Riptide runtime encounters a _recoverable_ error, it _raises_ an exception that describes the error that occurred.
+
+NOTE: Not all errors in the runtime get turned into exceptions. If an error occurs that the runtime cannot safely recover from, such as running out of memory or data corruption, the program will be aborted instead.
+
+Riptide programs are also free to raise their own exceptions at any time during program execution using the `raise` builtin function.
+
+Regardless of the origin of the exception, when an exception is raised, the current function call is aborted recursively in a process called _stack unwinding_, until the exception is caught. A raised exception may be caught by the first `try` block encountered that wraps the offending code.
+
+If a raised exception is not caught during stack unwinding before the top of the stack is reached, then the runtime will attempt to print a stack trace of the exception if possible, then abort the program.
+
+
+== External commands
 
 External commands can be executed in the same way as functions are, and use the same function call mechanism.
 
 Native data types passed to a command as arguments are _coalesced_ into strings and then passed in as program arguments. The function call waits for the command to finish, then returns the exit code of the command as a number.
 
 
-== Modules
+== Platform interaction
+
+=== Environment variables
+
+Process environment variables are exposed to a Riptide program via a `environment` context variable. This variable is populated with a map of all of the current process environment variables when the runtime is initialized.
+
+The `environment` map is not linked to the process environment map after initialization; modifying the contents of the map at runtime does not update the current process's environment. Whenever a subprocess is spawned, the subprocess's environment is created by exporting the current value of `environment`. This mimics normal environment variable support without the normal overhead required, and offers the benefits of being a regular context variable.
 
 
-== Builtins
+=== Processes
+
+As process parallelism and external commands are essential features of Riptide, defining how Riptide manages external and child processes is paramount.
+
+The runtime acts as a form of process supervisor, and keeps track of all child processes owned by the current process. This removes much of the burden of managing processes from the programmer.
+
+New child processes can be created in one of two ways:
+
+* The `spawn` builtin, which creates a new child process and executes a user-supplied block inside it in parallel with the current process.
+* Calling external commands, which executes the command in a child process.
+
+In both of these cases, newly created processes have their process IDs recorded in the global _process table_, which maintains a list of all child processes the runtime is aware of.
+
+On Unix-like systems, when the process
+
+
+=== Input and output
+
+==== Pipes
+
+
+== Module system
+
+
+== Standard library
 
 This section of the reference describes all of the built-in functions that must be provided by the Riptide runtime for any program.
 
@@ -235,18 +345,6 @@ Execute a command, replacing the current process with the executed process.
 NOTE: Like `exit`, `exec` will do its best to clean up the current process as safely as possible before replacing the current process.
 
 WARNING: This replaces the current _process_, which includes all fibers in the current process.
-
-
-=== Fiber management
-
-==== `current-fiber`
-
-Returns the ID of the current fiber.
-
-
-==== `fiber-set`
-
-Set a fiber-local value.
 
 
 === Exceptions

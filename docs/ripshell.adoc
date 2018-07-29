@@ -1,4 +1,4 @@
-= RipShell guide
+= RipShell Guide
 
 RipShell is an interactive command-line shell that uses Riptide as its scripting language.
 
