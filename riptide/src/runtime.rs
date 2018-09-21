@@ -3,8 +3,8 @@ use builtins;
 use exceptions::Exception;
 use modules;
 use riptide_syntax;
-use riptide_syntax::filemap::FileMap;
 use riptide_syntax::ast::*;
+use riptide_syntax::source::*;
 use std::path::Path;
 use std::rc::Rc;
 use value::Value;
@@ -146,6 +146,11 @@ impl Runtime {
         self.get_global(name)
     }
 
+    fn get_path(&self, path: &VariablePath) -> Option<Value> {
+        // todo
+        None
+    }
+
     /// Set a variable value in the current scope.
     pub fn set(&mut self, name: &str, value: Value) {
         info!("set {} = {}", name, value);
@@ -166,15 +171,15 @@ impl Runtime {
 
     /// Execute the given script within this runtime context.
     pub fn execute(&mut self, script: &str) -> Result<Value, Exception> {
-        self.execute_filemap(FileMap::buffer(None, script))
+        self.execute_filemap(SourceFile::buffer(None, script))
     }
 
     pub fn execute_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Value, Exception> {
-        self.execute_filemap(FileMap::open(path)?)
+        self.execute_filemap(SourceFile::open(path)?)
     }
 
-    fn execute_filemap(&mut self, filemap: FileMap) -> Result<Value, Exception> {
-        let block = match riptide_syntax::parse(filemap) {
+    fn execute_filemap(&mut self, file: SourceFile) -> Result<Value, Exception> {
+        let block = match riptide_syntax::parse(file) {
             Ok(block) => block,
             Err(e) => return Err(Exception::from(format!("error parsing: {}", e.message))),
         };
@@ -246,7 +251,7 @@ impl Runtime {
             Expr::Number(number) => Ok(Value::Number(number)),
             Expr::String(string) => Ok(Value::from(string)),
             // TODO: Handle expands
-            Expr::ExpandableString(string) => Ok(Value::from(string)),
+            Expr::InterpolatedString(_) => Ok(Value::Nil),
             Expr::Substitution(substitution) => self.evaluate_substitution(substitution),
             Expr::Block(block) => Ok(Value::from(block)),
             Expr::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
@@ -254,9 +259,13 @@ impl Runtime {
     }
 
     fn evaluate_substitution(&mut self, substitution: Substitution) -> Result<Value, Exception> {
-        match self.get(&substitution.path[0]) {
-            Some(name) => Ok(Value::from(name)),
-            None => Err(Exception::from("undefined variable")),
+        match substitution {
+            Substitution::Variable(path) => match self.get_path(&path) {
+                Some(name) => Ok(Value::from(name)),
+                None => Err(Exception::from("undefined variable")),
+            },
+            Substitution::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
+            _ => unimplemented!(),
         }
     }
 }

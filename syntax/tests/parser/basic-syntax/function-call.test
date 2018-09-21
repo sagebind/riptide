@@ -1,0 +1,17 @@
+--SRC--
+println
+--AST--
+<?xml version="1.0"?>
+<block>
+    <named-params/>
+    <statements>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="println"/>
+                </function>
+                <args/>
+            </call>
+        </pipeline>
+    </statements>
+</block>

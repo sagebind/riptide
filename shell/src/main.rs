@@ -12,8 +12,8 @@ mod editor;
 use riptide::fd;
 use riptide::runtime::*;
 use riptide::value::Value;
-use riptide_syntax::filemap::FileMap;
 use riptide_syntax::parse;
+use riptide_syntax::source::SourceFile;
 use std::process;
 
 fn main() {
@@ -34,7 +34,7 @@ fn main() {
             let line = editor.read_line();
 
             if !line.is_empty() {
-                match parse(FileMap::buffer(Some("<input>".into()), line)) {
+                match parse(SourceFile::buffer(Some("<input>".into()), line)) {
                     Ok(ast) => {
                         debug!("ast: {:?}", ast);
                         match runtime.invoke_block(&ast, &[]) {

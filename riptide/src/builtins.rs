@@ -1,6 +1,7 @@
 use exceptions::Exception;
 use process;
 use runtime::*;
+use std::io::{stdout, Write};
 use value::*;
 
 /// Binds a value to a new variable or updates an existing variable.
@@ -47,6 +48,7 @@ pub fn print(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     for arg in args.iter() {
         print!("{}", arg.to_string());
     }
+    stdout().flush().unwrap();
 
     Ok(Value::Nil)
 }

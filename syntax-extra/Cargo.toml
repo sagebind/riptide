@@ -1,0 +1,12 @@
+[package]
+name = "riptide-syntax-extra"
+version = "0.2.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+description = "Riptide language parser extras"
+
+[dependencies]
+log = "0.4"
+xmltree = "0.8"
+
+[dependencies.riptide-syntax]
+path = "../syntax"

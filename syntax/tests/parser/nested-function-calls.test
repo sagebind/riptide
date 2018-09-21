@@ -1,0 +1,51 @@
+--SRC--
+println hello ({read} THE) (uppercase World)
+--AST--
+<?xml version="1.0"?>
+<block>
+    <named-params/>
+    <statements>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="println"/>
+                </function>
+                <args>
+                    <string value="hello"/>
+                    <pipeline>
+                        <call>
+                            <function>
+                                <block>
+                                    <named-params/>
+                                    <statements>
+                                        <pipeline>
+                                            <call>
+                                                <function>
+                                                    <string value="read"/>
+                                                </function>
+                                                <args/>
+                                            </call>
+                                        </pipeline>
+                                    </statements>
+                                </block>
+                            </function>
+                            <args>
+                                <string value="THE"/>
+                            </args>
+                        </call>
+                    </pipeline>
+                    <pipeline>
+                        <call>
+                            <function>
+                                <string value="uppercase"/>
+                            </function>
+                            <args>
+                                <string value="World"/>
+                            </args>
+                        </call>
+                    </pipeline>
+                </args>
+            </call>
+        </pipeline>
+    </statements>
+</block>

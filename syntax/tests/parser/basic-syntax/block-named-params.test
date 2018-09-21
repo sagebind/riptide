@@ -1,0 +1,36 @@
+--SRC--
+call [left right] {
+    println
+}
+--AST--
+<?xml version="1.0"?>
+<block>
+    <named-params/>
+    <statements>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="call"/>
+                </function>
+                <args>
+                    <block>
+                        <named-params>
+                            <param name="left"/>
+                            <param name="right"/>
+                        </named-params>
+                        <statements>
+                            <pipeline>
+                                <call>
+                                    <function>
+                                        <string value="println"/>
+                                    </function>
+                                    <args/>
+                                </call>
+                            </pipeline>
+                        </statements>
+                    </block>
+                </args>
+            </call>
+        </pipeline>
+    </statements>
+</block>

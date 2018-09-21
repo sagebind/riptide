@@ -1,0 +1,22 @@
+--SRC--
+hello | world
+--AST--
+<block>
+    <named-params/>
+    <statements>
+        <pipeline>
+            <call>
+                <function>
+                    <string value="hello"></string>
+                </function>
+                <args/>
+            </call>
+            <call>
+                <function>
+                    <string value="world"></string>
+                </function>
+                <args/>
+            </call>
+        </pipeline>
+    </statements>
+</block>

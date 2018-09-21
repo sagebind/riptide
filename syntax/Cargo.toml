@@ -3,3 +3,17 @@ name = "riptide-syntax"
 version = "0.2.0"
 authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "The Riptide language parser"
+
+[dependencies]
+log = "0.4"
+
+[dev-dependencies]
+glob = "0.2"
+stderrlog = "0.3"
+xmltree = "0.8"
+
+[dev-dependencies.riptide-syntax-extra]
+path = "../syntax-extra"
+
+[dev-dependencies.riptide-testing]
+path = "../testing"
