@@ -4,6 +4,5 @@ members = [
     "shell",
     "stdlib",
     "syntax",
-    "testing",
     "tools/astdump",
 ]

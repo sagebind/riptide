@@ -3,43 +3,15 @@ extern crate glob;
 extern crate log;
 extern crate riptide_syntax;
 extern crate riptide_syntax_extra;
-extern crate riptide_testing;
 extern crate stderrlog;
+extern crate toml;
 extern crate xmltree;
 
 use riptide_syntax::parse;
 use riptide_syntax::source::*;
 use riptide_syntax_extra::xml::AsXml;
-use riptide_testing::TestFile;
-
-struct ParserTest {
-    src: SourceFile,
-    ast: xmltree::Element,
-}
-
-impl From<TestFile> for ParserTest {
-    fn from(file: TestFile) -> Self {
-        ParserTest {
-            src: SourceFile::buffer(file.name().to_string(), file.get_section("SRC").unwrap()),
-            ast: xmltree::Element::parse(file.get_section_reader("AST").unwrap()).unwrap(),
-        }
-    }
-}
-
-impl ParserTest {
-    fn run(self) {
-        info!("running test: {}", self.src.name());
-        let actual = parse(self.src).unwrap().as_xml();
-
-        if actual != self.ast {
-            panic!(
-                "AST are not equal!\n--ACUAL--\n{}\n--EXPECTED--\n{}",
-                pretty_print_xml(&actual),
-                pretty_print_xml(&self.ast),
-            );
-        }
-    }
-}
+use std::fs;
+use std::io::Cursor;
 
 #[test]
 pub fn run_all_tests() {
@@ -48,9 +20,28 @@ pub fn run_all_tests() {
         .init()
         .unwrap();
 
-    for entry in glob::glob("tests/parser/**/*.test").unwrap() {
-        let test = ParserTest::from(TestFile::load(entry.unwrap()).unwrap());
-        test.run();
+    for path in glob::glob("tests/parser/**/*.toml").unwrap().filter_map(Result::ok) {
+        let test = fs::read_to_string(&path).unwrap().parse::<toml::Value>().unwrap();
+        let src = SourceFile::buffer(path.display().to_string(), test["source"].as_str().unwrap());
+
+        if test.get("disabled").and_then(toml::Value::as_bool) == Some(true) {
+            info!("skipping test: {}", src.name());
+            continue;
+        }
+
+        let ast_xml = test["ast"].as_str().unwrap();
+        let ast = xmltree::Element::parse(Cursor::new(ast_xml.as_bytes())).unwrap();
+
+        info!("running test: {}", src.name());
+        let actual = parse(src).unwrap().as_xml();
+
+        if actual != ast {
+            panic!(
+                "AST are not equal!\n--ACUAL--\n{}\n--EXPECTED--\n{}",
+                pretty_print_xml(&actual),
+                pretty_print_xml(&ast),
+            );
+        }
     }
 }
 

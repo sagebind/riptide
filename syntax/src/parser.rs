@@ -247,6 +247,13 @@ impl<F: Borrow<SourceFile>> Parser<F> {
         }
     }
 
+    fn parse_interpolated_string(&mut self) -> Result<Expr, ParseError> {
+        self.expect_token(Token::DoubleQuote)?;
+        self.expect_token(Token::DoubleQuote)?;
+
+        unimplemented!();
+    }
+
     fn advance_required(&mut self) -> Result<Token, ParseError> {
         match self.consume_token()?.token {
             Token::EndOfFile => Err(self.error("unexpected eof")),

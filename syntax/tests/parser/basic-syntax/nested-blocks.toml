@@ -1,4 +1,4 @@
---SRC--
+source = '''
 {
     {
         {
@@ -6,8 +6,9 @@
         }
     }
 }
---AST--
-<?xml version="1.0"?>
+'''
+ast = '''
+<?xml version="1.1"?>
 <block>
     <named-params/>
     <statements>
@@ -57,3 +58,4 @@
         </pipeline>
     </statements>
 </block>
+'''

@@ -1,9 +1,10 @@
---SRC--
+source = '''
 println 100
 println 102.5
 println 0.25
---AST--
-<?xml version="1.0"?>
+'''
+ast = '''
+<?xml version="1.1"?>
 <block>
     <named-params/>
     <statements>
@@ -39,3 +40,4 @@ println 0.25
         </pipeline>
     </statements>
 </block>
+'''

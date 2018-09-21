@@ -1,7 +1,9 @@
---SRC--
-println
---AST--
-<?xml version="1.0"?>
+disabled = true
+source = '''
+println "hello world"
+'''
+ast = '''
+<?xml version="1.1"?>
 <block>
     <named-params/>
     <statements>
@@ -10,8 +12,11 @@ println
                 <function>
                     <string value="println"/>
                 </function>
-                <args/>
+                <args>
+                    <string value="hello world"/>
+                </args>
             </call>
         </pipeline>
     </statements>
 </block>
+'''

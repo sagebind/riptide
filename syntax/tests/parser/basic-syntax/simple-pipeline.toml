@@ -1,6 +1,7 @@
---SRC--
+source = '''
 hello | world
---AST--
+'''
+ast = '''
 <block>
     <named-params/>
     <statements>
@@ -20,3 +21,4 @@ hello | world
         </pipeline>
     </statements>
 </block>
+'''

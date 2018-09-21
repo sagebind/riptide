@@ -1,9 +1,10 @@
---SRC--
+source = '''
 call [left right] {
     println
 }
---AST--
-<?xml version="1.0"?>
+'''
+ast = '''
+<?xml version="1.1"?>
 <block>
     <named-params/>
     <statements>
@@ -34,3 +35,4 @@ call [left right] {
         </pipeline>
     </statements>
 </block>
+'''
