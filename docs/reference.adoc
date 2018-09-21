@@ -219,11 +219,53 @@ On Unix-like systems, when the process
 This section of the reference describes all of the built-in functions that must be provided by the Riptide runtime for any program.
 
 
+=== Logical and control flow functions
+
+==== `=`
+
+Test equivalence.
+
+
+==== `and`
+
+Logical AND.
+
+
+==== `or`
+
+Logical OR.
+
+
+==== `not`
+
+Negate a boolean.
+
+
+==== `if`
+
+Conditional branching.
+
+
+==== `cond`
+
+Multiple conditional branching.
+
+
+==== `foreach`
+
+Iterate over a list.
+
+
+
 === Core functions
 
 ==== `def`
 
 Define a new variable.
+
+----
+def myvar "Hello, World!"
+----
 
 
 ==== `builtin`
@@ -251,6 +293,43 @@ Perform a deep clone of the given value and return it.
 Invoke a block with the given arguments.
 
 
+==== `list`
+
+Create a list.
+
+
+==== `nth`
+
+Return nth item in list.
+
+
+==== `source`
+
+Evaluate a script file.
+
+
+==== `random`
+
+Produces an output stream of random bytes.
+
+
+=== Environment
+
+==== `env`
+
+Get, set, or list environment variables.
+
+
+==== `pwd`
+
+Get the current working directory.
+
+
+==== `cd`
+
+Set the current working directory.
+
+
 === Input and output
 
 ==== `print`
@@ -276,6 +355,11 @@ Writes each argument given to standard error.
 ==== `eprintln`
 
 Writes each argument given to standard error, with a trailing newline separator.
+
+
+==== `read`
+
+Read from input.
 
 
 ==== `lines`
@@ -315,6 +399,11 @@ Applies a regular expression to a string and emits matches and captures.
 ==== `str:replace`
 
 Applies a regular expression to a string and replaces matches with the received values.
+
+
+==== `split`
+
+Splits a string into a list by a separator.
 
 
 === Tables
@@ -386,59 +475,3 @@ Throw an exception.
 ==== `catch`
 
 Execute a block, and if the block throws an exception, return the thrown exception.
-
-
-=== Other functions
-
-* `=`
-* `!`
-* `+`
-* `-`
-* `|`
-* `>`
-* `<`
-* `cd`
-* `apply`
-* `or`
-* `and`
-* `env`
-* `if`
-* `list`
-* `nth`
-* `pwd`
-* `read`
-* `write`
-* `each`
-* `source`
-* `slice`
-* `count`
-* `type`
-* `tostring`
-* `toint`
-* `concat`
-* `split`
-* `filter`
-* `random`
-* `parse`
-* `first-where`
-* `last-where`
-* `reduce`
-* `fold`
-* `join`
-* `contains`
-* `for-each`
-* `every`
-* `any`
-* `collect`
-* `pipe`
-
-
-==== `lines`
-
-Calls a function on each line of input read.
-
-----
-ls -l | lines {
-    println $6
-}
-----

@@ -114,7 +114,7 @@ You can use both types in the exact same way. Let's look at our hello world exam
 print "Hello world!"
 ----
 
-In our function call to `print`, the first argument we give is `"Hello world!"`. This is an example of a literal expression, known as a "literal" or a "string". All literals in Riptide are simply text; there are no number types, character types, or boolean types.
+In our function call to `print`, the first argument we give is `"Hello world!"`. This is an example of a literal expression, in particular a literal _string_. Riptide offers a couple of data types, including numbers and booleans, that can be written as a literal expression.
 
 When writing a literal, you can omit the quotes `"` if the literal does not contain any whitespace or characters that have other special meaning, like `)`. For example, `"hello"` and simply `hello` are equivalent. `"hello world"` and `hello world` are _not_ equivalent; the latter will be interpreted as two separate literals
 
