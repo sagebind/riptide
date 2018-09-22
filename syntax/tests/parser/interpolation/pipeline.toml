@@ -2,29 +2,26 @@ source = '''
 println $(foo)
 '''
 ast = '''
-<?xml version="1.1"?>
-<block>
-    <named-params/>
-    <statements>
-        <pipeline>
-            <call>
-                <function>
-                    <string value="println"/>
-                </function>
-                <args>
-                    <substitution>
-                        <pipeline>
-                            <call>
-                                <function>
-                                    <string value="foo"/>
-                                </function>
-                                <args/>
-                            </call>
-                        </pipeline>
-                    </substitution>
-                </args>
-            </call>
-        </pipeline>
-    </statements>
-</block>
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call {
+                function: String("println"),
+                args: [
+                    Substitution(
+                        Pipeline(
+                            Pipeline [
+                                Call {
+                                    function: String("foo"),
+                                    args: []
+                                }
+                            ]
+                        )
+                    )
+                ]
+            }
+        ]
+    ]
+}
 '''

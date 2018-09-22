@@ -13,6 +13,3 @@ glob = "0.2"
 minidom = "0.9"
 stderrlog = "0.3"
 toml = "0.4"
-
-[dev-dependencies.riptide-syntax-extra]
-path = "../syntax-extra"

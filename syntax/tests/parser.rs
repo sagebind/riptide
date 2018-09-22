@@ -4,13 +4,11 @@ extern crate glob;
 extern crate log;
 extern crate minidom;
 extern crate riptide_syntax;
-extern crate riptide_syntax_extra;
 extern crate stderrlog;
 extern crate toml;
 
 use riptide_syntax::parse;
 use riptide_syntax::source::*;
-use riptide_syntax_extra::xml::AsXml;
 use std::fs;
 
 #[test]
@@ -31,8 +29,8 @@ pub fn run_all_tests() {
 
         info!("running test: {}", src.name());
 
-        let expected = test["ast"].as_str().unwrap().parse::<minidom::Element>().unwrap().as_pretty_xml_string();
-        let actual = parse(src).unwrap().as_pretty_xml_string();
+        let expected = test["ast"].as_str().unwrap().trim();
+        let actual = format!("{:#?}", parse(src).unwrap());
 
         if actual != expected {
             eprintln!("{}", difference::Changeset::new(&expected, &actual, "\n"));

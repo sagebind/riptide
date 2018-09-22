@@ -2,23 +2,19 @@ source = '''
 hello | world
 '''
 ast = '''
-<block>
-    <named-params/>
-    <statements>
-        <pipeline>
-            <call>
-                <function>
-                    <string value="hello"></string>
-                </function>
-                <args/>
-            </call>
-            <call>
-                <function>
-                    <string value="world"></string>
-                </function>
-                <args/>
-            </call>
-        </pipeline>
-    </statements>
-</block>
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call {
+                function: String("hello"),
+                args: []
+            },
+            Call {
+                function: String("world"),
+                args: []
+            }
+        ]
+    ]
+}
 '''

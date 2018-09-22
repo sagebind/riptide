@@ -11,76 +11,63 @@ call {
 call{println}
 '''
 ast = '''
-<?xml version="1.1"?>
-<block>
-    <named-params/>
-    <statements>
-        <pipeline>
-            <call>
-                <function>
-                    <string value="call"/>
-                </function>
-                <args>
-                    <block>
-                        <named-params/>
-                        <statements>
-                            <pipeline>
-                                <call>
-                                    <function>
-                                        <string value="println"/>
-                                    </function>
-                                    <args/>
-                                </call>
-                            </pipeline>
-                        </statements>
-                    </block>
-                </args>
-            </call>
-        </pipeline>
-        <pipeline>
-            <call>
-                <function>
-                    <string value="call"/>
-                </function>
-                <args>
-                    <block>
-                        <named-params/>
-                        <statements>
-                            <pipeline>
-                                <call>
-                                    <function>
-                                        <string value="println"/>
-                                    </function>
-                                    <args/>
-                                </call>
-                            </pipeline>
-                        </statements>
-                    </block>
-                </args>
-            </call>
-        </pipeline>
-        <pipeline>
-            <call>
-                <function>
-                    <string value="call"/>
-                </function>
-                <args>
-                    <block>
-                        <named-params/>
-                        <statements>
-                            <pipeline>
-                                <call>
-                                    <function>
-                                        <string value="println"/>
-                                    </function>
-                                    <args/>
-                                </call>
-                            </pipeline>
-                        </statements>
-                    </block>
-                </args>
-            </call>
-        </pipeline>
-    </statements>
-</block>
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call {
+                function: String("call"),
+                args: [
+                    Block {
+                        named_params: None,
+                        statements: [
+                            Pipeline [
+                                Call {
+                                    function: String("println"),
+                                    args: []
+                                }
+                            ]
+                        ]
+                    }
+                ]
+            }
+        ],
+        Pipeline [
+            Call {
+                function: String("call"),
+                args: [
+                    Block {
+                        named_params: None,
+                        statements: [
+                            Pipeline [
+                                Call {
+                                    function: String("println"),
+                                    args: []
+                                }
+                            ]
+                        ]
+                    }
+                ]
+            }
+        ],
+        Pipeline [
+            Call {
+                function: String("call"),
+                args: [
+                    Block {
+                        named_params: None,
+                        statements: [
+                            Pipeline [
+                                Call {
+                                    function: String("println"),
+                                    args: []
+                                }
+                            ]
+                        ]
+                    }
+                ]
+            }
+        ]
+    ]
+}
 '''

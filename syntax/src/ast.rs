@@ -12,9 +12,16 @@ pub struct Block {
 }
 
 /// A pipeline of function calls.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Pipeline {
     pub items: Vec<Call>,
+}
+
+impl fmt::Debug for Pipeline {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Pipeline ").and_then(|_|
+            f.debug_list().entries(&self.items).finish())
+    }
 }
 
 /// A function call.
@@ -30,7 +37,7 @@ pub struct Call {
 /// Abstract representation of an expression.
 ///
 /// Contains a variant for each different expression type.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Expr {
     /// A number literal.
     Number(f64),
@@ -49,6 +56,19 @@ pub enum Expr {
 
     /// A function pipeline.
     Pipeline(Pipeline),
+}
+
+impl fmt::Debug for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Expr::Number(v) => write!(f, "Number({})", v),
+            Expr::String(v) => write!(f, "String({:?})", v),
+            Expr::Substitution(v) => f.debug_tuple("Substitution").field(v).finish(),
+            Expr::InterpolatedString(v) => v.fmt(f),
+            Expr::Block(v) => v.fmt(f),
+            Expr::Pipeline(v) => v.fmt(f),
+        }
+    }
 }
 
 /// Value substitution.
@@ -83,10 +103,18 @@ impl fmt::Display for VariablePath {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum VariablePathPart {
     /// An identifier referencing a variable by name.
     Ident(String),
+}
+
+impl fmt::Debug for VariablePathPart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Ident({})", match self {
+            VariablePathPart::Ident(s) => s,
+        })
+    }
 }
 
 impl fmt::Display for VariablePathPart {

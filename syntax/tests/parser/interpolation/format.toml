@@ -3,20 +3,28 @@ source = '''
 println ${foo:2}
 '''
 ast = '''
-<?xml version="1.1"?>
-<block>
-    <named-params/>
-    <statements>
-        <pipeline>
-            <call>
-                <function>
-                    <string value="println"/>
-                </function>
-                <args>
-                    <substitution variable="foo"/>
-                </args>
-            </call>
-        </pipeline>
-    </statements>
-</block>
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call {
+                function: String("println"),
+                args: [
+                    Substitution(
+                        Format(
+                            VariablePath(
+                                [
+                                    Ident(foo)
+                                ]
+                            ),
+                            Some(
+                                "2"
+                            )
+                        )
+                    )
+                ]
+            }
+        ]
+    ]
+}
 '''

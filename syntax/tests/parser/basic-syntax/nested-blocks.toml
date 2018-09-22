@@ -8,54 +8,45 @@ source = '''
 }
 '''
 ast = '''
-<?xml version="1.1"?>
-<block>
-    <named-params/>
-    <statements>
-        <pipeline>
-            <call>
-                <function>
-                    <block>
-                        <named-params/>
-                        <statements>
-                            <pipeline>
-                                <call>
-                                    <function>
-                                        <block>
-                                            <named-params/>
-                                            <statements>
-                                                <pipeline>
-                                                    <call>
-                                                        <function>
-                                                            <block>
-                                                                <named-params/>
-                                                                <statements>
-                                                                    <pipeline>
-                                                                        <call>
-                                                                            <function>
-                                                                                <string value="println"/>
-                                                                            </function>
-                                                                            <args/>
-                                                                        </call>
-                                                                    </pipeline>
-                                                                </statements>
-                                                            </block>
-                                                        </function>
-                                                        <args/>
-                                                    </call>
-                                                </pipeline>
-                                            </statements>
-                                        </block>
-                                    </function>
-                                    <args/>
-                                </call>
-                            </pipeline>
-                        </statements>
-                    </block>
-                </function>
-                <args/>
-            </call>
-        </pipeline>
-    </statements>
-</block>
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call {
+                function: Block {
+                    named_params: None,
+                    statements: [
+                        Pipeline [
+                            Call {
+                                function: Block {
+                                    named_params: None,
+                                    statements: [
+                                        Pipeline [
+                                            Call {
+                                                function: Block {
+                                                    named_params: None,
+                                                    statements: [
+                                                        Pipeline [
+                                                            Call {
+                                                                function: String("println"),
+                                                                args: []
+                                                            }
+                                                        ]
+                                                    ]
+                                                },
+                                                args: []
+                                            }
+                                        ]
+                                    ]
+                                },
+                                args: []
+                            }
+                        ]
+                    ]
+                },
+                args: []
+            }
+        ]
+    ]
+}
 '''

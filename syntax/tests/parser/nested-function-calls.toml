@@ -2,52 +2,43 @@ source = '''
 println hello ({read} THE) (uppercase World)
 '''
 ast = '''
-<?xml version="1.1"?>
-<block>
-    <named-params/>
-    <statements>
-        <pipeline>
-            <call>
-                <function>
-                    <string value="println"/>
-                </function>
-                <args>
-                    <string value="hello"/>
-                    <pipeline>
-                        <call>
-                            <function>
-                                <block>
-                                    <named-params/>
-                                    <statements>
-                                        <pipeline>
-                                            <call>
-                                                <function>
-                                                    <string value="read"/>
-                                                </function>
-                                                <args/>
-                                            </call>
-                                        </pipeline>
-                                    </statements>
-                                </block>
-                            </function>
-                            <args>
-                                <string value="THE"/>
-                            </args>
-                        </call>
-                    </pipeline>
-                    <pipeline>
-                        <call>
-                            <function>
-                                <string value="uppercase"/>
-                            </function>
-                            <args>
-                                <string value="World"/>
-                            </args>
-                        </call>
-                    </pipeline>
-                </args>
-            </call>
-        </pipeline>
-    </statements>
-</block>
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call {
+                function: String("println"),
+                args: [
+                    String("hello"),
+                    Pipeline [
+                        Call {
+                            function: Block {
+                                named_params: None,
+                                statements: [
+                                    Pipeline [
+                                        Call {
+                                            function: String("read"),
+                                            args: []
+                                        }
+                                    ]
+                                ]
+                            },
+                            args: [
+                                String("THE")
+                            ]
+                        }
+                    ],
+                    Pipeline [
+                        Call {
+                            function: String("uppercase"),
+                            args: [
+                                String("World")
+                            ]
+                        }
+                    ]
+                ]
+            }
+        ]
+    ]
+}
 '''
