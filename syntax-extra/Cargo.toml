@@ -6,7 +6,8 @@ description = "Riptide language parser extras"
 
 [dependencies]
 log = "0.4"
-xmltree = "0.8"
+minidom = "0.9"
+quick-xml = "0.12"
 
 [dependencies.riptide-syntax]
 path = "../syntax"

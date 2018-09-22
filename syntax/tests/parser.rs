@@ -1,17 +1,17 @@
+extern crate difference;
 extern crate glob;
 #[macro_use]
 extern crate log;
+extern crate minidom;
 extern crate riptide_syntax;
 extern crate riptide_syntax_extra;
 extern crate stderrlog;
 extern crate toml;
-extern crate xmltree;
 
 use riptide_syntax::parse;
 use riptide_syntax::source::*;
 use riptide_syntax_extra::xml::AsXml;
 use std::fs;
-use std::io::Cursor;
 
 #[test]
 pub fn run_all_tests() {
@@ -29,27 +29,14 @@ pub fn run_all_tests() {
             continue;
         }
 
-        let ast_xml = test["ast"].as_str().unwrap();
-        let ast = xmltree::Element::parse(Cursor::new(ast_xml.as_bytes())).unwrap();
-
         info!("running test: {}", src.name());
-        let actual = parse(src).unwrap().as_xml();
 
-        if actual != ast {
-            panic!(
-                "AST are not equal!\n--ACUAL--\n{}\n--EXPECTED--\n{}",
-                pretty_print_xml(&actual),
-                pretty_print_xml(&ast),
-            );
+        let expected = test["ast"].as_str().unwrap().parse::<minidom::Element>().unwrap().as_pretty_xml_string();
+        let actual = parse(src).unwrap().as_pretty_xml_string();
+
+        if actual != expected {
+            eprintln!("{}", difference::Changeset::new(&expected, &actual, "\n"));
+            panic!("actual AST does not match expected AST");
         }
     }
-}
-
-fn pretty_print_xml(element: &xmltree::Element) -> String {
-    let config = xmltree::EmitterConfig::new()
-        .perform_indent(true);
-
-    let mut buf = Vec::new();
-    element.write_with_config(&mut buf, config).unwrap();
-    String::from_utf8(buf).unwrap()
 }

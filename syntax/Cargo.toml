@@ -8,10 +8,11 @@ description = "The Riptide language parser"
 log = "0.4"
 
 [dev-dependencies]
+difference = "2.0"
 glob = "0.2"
+minidom = "0.9"
 stderrlog = "0.3"
 toml = "0.4"
-xmltree = "0.8"
 
 [dev-dependencies.riptide-syntax-extra]
 path = "../syntax-extra"

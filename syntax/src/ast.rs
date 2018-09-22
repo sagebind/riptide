@@ -1,4 +1,5 @@
 //! Abstract syntax tree.
+use std::fmt;
 
 /// A function block, containing a list of pipelines to execute.
 #[derive(Clone, Debug, PartialEq)]
@@ -72,10 +73,28 @@ pub enum Substitution {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VariablePath(pub Vec<VariablePathPart>);
 
+impl fmt::Display for VariablePath {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0
+            .iter()
+            .map(|part| part.to_string())
+            .collect::<Vec<String>>()
+            .join("."))
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum VariablePathPart {
     /// An identifier referencing a variable by name.
     Ident(String),
+}
+
+impl fmt::Display for VariablePathPart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match self {
+            VariablePathPart::Ident(s) => s,
+        })
+    }
 }
 
 /// An interpolated string literal.
