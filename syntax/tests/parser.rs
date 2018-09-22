@@ -2,7 +2,6 @@ extern crate difference;
 extern crate glob;
 #[macro_use]
 extern crate log;
-extern crate minidom;
 extern crate riptide_syntax;
 extern crate stderrlog;
 extern crate toml;
