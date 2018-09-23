@@ -150,10 +150,14 @@ Local variables are _lexically scoped_ bindings of names to values, and only exi
 
 Local variables are mutable in the sense that they can be redefined at any time.
 
+Local variables can be referenced by name using the `$` sigil.
+
 
 === Context variables
 
 In contrast with local variables, which are lexically scoped, _context variables_ are a form of global variables that offers _dynamic scoping_.
+
+Context variables can be referenced by name using the `@` sigil.
 
 
 === Binding resolution
@@ -188,6 +192,21 @@ Native data types passed to a command as arguments are _coalesced_ into strings 
 Process environment variables are exposed to a Riptide program via a `environment` context variable. This variable is populated with a map of all of the current process environment variables when the runtime is initialized.
 
 The `environment` map is not linked to the process environment map after initialization; modifying the contents of the map at runtime does not update the current process's environment. Whenever a subprocess is spawned, the subprocess's environment is created by exporting the current value of `environment`. This mimics normal environment variable support without the normal overhead required, and offers the benefits of being a regular context variable.
+
+Example:
+
+----
+let @environment.FOO "bar" {
+    printenv
+}
+----
+
+
+=== Working directory
+
+The current "working directory" of the current process is exposed as a special `cwd` context variable. This variable is populated when the process starts from the working directory reported by the OS.
+
+Changes to `cwd` are not required to be reflected in the process working directory, but `cwd` _must_ be respected for all relative path resolution, and newly spawned processes must inherit the current value of `cwd`.
 
 
 === Processes
@@ -265,6 +284,21 @@ Define a new variable.
 
 ----
 def myvar "Hello, World!"
+----
+
+
+==== `let`
+
+Introduces a scoped local variable binding.
+
+----
+def foo "bar"
+
+let foo "baz" {
+    println $foo # prints "baz"
+}
+
+println $foo # prints "bar"
 ----
 
 

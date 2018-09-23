@@ -142,7 +142,7 @@ table a=b c=d
 
 === Functions and blocks
 
-In Riptide, functions are first-class values. In fact, a function is merely a sequence of expressions whose evaluation is delayed until called. Function syntax uses curly braces (`{` and `}`) instead of parenthesis to enclose their body. The general synax of a block is
+In Riptide, functions are first-class values. In fact, a function is merely a sequence of expressions whose evaluation is delayed until called. Function syntax uses curly braces (`{` and `}`) instead of parenthesis to enclose their body. The general syntax of a block is
 
 ----
 {
@@ -182,7 +182,7 @@ They are also accessible in variables named with an integer of the position, suc
 Named arguments need some work. How can we implement flags?
 ====
 
-Positional arguments are useful when accepting a sequence or list of like-values, but can become more difficult to read in a function where argument order matters. Instead of using argument positions, we can give our arguments names inside square brackets (`[]`) preceeding the block:
+Positional arguments are useful when accepting a sequence or list of like-values, but can become more difficult to read in a function where argument order matters. Instead of using argument positions, we can give our arguments names inside square brackets (`[]`) proceeding the block:
 
 ----
 def log [level message] {
