@@ -1,7 +1,6 @@
 use std::fmt;
 use super::source::*;
 
-#[derive(Debug)]
 pub struct ErrorList {
     errors: Vec<ParseError>,
 }
@@ -19,13 +18,17 @@ impl fmt::Display for ErrorList {
         for error in self.errors.iter() {
             writeln!(f, "{}", error)?;
         }
-
         Ok(())
     }
 }
 
+impl fmt::Debug for ErrorList {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
 /// Describes an error that occured in parsing.
-#[derive(Debug)]
 pub struct ParseError {
     /// The error message. This is a string instead of an enum because the
     /// messages can be highly specific.
@@ -47,5 +50,11 @@ impl ParseError {
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}:{}: {}", self.span.start.line, self.span.start.column, self.message)
+    }
+}
+
+impl fmt::Debug for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }

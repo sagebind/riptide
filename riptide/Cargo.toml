@@ -6,7 +6,8 @@ description = "The Riptide language interpreter"
 
 [dependencies]
 log = "0.4"
-nix = "0.8.1"
+nix = "0.11"
+utf-8 = "0.7"
 
 [dependencies.riptide-syntax]
 path = "../syntax"

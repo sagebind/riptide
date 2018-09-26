@@ -13,7 +13,7 @@ pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 
     let value = args.get(1).cloned().unwrap_or(Value::Nil);
 
-    runtime.set(name, value);
+    runtime.set(name.to_string(), value);
 
     Ok(Value::Nil)
 }
@@ -105,7 +105,7 @@ pub fn args(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
 
 pub fn require(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     match args.first() {
-        Some(&Value::String(ref string)) => runtime.load_module(string),
+        Some(&Value::String(ref string)) => runtime.load_module(string.to_string()),
         _ => Err(Exception::from("module name required")),
     }
 }

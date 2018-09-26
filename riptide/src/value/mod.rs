@@ -9,7 +9,7 @@ use self::table::Table;
 pub mod string;
 pub mod table;
 
-/// A Riptide value. This is a small enum that can rerepresent any of the possible data types. Since Riptide is loosely
+/// A Riptide value. This is a small enum that can represent any of the possible data types. Since Riptide is loosely
 /// typed, a value can be any of these types at runtime.
 ///
 /// The "scalar" types are stored inline, while more heavyweight types are stored behind a pointer. This keeps the
@@ -23,7 +23,7 @@ pub enum Value {
     Number(f64),
 
     /// A string. Immutable, and stored by reference.
-    String(RString),
+    String(RString<'static>),
 
     /// An immutable list of values. Stored by value.
     ///
@@ -99,7 +99,7 @@ impl Value {
         match self {
             &Value::Nil => false,
             &Value::String(ref value) => {
-                !(value.as_ref() == "0" || value.is_empty() || value.to_lowercase() == "false")
+                !(value == "0" || value.as_bytes().is_empty() || &value.to_lowercase() == "false")
             }
             &Value::List(ref items) => !items.is_empty(),
             _ => true,
@@ -115,7 +115,7 @@ impl Value {
     }
 
     /// If this value is a string, get its string value.
-    pub fn as_string(&self) -> Option<&str> {
+    pub fn as_string(&self) -> Option<&RString> {
         match self {
             &Value::String(ref string) => Some(string),
             _ => None,
@@ -153,9 +153,9 @@ impl PartialEq for Value {
     }
 }
 
-impl<S> PartialEq<S> for Value where S: AsRef<str> {
+impl<S> PartialEq<S> for Value where S: AsRef<[u8]> {
     fn eq(&self, rhs: &S) -> bool {
-        self.as_string() == Some(rhs.as_ref())
+        self.as_string().map(|s| s.as_ref()) == Some(rhs.as_ref())
     }
 }
 

@@ -11,7 +11,7 @@ pub struct Table {
     /// Internally a hashmap is used, but the implementation could vary.
     ///
     /// Unlike all other value types, tables are mutable, so we are using a cell here to implement that.
-    map: RefCell<HashMap<RString, Value>>,
+    map: RefCell<HashMap<RString<'static>, Value>>,
 }
 
 impl Table {
@@ -25,19 +25,19 @@ impl Table {
     /// Get the value indexed by a key.
     ///
     /// If the key does not exist, `None` is returned.
-    pub fn get(&self, key: &str) -> Option<Value> {
-        self.map.borrow().get(key).cloned()
+    pub fn get<'s>(&self, key: impl Into<RString<'s>>) -> Option<Value> {
+        self.map.borrow().get(key.into().as_bytes()).cloned()
     }
 
     /// Set the value for a given key.
     ///
     /// If `Nil` is given as the value, the key is unset.
-    pub fn set<V: Into<Value>>(&mut self, key: &str, value: V) -> Option<Value> {
+    pub fn set<'s, V: Into<Value>>(&mut self, key: impl Into<RString<'s>>, value: V) -> Option<Value> {
         let value = value.into();
 
         match value {
-            Value::Nil => self.map.borrow_mut().remove(key),
-            value => self.map.borrow_mut().insert(RString::from(String::from(key)), value),
+            Value::Nil => self.map.borrow_mut().remove(key.into().as_bytes()),
+            value => self.map.borrow_mut().insert(key.into().to_owned(), value),
         }
     }
 }

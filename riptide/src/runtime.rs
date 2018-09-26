@@ -92,7 +92,9 @@ impl Default for Runtime {
 }
 
 impl Runtime {
-    pub fn load_module(&mut self, name: &str) -> Result<Value, Exception> {
+    pub fn load_module(&mut self, name: impl AsRef<str>) -> Result<Value, Exception> {
+        let name = name.as_ref();
+
         if let Some(value) = self.module_cache.get(name) {
             return Ok(value);
         }
@@ -136,7 +138,9 @@ impl Runtime {
     }
 
     /// Lookup a variable name in the current scope.
-    pub fn get(&self, name: &str) -> Option<Value> {
+    pub fn get(&self, name: impl AsRef<str>) -> Option<Value> {
+        let name = name.as_ref();
+
         for frame in self.call_stack.iter().rev() {
             if let Some(value) = frame.bindings.get(name) {
                 return Some(value);
@@ -152,7 +156,9 @@ impl Runtime {
     }
 
     /// Set a variable value in the current scope.
-    pub fn set(&mut self, name: &str, value: Value) {
+    pub fn set(&mut self, name: impl AsRef<str>, value: Value) {
+        let name = name.as_ref();
+
         info!("set {} = {}", name, value);
 
         if let Some(ref mut frame) = self.call_stack.last_mut() {
@@ -232,7 +238,7 @@ impl Runtime {
         }
 
         // If the function is a string, resolve binding names first before we try to eval the item as a function.
-        if let Some(value) = function.as_string().and_then(|name| self.get(name)) {
+        if let Some(value) = function.as_string().and_then(|name| self.get(name.to_string())) {
             function = value;
         }
 

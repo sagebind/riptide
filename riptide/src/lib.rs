@@ -3,6 +3,7 @@
 extern crate log;
 extern crate nix;
 extern crate riptide_syntax;
+extern crate utf8;
 
 pub mod builtins;
 pub mod exceptions;
