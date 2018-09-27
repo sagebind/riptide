@@ -217,18 +217,26 @@ impl<F: Borrow<SourceFile>> Parser<F> {
 
         loop {
             // TODO
-            if self.peek()? == Token::SubstitutionSigil {
-                parts.push(InterpolatedStringPart::Substitution(self.parse_substitution()?));
-            } else {
-                match self.advance()? {
-                    // A region of regular text.
-                    Token::StringLiteral(s) => parts.push(InterpolatedStringPart::String(s)),
+            match self.peek()? {
+                Token::SubstitutionSigil
+                    | Token::SubstitutionBrace
+                    | Token::SubstitutionParen => {
+                    self.lexer.push_mode(LexerMode::Normal);
+                    parts.push(InterpolatedStringPart::Substitution(self.parse_substitution()?));
+                    self.lexer.pop_mode();
+                    continue;
+                },
+                _ => {},
+            }
 
-                    // We've reached the end of the interpolated string.
-                    Token::DoubleQuote => break,
+            match self.advance()? {
+                // A region of regular text.
+                Token::StringLiteral(s) => parts.push(InterpolatedStringPart::String(s)),
 
-                    _ => return Err(self.error("unexpected token")),
-                }
+                // We've reached the end of the interpolated string.
+                Token::DoubleQuote => break,
+
+                _ => return Err(self.error("unexpected token")),
             }
         }
 

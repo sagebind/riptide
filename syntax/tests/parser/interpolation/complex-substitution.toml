@@ -1,0 +1,42 @@
+source = '''
+println "hello $({
+    whoami
+})"
+'''
+ast = '''
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call {
+                function: String("println"),
+                args: [
+                    InterpolatedString [
+                        String("hello "),
+                        Substitution(
+                            Pipeline(
+                                Pipeline [
+                                    Call {
+                                        function: Block {
+                                            named_params: None,
+                                            statements: [
+                                                Pipeline [
+                                                    Call {
+                                                        function: String("whoami"),
+                                                        args: []
+                                                    }
+                                                ]
+                                            ]
+                                        },
+                                        args: []
+                                    }
+                                ]
+                            )
+                        )
+                    ]
+                ]
+            }
+        ]
+    ]
+}
+'''
