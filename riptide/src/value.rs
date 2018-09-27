@@ -3,11 +3,8 @@ use riptide_syntax::ast;
 use runtime::ForeignFunction;
 use std::fmt;
 use std::rc::Rc;
-use self::string::RString;
-use self::table::Table;
-
-pub mod string;
-pub mod table;
+use string::RString;
+use table::Table;
 
 /// A Riptide value. This is a small enum that can represent any of the possible data types. Since Riptide is loosely
 /// typed, a value can be any of these types at runtime.
@@ -23,7 +20,7 @@ pub enum Value {
     Number(f64),
 
     /// A string. Immutable, and stored by reference.
-    String(RString<'static>),
+    String(RString),
 
     /// An immutable list of values. Stored by value.
     ///

@@ -7,8 +7,9 @@ use riptide_syntax::ast::*;
 use riptide_syntax::source::*;
 use std::path::Path;
 use std::rc::Rc;
+use string::RString;
+use table::Table;
 use value::Value;
-use value::table::Table;
 
 pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception>;
 
@@ -129,16 +130,16 @@ impl Runtime {
         self.exit_requested = true;
     }
 
-    pub fn get_global(&self, name: &str) -> Option<Value> {
+    pub fn get_global(&self, name: impl AsRef<[u8]>) -> Option<Value> {
         self.globals.get(name)
     }
 
-    pub fn set_global<V: Into<Value>>(&mut self, name: &str, value: V) {
+    pub fn set_global(&mut self, name: impl Into<RString>, value: impl Into<Value>) {
         self.globals.set(name, value);
     }
 
     /// Lookup a variable name in the current scope.
-    pub fn get(&self, name: impl AsRef<str>) -> Option<Value> {
+    pub fn get(&self, name: impl AsRef<[u8]>) -> Option<Value> {
         let name = name.as_ref();
 
         for frame in self.call_stack.iter().rev() {
@@ -156,11 +157,7 @@ impl Runtime {
     }
 
     /// Set a variable value in the current scope.
-    pub fn set(&mut self, name: impl AsRef<str>, value: Value) {
-        let name = name.as_ref();
-
-        info!("set {} = {}", name, value);
-
+    pub fn set(&mut self, name: impl Into<RString>, value: impl Into<Value>) {
         if let Some(ref mut frame) = self.call_stack.last_mut() {
             frame.bindings.set(name, value);
             return;
@@ -238,7 +235,7 @@ impl Runtime {
         }
 
         // If the function is a string, resolve binding names first before we try to eval the item as a function.
-        if let Some(value) = function.as_string().and_then(|name| self.get(name.to_string())) {
+        if let Some(value) = function.as_string().and_then(|name| self.get(name)) {
             function = value;
         }
 

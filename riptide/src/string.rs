@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::borrow::*;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -13,20 +13,30 @@ use utf8;
 /// Since strings are copied and tossed around quite a bit, the string is
 /// reference counted to reduce memory and copying.
 #[derive(Clone, Debug, Eq)]
-pub enum RString<'s> {
-    Borrowed(&'s [u8]),
+pub enum RString {
+    Static(&'static [u8]),
     Heap(Rc<Vec<u8>>),
 }
 
-impl<'s> RString<'s> {
+impl RString {
     /// The empty string.
-    pub const EMPTY: Self = RString::Borrowed(b"");
+    pub const EMPTY: Self = RString::Static(b"");
+
+    /// Allocate a new string and populate it with the given data.
+    pub fn allocate(string: impl Into<Vec<u8>>) -> Self {
+        RString::Heap(Rc::new(string.into()))
+    }
+
+    /// Create a string from a static Rust string.
+    pub fn from_static(string: &'static str) -> Self {
+        RString::Static(string.as_bytes())
+    }
 
     /// Get a view of the raw bytes in the string.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         match self {
-            &RString::Borrowed(s) => s,
+            &RString::Static(s) => s,
             &RString::Heap(ref ptr) => ptr.as_ref(),
         }
     }
@@ -35,52 +45,48 @@ impl<'s> RString<'s> {
         str::from_utf8(self.as_bytes()).ok()
     }
 
-    pub fn to_owned(&self) -> RString<'static> {
-        self.as_bytes().to_owned().into()
-    }
-
-    pub fn to_lowercase(&self) -> RString<'static> {
+    pub fn to_lowercase(&self) -> Self {
         self.as_bytes().to_ascii_lowercase().into()
     }
 }
 
-impl<'s> From<&'s str> for RString<'s> {
+impl<'s> From<&'s str> for RString {
     fn from(value: &'s str) -> Self {
-        value.as_bytes().into()
+        Self::allocate(value)
     }
 }
 
-impl From<String> for RString<'static> {
+impl From<String> for RString {
     fn from(value: String) -> Self {
-        value.into_bytes().into()
+        Self::allocate(value)
     }
 }
 
-impl<'s> From<&'s [u8]> for RString<'s> {
+impl<'s> From<&'s [u8]> for RString {
     fn from(value: &'s [u8]) -> Self {
-        RString::Borrowed(value)
+        Self::allocate(value)
     }
 }
 
-impl From<Vec<u8>> for RString<'static> {
+impl From<Vec<u8>> for RString {
     fn from(value: Vec<u8>) -> Self {
-        RString::Heap(Rc::new(value))
+        Self::allocate(value)
     }
 }
 
-impl<'s> AsRef<[u8]> for RString<'s> {
+impl AsRef<[u8]> for RString {
     fn as_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
-impl<'s> Borrow<[u8]> for RString<'s> {
+impl Borrow<[u8]> for RString {
     fn borrow(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
-impl<'s> PartialEq for RString<'s> {
+impl PartialEq for RString {
     fn eq(&self, rhs: &RString) -> bool {
         let lhs = self.as_bytes();
         let rhs = rhs.as_bytes();
@@ -95,25 +101,25 @@ impl<'s> PartialEq for RString<'s> {
     }
 }
 
-impl<'s> PartialEq<str> for RString<'s> {
+impl PartialEq<str> for RString {
     fn eq(&self, rhs: &str) -> bool {
         self == rhs.as_bytes()
     }
 }
 
-impl<'s> PartialEq<[u8]> for RString<'s> {
+impl PartialEq<[u8]> for RString {
     fn eq(&self, rhs: &[u8]) -> bool {
-        self.as_ref() == rhs
+        self.as_bytes() == rhs
     }
 }
 
-impl<'s> Hash for RString<'s> {
+impl Hash for RString {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.as_bytes().hash(state);
     }
 }
 
-impl<'s> fmt::Display for RString<'s> {
+impl fmt::Display for RString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut slice = self.as_bytes();
 

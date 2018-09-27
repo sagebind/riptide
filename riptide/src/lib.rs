@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+extern crate fnv;
 #[macro_use]
 extern crate log;
 extern crate nix;
@@ -12,4 +12,6 @@ pub mod modules;
 pub mod prelude;
 pub mod process;
 pub mod runtime;
+pub mod string;
+pub mod table;
 pub mod value;
