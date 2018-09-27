@@ -11,52 +11,14 @@ use super::tokens::*;
 
 pub struct Parser<F> {
     lexer: Lexer<F>,
-    lexer_mode: LexerMode,
-    current_token: Option<TokenInfo>,
+    peeked_token: Option<TokenInfo>,
 }
 
 impl<F: Borrow<SourceFile>> Parser<F> {
     pub fn new(lexer: Lexer<F>) -> Self {
         Self {
             lexer: lexer,
-            lexer_mode: LexerMode::default(),
-            current_token: None,
-        }
-    }
-
-    /// Get the current token.
-    fn current_token(&mut self) -> Result<&Token, ParseError> {
-        if self.current_token.is_none() {
-            self.read_next_token()?;
-        }
-
-        Ok(&self.current_token.as_ref().unwrap().token)
-    }
-
-    /// Consume the current token, moving to the next token in the file.
-    fn consume_token(&mut self) -> Result<TokenInfo, ParseError> {
-        if self.current_token.is_none() {
-            self.read_next_token()?;
-        }
-
-        let current = self.current_token.take();
-        self.read_next_token()?;
-
-        Ok(current.unwrap())
-    }
-
-    fn read_next_token(&mut self) -> Result<(), ParseError> {
-        self.current_token = Some(self.lexer.lex(self.lexer_mode)?);
-        Ok(())
-    }
-
-    /// If the current token matches the given token, consume it, otherwise raise an error.
-    fn expect_token(&mut self, token: Token) -> Result<(), ParseError> {
-        let actual = self.consume_token()?;
-        if actual.token == token {
-            Ok(())
-        } else {
-            Err(self.error(format!("expected token: {:?}, instead got {:?}", token, actual.token)))
+            peeked_token: None,
         }
     }
 
@@ -64,11 +26,11 @@ impl<F: Borrow<SourceFile>> Parser<F> {
         let mut statements = Vec::new();
 
         loop {
-            match self.current_token()? {
-                &Token::EndOfLine | &Token::EndOfStatement => {
-                    self.consume_token()?;
+            match self.peek()? {
+                Token::EndOfLine | Token::EndOfStatement => {
+                    self.advance()?;
                 },
-                &Token::EndOfFile => break,
+                Token::EndOfFile => break,
                 _ => {
                     statements.push(self.parse_pipeline()?);
                 },
@@ -85,8 +47,8 @@ impl<F: Borrow<SourceFile>> Parser<F> {
         let mut calls = Vec::new();
         calls.push(self.parse_function_call()?);
 
-        while self.current_token()? == &Token::Pipe {
-            self.consume_token()?;
+        while self.peek()? == Token::Pipe {
+            self.advance()?;
             calls.push(self.parse_function_call()?);
         }
 
@@ -100,13 +62,13 @@ impl<F: Borrow<SourceFile>> Parser<F> {
         let mut args = Vec::new();
 
         loop {
-            match self.current_token()? {
-                &Token::EndOfFile => break,
-                &Token::EndOfLine => break,
-                &Token::EndOfStatement => break,
-                &Token::Pipe => break,
-                &Token::RightBrace => break,
-                &Token::RightParen => break,
+            match self.peek()? {
+                Token::EndOfFile => break,
+                Token::EndOfLine => break,
+                Token::EndOfStatement => break,
+                Token::Pipe => break,
+                Token::RightBrace => break,
+                Token::RightParen => break,
                 _ => args.push(self.parse_expression()?),
             }
         }
@@ -118,16 +80,16 @@ impl<F: Borrow<SourceFile>> Parser<F> {
     }
 
     fn parse_expression(&mut self) -> Result<Expr, ParseError> {
-        debug!("parse expr, starting at {:?}", self.current_token()?);
+        debug!("parse expr, starting at {:?}", self.peek()?);
 
-        match self.current_token()? {
-            &Token::LeftBrace | &Token::LeftBracket => self.parse_block_expr(),
-            &Token::LeftParen => self.parse_pipeline_expr(),
-            &Token::SubstitutionSigil => self.parse_substitution_expr(),
-            &Token::SubstitutionBrace => self.parse_substitution_expr(),
-            &Token::SubstitutionParen => self.parse_substitution_expr(),
-            &Token::Number(number) => {
-                self.consume_token()?;
+        match self.peek()? {
+            Token::LeftBrace | Token::LeftBracket => self.parse_block_expr(),
+            Token::LeftParen => self.parse_pipeline_expr(),
+            Token::SubstitutionSigil => self.parse_substitution_expr(),
+            Token::SubstitutionBrace => self.parse_substitution_expr(),
+            Token::SubstitutionParen => self.parse_substitution_expr(),
+            Token::NumberLiteral(number) => {
+                self.advance()?;
                 Ok(Expr::Number(number))
             },
             _ => self.parse_string(),
@@ -135,8 +97,8 @@ impl<F: Borrow<SourceFile>> Parser<F> {
     }
 
     fn parse_block_expr(&mut self) -> Result<Expr, ParseError> {
-        let named_params = match self.current_token()? {
-            &Token::LeftBracket => Some(self.parse_block_params()?),
+        let named_params = match self.peek()? {
+            Token::LeftBracket => Some(self.parse_block_params()?),
             _ => None,
         };
 
@@ -153,7 +115,7 @@ impl<F: Borrow<SourceFile>> Parser<F> {
         let mut params = Vec::new();
 
         loop {
-            match self.consume_token()?.token {
+            match self.advance()? {
                 Token::RightBracket => break,
                 Token::StringLiteral(s) => params.push(s.clone()),
                 token => return Err(self.error(format!("unexpected token: {:?}", token))),
@@ -169,15 +131,15 @@ impl<F: Borrow<SourceFile>> Parser<F> {
         let mut statements = Vec::new();
 
         loop {
-            match self.current_token()? {
-                &Token::EndOfLine | &Token::EndOfStatement => {
-                    self.consume_token()?;
+            match self.peek()? {
+                Token::EndOfLine | Token::EndOfStatement => {
+                    self.advance()?;
                 },
-                &Token::RightBrace => {
-                    self.consume_token()?;
+                Token::RightBrace => {
+                    self.advance()?;
                     break;
                 },
-                &Token::EndOfFile => return Err(self.error("unterminated block")),
+                Token::EndOfFile => return Err(self.error("unterminated block")),
                 _ => statements.push(self.parse_pipeline()?),
             }
         }
@@ -198,7 +160,7 @@ impl<F: Borrow<SourceFile>> Parser<F> {
     }
 
     fn parse_substitution(&mut self) -> Result<Substitution, ParseError> {
-        match self.consume_token()?.token {
+        match self.advance()? {
             Token::SubstitutionSigil => {
                 Ok(Substitution::Variable(self.parse_variable_path()?))
             },
@@ -209,7 +171,7 @@ impl<F: Borrow<SourceFile>> Parser<F> {
                 match self.advance_required()? {
                     Token::Colon => {
                         let format_specifier = match self.advance_required()? {
-                            Token::StringLiteral(string) => string,
+                            Token::StringLiteral(string) => string.clone(),
                             Token::RightBrace => String::new(),
                             _ => return Err(self.error("expected format specifier")),
                         };
@@ -233,35 +195,85 @@ impl<F: Borrow<SourceFile>> Parser<F> {
     }
 
     fn parse_variable_path(&mut self) -> Result<VariablePath, ParseError> {
-        match self.consume_token()?.token {
+        match self.advance()? {
             Token::StringLiteral(s) => Ok(VariablePath(vec![VariablePathPart::Ident(s)])),
             token => Err(self.error(format!("expected variable path, instead got {:?}", token))),
         }
     }
 
     fn parse_string(&mut self) -> Result<Expr, ParseError> {
-        match self.consume_token()?.token {
+        match self.advance()? {
             Token::StringLiteral(s) => Ok(Expr::String(s)),
-            Token::DoubleQuotedString(s) => Ok(Expr::String(s)),
+            Token::DoubleQuote => Ok(Expr::InterpolatedString(self.parse_interpolated_string()?)),
             token => Err(self.error(format!("expected string, instead got {:?}", token))),
         }
     }
 
-    fn parse_interpolated_string(&mut self) -> Result<Expr, ParseError> {
-        self.expect_token(Token::DoubleQuote)?;
-        self.expect_token(Token::DoubleQuote)?;
+    fn parse_interpolated_string(&mut self) -> Result<InterpolatedString, ParseError> {
+        // Interpolated strings have their own lexer mode.
+        self.lexer.push_mode(LexerMode::Interpolation);
 
-        unimplemented!();
+        let mut parts = Vec::new();
+
+        loop {
+            // TODO
+            if self.peek()? == Token::SubstitutionSigil {
+                parts.push(InterpolatedStringPart::Substitution(self.parse_substitution()?));
+            } else {
+                match self.advance()? {
+                    // A region of regular text.
+                    Token::StringLiteral(s) => parts.push(InterpolatedStringPart::String(s)),
+
+                    // We've reached the end of the interpolated string.
+                    Token::DoubleQuote => break,
+
+                    _ => return Err(self.error("unexpected token")),
+                }
+            }
+        }
+
+        // Restore the previous lexing mode.
+        self.lexer.pop_mode();
+
+        Ok(InterpolatedString(parts))
     }
 
     fn advance_required(&mut self) -> Result<Token, ParseError> {
-        match self.consume_token()?.token {
+        match self.advance()? {
             Token::EndOfFile => Err(self.error("unexpected eof")),
             token => Ok(token),
         }
     }
 
+    /// Peek at the next token.
+    fn peek(&mut self) -> Result<Token, ParseError> {
+        if self.peeked_token.is_none() {
+            self.peeked_token = Some(self.lexer.lex()?);
+        }
+
+        Ok(self.peeked_token.clone().unwrap().token)
+    }
+
+    /// Consume the current token, advancing to the next token in the file.
+    fn advance(&mut self) -> Result<Token, ParseError> {
+        match self.peeked_token.take() {
+            Some(token) => Ok(token.token),
+            None => Ok(self.lexer.lex()?.token),
+        }
+    }
+
+    /// If the current token matches the given token, consume it, otherwise raise an error.
+    fn expect_token(&mut self, token: Token) -> Result<(), ParseError> {
+        let actual = self.advance()?;
+        if actual == token {
+            Ok(())
+        } else {
+            Err(self.error(format!("expected token: {:?}, instead got {:?}", token, actual)))
+        }
+    }
+
     fn error<S: Into<String>>(&self, message: S) -> ParseError {
-        ParseError::new(message, self.current_token.as_ref().unwrap().span)
+        // TODO
+        ParseError::new(message, Span::default())
     }
 }

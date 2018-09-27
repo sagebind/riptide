@@ -1,4 +1,3 @@
-disabled = true
 source = '''
 println "hello world"
 '''
@@ -10,7 +9,9 @@ Block {
             Call {
                 function: String("println"),
                 args: [
-                    String("hello world")
+                    InterpolatedString [
+                        String("hello world")
+                    ]
                 ]
             }
         ]

@@ -129,11 +129,27 @@ impl fmt::Display for VariablePathPart {
 ///
 /// An interpolated string is made up of a sequence of parts that, when stringified and concatenated in order, form the
 /// desired string value.
-#[derive(Clone, Debug, PartialEq)]
-pub struct InterpolatedString(Vec<InterpolatedStringPart>);
+#[derive(Clone, PartialEq)]
+pub struct InterpolatedString(pub Vec<InterpolatedStringPart>);
 
-#[derive(Clone, Debug, PartialEq)]
+impl fmt::Debug for InterpolatedString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "InterpolatedString ").and_then(|_|
+            f.debug_list().entries(&self.0).finish())
+    }
+}
+
+#[derive(Clone, PartialEq)]
 pub enum InterpolatedStringPart {
     String(String),
     Substitution(Substitution),
+}
+
+impl fmt::Debug for InterpolatedStringPart {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            InterpolatedStringPart::String(v) => write!(f, "String({:?})", v),
+            InterpolatedStringPart::Substitution(v) => f.debug_tuple("Substitution").field(v).finish(),
+        }
+    }
 }

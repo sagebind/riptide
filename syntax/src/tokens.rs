@@ -35,12 +35,9 @@ pub enum Token {
     /// Indicates the beginning of a string format substitution.
     SubstitutionBrace,
     /// A number literal.
-    Number(f64),
+    NumberLiteral(f64),
     /// A string literal.
     StringLiteral(String),
-    /// A string with possible substitutions.
-    #[deprecated]
-    DoubleQuotedString(String),
     /// Newline separator.
     EndOfLine,
     /// Indicates the end of file has been reached and no more tokens will be produced.

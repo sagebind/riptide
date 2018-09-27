@@ -1,0 +1,29 @@
+source = '''
+println "hello $foo"
+'''
+ast = '''
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call {
+                function: String("println"),
+                args: [
+                    InterpolatedString [
+                        String("hello "),
+                        Substitution(
+                            Variable(
+                                VariablePath(
+                                    [
+                                        Ident(foo)
+                                    ]
+                                )
+                            )
+                        )
+                    ]
+                ]
+            }
+        ]
+    ]
+}
+'''

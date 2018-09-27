@@ -8,7 +8,7 @@ use super::tokens::*;
 ///
 /// Riptide cannot be tokenized context-free, so the lexer enters in and out of various modes that control tokenization
 /// behavior.
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LexerMode {
     /// Normal mode: This mode tokenizes regular source code. The lexer starts and ends in this mode.
     Normal,
@@ -26,30 +26,52 @@ impl Default for LexerMode {
 /// Tokenizes a file into a series of tokens.
 pub struct Lexer<F> {
     cursor: SourceCursor<F>,
+    mode_stack: Vec<LexerMode>,
 }
 
 impl<F: Borrow<SourceFile>> From<F> for Lexer<F> {
     fn from(file: F) -> Self {
         Self {
             cursor: SourceCursor::from(file),
+            mode_stack: Vec::new(),
         }
     }
 }
 
 impl<F: Borrow<SourceFile>> Lexer<F> {
+    /// Get the current lexer mode.
+    pub fn mode(&self) -> LexerMode {
+        self.mode_stack.last().cloned().unwrap_or(LexerMode::default())
+    }
+
     /// Get the file being lexed.
     #[inline]
     pub fn file(&self) -> &SourceFile {
         self.cursor.file()
     }
 
+    /// Push a mode onto the mode stack.
+    ///
+    /// Subsequent calls to `lext()` will lex according to the rules of the most recently pushed mode.
+    pub fn push_mode(&mut self, mode: LexerMode) {
+        debug!("entering mode {:?}", mode);
+        self.mode_stack.push(mode);
+    }
+
+    /// Pop the topmost mode off of the mode stack.
+    ///
+    /// Returns the popped off mode, if any.
+    pub fn pop_mode(&mut self) -> Option<LexerMode> {
+        self.mode_stack.pop()
+    }
+
     /// Advance to the next token in the source.
     ///
-    /// The token will be lexed according to the rules for the given mode.
-    pub fn lex(&mut self, mode: LexerMode) -> Result<TokenInfo, ParseError> {
+    /// The token will be lexed according to the rules of the current mode.
+    pub fn lex(&mut self) -> Result<TokenInfo, ParseError> {
         self.cursor.mark();
 
-        let token = match mode {
+        let token = match self.mode() {
             LexerMode::Normal => self.lex_normal()?,
             LexerMode::Interpolation => self.lex_interpolation()?,
         };
@@ -140,13 +162,27 @@ impl<F: Borrow<SourceFile>> Lexer<F> {
     fn lex_interpolation_literal_part(&mut self, first_byte: u8) -> Result<Token, ParseError> {
         let mut bytes = vec![first_byte];
 
-        while let Some(byte) = self.cursor.peek() {
-            match byte {
-                b'"' | b'$' => break,
-                _ => {
+        loop {
+            match self.cursor.peek() {
+                // End of the string
+                Some(b'"') => break,
+
+                // Start of a non-literal region
+                Some(b'$') => break,
+
+                // Character escape
+                Some(b'\\') => {
+                    self.cursor.advance();
+                    bytes.push(translate_escape(self.cursor.advance().unwrap()));
+                },
+
+                // Normal character
+                Some(byte) => {
                     bytes.push(byte);
                     self.cursor.advance();
-                }
+                },
+
+                None => return Err(self.create_error("unexpected eof, expecting end of string \"")),
             }
         }
 
@@ -195,27 +231,6 @@ impl<F: Borrow<SourceFile>> Lexer<F> {
         return Ok(Token::StringLiteral(String::from_utf8(bytes).unwrap()));
     }
 
-    fn lex_double_quoted_string(&mut self) -> Result<Token, ParseError> {
-        let mut bytes = Vec::new();
-
-        loop {
-            match self.cursor.advance() {
-                // End of the string
-                Some(b'"') => break,
-
-                // Character escape
-                Some(b'\\') => bytes.push(translate_escape(self.cursor.advance().unwrap())),
-
-                // Normal character
-                Some(byte) => bytes.push(byte),
-
-                None => return Err(self.create_error("unexpected eof, expecting end of string '")),
-            }
-        }
-
-        return Ok(Token::DoubleQuotedString(String::from_utf8(bytes).unwrap()));
-    }
-
     fn lex_unquoted_string(&mut self, first_byte: u8) -> Result<Token, ParseError> {
         let mut bytes = vec![first_byte];
 
@@ -255,7 +270,7 @@ impl<F: Borrow<SourceFile>> Lexer<F> {
             String::from_utf8_unchecked(bytes)
         };
 
-        return Ok(Token::Number(string.parse().unwrap()));
+        return Ok(Token::NumberLiteral(string.parse().unwrap()));
     }
 
     fn create_error<S: Into<String>>(&self, message: S) -> ParseError {
@@ -299,7 +314,7 @@ mod tests {
                 use $crate::lexer::Token::*;
                 let mut lexer = Lexer::from(SourceFile::buffer(None, $source));
                 $(
-                    assert_eq!(lexer.lex(LexerMode::Normal).unwrap().token, $token);
+                    assert_eq!(lexer.lex().unwrap().token, $token);
                 )*
             })*
         };

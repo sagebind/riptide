@@ -55,7 +55,7 @@ pub struct SourceFile {
 
 impl SourceFile {
     /// Create a new file map using an in-memory buffer.
-    pub fn buffer<N: Into<Option<String>>, B: Into<Vec<u8>>>(name: N, buffer: B) -> Self {
+    pub fn buffer(name: impl Into<Option<String>>, buffer: impl Into<Vec<u8>>) -> Self {
         Self {
             name: name.into(),
             buffer: buffer.into(),
@@ -63,7 +63,7 @@ impl SourceFile {
     }
 
     /// Create a new file map from a reader.
-    pub fn file<N: Into<Option<String>>>(name: N, reader: &mut Read) -> io::Result<Self> {
+    pub fn file(name: impl Into<Option<String>>, reader: &mut Read) -> io::Result<Self> {
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer)?;
         Ok(Self::buffer(name, buffer))
@@ -148,6 +148,11 @@ impl<F: Borrow<SourceFile>> SourceCursor<F> {
     /// Set the mark to the current position.
     pub fn mark(&mut self) {
         self.mark = self.pos;
+    }
+
+    /// Reset the current position back to the last marked position.
+    pub fn reset(&mut self) {
+        self.pos = self.mark;
     }
 
     /// Advance to the next character.

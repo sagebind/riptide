@@ -2,6 +2,7 @@
 //!
 //! The provided Riptide parser parses source code into a high-level abstract syntax tree, which can be used for
 //! evaluation directly, optimization, formatting tools, etc.
+
 #[macro_use]
 extern crate log;
 
