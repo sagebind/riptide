@@ -15,7 +15,7 @@ pub mod parser;
 pub mod source;
 pub mod tokens;
 
-/// Attempts to parse a source file into an abstract syntax tree.
+/// Attempt to parse a source file into an abstract syntax tree.
 ///
 /// If the given file contains a valid Riptide program, a root AST node is returned representing the program. If the
 /// program instead contains any syntax errors, the errors are returned instead.

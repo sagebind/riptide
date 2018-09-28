@@ -1,4 +1,5 @@
-//! Abstract syntax tree.
+//! Abstract syntax tree definitions for the language syntax.
+
 use std::fmt;
 
 /// A function block, containing a list of pipelines to execute.

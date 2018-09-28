@@ -1,4 +1,9 @@
-/// Splits a source file into a stream of tokens.
+//! The lexer, which parses a source file into a stream of tokens.
+//!
+//! The lexer is _modal_, which means that it will use a different set of lexing rules depending on the mode it is
+//! currently in. Modes are used in order for the parser to be able to pare mutually recursive languages, such as in
+//! string interpolation, in a single pass.
+
 use source::*;
 use std::borrow::Borrow;
 use super::errors::ParseError;
@@ -62,7 +67,9 @@ impl<F: Borrow<SourceFile>> Lexer<F> {
     ///
     /// Returns the popped off mode, if any.
     pub fn pop_mode(&mut self) -> Option<LexerMode> {
-        self.mode_stack.pop()
+        let mode = self.mode_stack.pop();
+        debug!("entering mode {:?}", self.mode());
+        mode
     }
 
     /// Advance to the next token in the source.

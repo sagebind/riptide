@@ -1,4 +1,5 @@
 //! Abstractions over reading files and source code used in the parser.
+
 use std::borrow::Borrow;
 use std::fs::File;
 use std::io::{self, Read};
