@@ -75,11 +75,6 @@ impl fmt::Debug for Expr {
 /// Value substitution.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Substitution {
-    /// A simple variable substitution, such as `$foo`.
-    ///
-    /// This gets evaluated to the current value of the variable identified.
-    Variable(VariablePath),
-
     /// A format substitution with a variable and parameters, such as `${foo:.2}`.
     ///
     /// This always evaluates to a string, unless the referenced variable is not defined.
@@ -89,6 +84,11 @@ pub enum Substitution {
     ///
     /// Evaluates to the final return value after executing the pipeline.
     Pipeline(Pipeline),
+
+    /// A simple variable substitution, such as `$foo`.
+    ///
+    /// This gets evaluated to the current value of the variable identified.
+    Variable(VariablePath),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

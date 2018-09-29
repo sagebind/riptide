@@ -1,6 +1,5 @@
-disabled = true
 source = '''
-println ${foo:2}
+println ${foo:.2}
 '''
 ast = '''
 Block {
@@ -18,7 +17,7 @@ Block {
                                 ]
                             ),
                             Some(
-                                "2"
+                                ".2"
                             )
                         )
                     )
