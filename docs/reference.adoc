@@ -19,28 +19,10 @@ Line separators are treated just like horizontal whitespace, except inside block
 
 === Formal grammar
 
-Below is the full specification of the Riptide grammar (in an extended Backus–Naur form):
+Below is the full specification of the Riptide grammar. This is the actual specification used to generate the language parser from.
 
 ----
-Program                 = StatementList
-StatementList           = (Statement StatementSeparator)* Statement?
-StatementSeparator      = LineTerminator+ | ';'
-Statement               = Pipeline
-Pipeline                = FunctionCall (Pipe FunctionCall)*
-FunctionCall            = Expr (Whitespace Expr)*
-Expr                    = BlockExpr | '(' FunctionCall ')' | String
-BlockExpr               = BlockParams? '{' StatementList '}'
-BlockParams             = '[' (Whitespace BareString)* Whitespace? ']'
-String                  = BareString | SingleQuotedString | DoubleQuotedString
-BareString              = [a-Z0-9_]+
-SingleQuotedString      = "'" [^']* "'"
-DoubleQuotedString      = '"' [^"]* '"'
-Variable                = '$' [a-Z] [a-Z0-9_]*
-Pipe                    = '|'
-Whitespace              = WhitespaceChar+
-LineTerminator          = '\r\n' | '\n'
-CharEscapeSequence      = '\' '\'
-WhitespaceChar          = '\x20' | '\x09' | '\x0a' | '\x0d'
+include::../syntax/src/grammar.pest[]
 ----
 
 
