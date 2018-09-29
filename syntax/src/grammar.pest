@@ -1,47 +1,82 @@
+// The Riptide language grammar.
+//
+// This file is used both to generate the parser, and serves as the canonical
+// specification for the language syntax.
+
 // A program string. Like a block without surrounding curly braces or params.
-program                     = { soi ~ statement_list ~ eoi }
+// "soi" and "eoi" refer to the start and end of the file, respectively.
+program = { soi ~ statement_list ~ eoi }
 
-block                       = { block_params? ~ "{" ~ statement_list ~ "}" }
-block_params                = { "[" ~ symbol* ~ "]" }
-statement_list              = { statement_separator* ~ (statement ~ (statement_separator+ ~ statement)*)? ~ statement_separator* }
-statement_separator         = _{ line_terminator+ | ";" }
-statement                   = _{ pipeline }
+// Blocks are surrounded by curly braces, with an optional square bracket
+// delimited parameter list proceeding it.
+block = { block_params? ~ "{" ~ statement_list ~ "}" }
+block_params = { "[" ~ symbol* ~ "]" }
 
-expr                        = { block
-                            | "(" ~ pipeline ~ ")"
-                            | interpolation
-                            | substitution
-                            | number_literal
-                            | string_literal }
+// Statements are just pipelines separated by one or more separators. Extra
+// separators are ignored.
+statement_list = { statement_separator* ~ (statement ~ (statement_separator+ ~ statement)*)? ~ statement_separator* }
+statement_separator = _{ line_terminator+ | ";" }
+statement = _{ pipeline }
 
-pipeline                    = !{ call ~ ("|" ~ call)* }
-call                        = { expr+ }
+// Expression is the main syntax building block.
+expr = { block
+        | "(" ~ pipeline ~ ")"
+        | interpolation
+        | substitution
+        | number_literal
+        | string_literal }
 
-interpolation               = ${ "\"" ~ interpolation_part* ~ "\"" }
-interpolation_part          = ${ substitution | interpolation_literal_part }
-interpolation_literal_part  = ${ (!"\"" ~ !"$" ~ any)+ }
+// Pipelines are function calls chained together with the pipe "|" operator.
+//
+// The "!" prefix forces insignificant whitespace back on, which allows
+// whitespace in a pipeline inside substitutions.
+pipeline = !{ call ~ ("|" ~ call)* }
 
-substitution                = ${ format_substitution
+// Function calls are merely a list of adjacent expressions.
+call = { expr+ }
+
+// An interpolated string is surrounded by double quotes, and is made up of a
+// sequence of parts that, when stringified and concatenated in order, form the
+// desired string value.
+//
+// Escapes are handled later in the parser pipeline.
+interpolation = ${ "\"" ~ interpolation_part* ~ "\"" }
+interpolation_part = ${ substitution | interpolation_literal_part }
+interpolation_literal_part = ${ ("\\\"" | !"\"" ~ !"$" ~ any)+ }
+
+// Dollar sign indicates the start of some form of substitution.
+substitution = ${ &"$" ~ (format_substitution
                             | pipeline_substitution
-                            | variable_substitution }
-format_substitution         = ${ "${" ~ variable_path ~ (":" ~ format_substitution_flags)? ~ "}" }
-format_substitution_flags   = ${ (alpha | digit | "_" | ".")+ }
-pipeline_substitution       = ${ "$(" ~ pipeline ~ ")" }
-variable_substitution       = ${ "$" ~ variable_path }
+                            | variable_substitution) }
+format_substitution = ${ "${" ~ variable_path ~ (":" ~ format_substitution_flags)? ~ "}" }
+format_substitution_flags = ${ (alpha | digit | "_" | ".")+ }
+pipeline_substitution = ${ "$(" ~ pipeline ~ ")" }
+variable_substitution = ${ "$" ~ variable_path }
 
-variable_path               = ${ variable_path_part ~ ("." ~ variable_path_part)* }
-variable_path_part          = ${ symbol }
+variable_path = ${ variable_path_part ~ ("." ~ variable_path_part)* }
+variable_path_part = ${ symbol }
 
-string_literal              = ${ symbol | "'" ~ single_quote_inner ~ "'" }
-single_quote_inner          = ${ (!"'" ~ any)* }
+// Escapes are handled later in the parser pipeline.
+string_literal = ${ symbol | "'" ~ single_quote_inner ~ "'" }
+single_quote_inner = ${ ("\\'" | !"'" ~ any)* }
 
-number_literal              = ${ digit+ ~ ("." ~ digit+)? }
+// Numbers are floating point.
+number_literal = ${ "." ~ digit+ | digit+ ~ ("." ~ digit+)? }
 
-symbol                      = ${ !digit ~ (alpha | digit | "_")+ }
-alpha                       = _{ 'a'..'z' | 'A'..'Z' }
-digit                       = _{ '0'..'9' }
+symbol = ${ !digit ~ (alpha | digit | "_")+ }
 
-comment                     = _{ "#" ~ (!line_terminator ~ any)* }
-whitespace                  = _{ horizontal_whitespace }
-horizontal_whitespace       = _{ " " | "\t" }
-line_terminator             = _{ "\r\n" | "\n" }
+// Basic building blocks for literals.
+alpha = _{ 'a'..'z' | 'A'..'Z' }
+digit = _{ '0'..'9' }
+
+// Inline comments are similar to UNIX shells, where "#" starts a comment and
+// includes all following characters until end of line.
+comment = _{ "#" ~ (!line_terminator ~ any)* }
+
+// Only horizontal whitespace is insignificant; vertical whitespace is used to
+// separate staements in blocks.
+whitespace = _{ " " | "\t" | "\\" ~ line_terminator }
+
+// To handle newlines in a platform-generic way, any of the following sequences
+// are treated as a single newline token.
+line_terminator = _{ "\n" | "\r\n" | "\r" }

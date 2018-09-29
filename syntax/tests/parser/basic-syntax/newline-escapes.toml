@@ -1,0 +1,19 @@
+source = '''
+println \
+    foo
+'''
+ast = '''
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call {
+                function: String("println"),
+                args: [
+                    String("foo")
+                ]
+            }
+        ]
+    ]
+}
+'''

@@ -74,7 +74,7 @@ impl FromPair for Expr {
             Rule::pipeline => Expr::Pipeline(Pipeline::from_pair(pair)),
             Rule::interpolation => Expr::InterpolatedString(InterpolatedString::from_pair(pair)),
             Rule::substitution => Expr::Substitution(Substitution::from_pair(pair)),
-            Rule::string_literal => Expr::String(pair.into_inner().next().unwrap().as_str().to_owned()),
+            Rule::string_literal => Expr::String(translate_escapes(pair.into_inner().next().unwrap().as_str())),
             Rule::number_literal => Expr::Number(pair.as_str().parse().unwrap()),
             rule => panic!("unexpected rule: {:?}", rule),
         }
@@ -97,7 +97,7 @@ impl FromPair for InterpolatedStringPart {
 
         match pair.as_rule() {
             Rule::substitution => InterpolatedStringPart::Substitution(Substitution::from_pair(pair)),
-            Rule::interpolation_literal_part => InterpolatedStringPart::String(pair.as_str().to_owned()),
+            Rule::interpolation_literal_part => InterpolatedStringPart::String(translate_escapes(pair.as_str())),
             rule => panic!("unexpected rule: {:?}", rule),
         }
     }
@@ -138,4 +138,23 @@ impl FromPair for VariablePathPart {
 
         VariablePathPart::Ident(pair.as_str().to_owned())
     }
+}
+
+fn translate_escapes(source: &str) -> String {
+    let mut string = String::with_capacity(source.len());
+    let mut chars = source.chars();
+
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => string.push(match chars.next().unwrap() {
+                'n' => '\n',
+                'r' => '\r',
+                't' => '\t',
+                c => c, // interpret all other chars as their literal
+            }),
+            c => string.push(c),
+        }
+    }
+
+    string
 }

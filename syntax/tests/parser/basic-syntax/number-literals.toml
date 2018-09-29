@@ -1,7 +1,7 @@
 source = '''
 println 100
 println 102.5
-println 0.25
+println .25
 '''
 ast = '''
 Block {

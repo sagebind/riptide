@@ -1,0 +1,22 @@
+source = '''
+println foo 'bar\'' "baz' a \" b"
+'''
+ast = '''
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call {
+                function: String("println"),
+                args: [
+                    String("foo"),
+                    String("bar\'"),
+                    InterpolatedString [
+                        String("baz\' a \" b")
+                    ]
+                ]
+            }
+        ]
+    ]
+}
+'''
