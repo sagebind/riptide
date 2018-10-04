@@ -1,9 +1,6 @@
 use ast::*;
 use pest::iterators::Pair;
 
-#[cfg(debug_assertions)]
-const _GRAMMAR: &'static str = include_str!("grammar.pest");
-
 #[derive(Parser)]
 #[grammar = "grammar.pest"]
 pub struct Grammar;
@@ -17,6 +14,10 @@ impl FromPair for Block {
         assert!(pair.as_rule() == Rule::program || pair.as_rule() == Rule::block);
 
         let mut pairs = pair.into_inner().collect::<Vec<_>>();
+
+        if pairs.last().map(|pair| pair.as_rule() == Rule::EOI).unwrap_or(false) {
+            pairs.pop();
+        }
 
         let statements = pairs.pop()
             .unwrap()

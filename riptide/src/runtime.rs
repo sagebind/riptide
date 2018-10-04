@@ -184,7 +184,7 @@ impl Runtime {
     fn execute_filemap(&mut self, file: SourceFile) -> Result<Value, Exception> {
         let block = match riptide_syntax::parse(file) {
             Ok(block) => block,
-            Err(e) => return Err(Exception::from(format!("error parsing: {}", e.message))),
+            Err(e) => return Err(Exception::from(format!("error parsing: {}", e))),
         };
 
         self.invoke_block(&block, &[])
