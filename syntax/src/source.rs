@@ -4,6 +4,7 @@ use pest;
 use std::fs;
 use std::io;
 use std::path::Path;
+use std::rc::Rc;
 
 /// A reference to a location in a source file. Useful for error messages.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -67,9 +68,10 @@ impl<'a> From<pest::Span<'a>> for Span {
 }
 
 /// Holds information about a source file being parsed in memory.
+#[derive(Clone, Debug)]
 pub struct SourceFile {
     name: Option<String>,
-    buffer: String,
+    buffer: Rc<String>,
 }
 
 impl SourceFile {
@@ -77,7 +79,7 @@ impl SourceFile {
     pub fn buffer(name: impl Into<Option<String>>, buffer: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            buffer: buffer.into(),
+            buffer: Rc::new(buffer.into()),
         }
     }
 
@@ -95,6 +97,10 @@ impl SourceFile {
             .as_ref()
             .map(String::as_str)
             .unwrap_or("<unknown>")
+    }
+
+    pub fn len(&self) -> usize {
+        self.buffer.len()
     }
 
     pub fn source(&self) -> &str {

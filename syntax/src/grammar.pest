@@ -19,12 +19,14 @@ statement_separator = _{ line_terminator+ | ";" }
 statement = _{ pipeline }
 
 // Expression is the main syntax building block.
-expr = { block
-        | "(" ~ pipeline ~ ")"
-        | interpolation
-        | substitution
-        | number_literal
-        | string_literal }
+expr = {
+    block
+    | "(" ~ pipeline ~ ")"
+    | interpolation
+    | substitution
+    | number_literal
+    | string_literal
+}
 
 // Pipelines are function calls chained together with the pipe "|" operator.
 //
@@ -45,9 +47,11 @@ interpolation_part = ${ substitution | interpolation_literal_part }
 interpolation_literal_part = ${ ("\\\"" | !"\"" ~ !"$" ~ any)+ }
 
 // Dollar sign indicates the start of some form of substitution.
-substitution = ${ &"$" ~ (format_substitution
-                            | pipeline_substitution
-                            | variable_substitution) }
+substitution = ${ &"$" ~ (
+    format_substitution
+    | pipeline_substitution
+    | variable_substitution
+) }
 format_substitution = ${ "${" ~ variable_path ~ (":" ~ format_substitution_flags)? ~ "}" }
 format_substitution_flags = ${ (alpha | digit | "_" | ".")+ }
 pipeline_substitution = ${ "$(" ~ pipeline ~ ")" }
