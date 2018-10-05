@@ -19,7 +19,7 @@ pub fn run_all_tests() {
 
     for path in glob::glob("tests/parser/**/*.toml").unwrap().filter_map(Result::ok) {
         let test = fs::read_to_string(&path).unwrap().parse::<toml::Value>().unwrap();
-        let src = SourceFile::buffer(path.display().to_string(), test["source"].as_str().unwrap());
+        let src = SourceFile::named(path.display().to_string(), test["source"].as_str().unwrap());
 
         if test.get("disabled").and_then(toml::Value::as_bool) == Some(true) {
             info!("skipping test: {}", src.name());

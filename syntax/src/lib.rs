@@ -21,7 +21,9 @@ mod parser;
 ///
 /// If the given file contains a valid Riptide program, a root AST node is returned representing the program. If the
 /// program instead contains any syntax errors, the errors are returned instead.
-pub fn parse(file: SourceFile) -> Result<ast::Block, ParseError> {
+pub fn parse(file: impl Into<SourceFile>) -> Result<ast::Block, ParseError> {
+    let file = file.into();
+
     parser::Grammar::parse(parser::Rule::program, file.source())
         .map(|mut pairs| pairs.next().unwrap())
         .map(ast::Block::from_pair)

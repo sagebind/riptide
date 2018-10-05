@@ -34,7 +34,7 @@ fn main() {
             let line = editor.read_line();
 
             if !line.is_empty() {
-                match parse(SourceFile::buffer(Some("<input>".into()), line)) {
+                match parse(SourceFile::named("<input>", line)) {
                     Ok(ast) => {
                         debug!("ast: {:?}", ast);
                         match runtime.invoke_block(&ast, &[]) {

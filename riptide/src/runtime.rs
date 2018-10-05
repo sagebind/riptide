@@ -174,7 +174,7 @@ impl Runtime {
 
     /// Execute the given script within this runtime context.
     pub fn execute(&mut self, script: &str) -> Result<Value, Exception> {
-        self.execute_filemap(SourceFile::buffer(None, script))
+        self.execute_filemap(SourceFile::from(script))
     }
 
     pub fn execute_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Value, Exception> {
