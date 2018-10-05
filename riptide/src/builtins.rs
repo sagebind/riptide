@@ -13,7 +13,7 @@ pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 
     let value = args.get(1).cloned().unwrap_or(Value::Nil);
 
-    runtime.set(name, value);
+    runtime.set_global(name, value);
 
     Ok(Value::Nil)
 }
@@ -86,15 +86,28 @@ pub fn throw(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     }
 }
 
+pub fn call(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    if let Some(function) = args.first() {
+        let args = match args.get(1) {
+            Some(Value::List(args)) => &args[..],
+            _ => &[],
+        };
+
+        runtime.invoke(function, args)
+    } else {
+        Err(Exception::from("block to invoke required"))
+    }
+}
+
 /// Invoke a block. If the block throws an exception, catch it and return it.
 pub fn catch(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
-    match args.first() {
-        None => Ok(Value::Nil),
-        Some(&Value::Block(ref block)) => match runtime.invoke_block(block, &[]) {
+    if let Some(function) = args.first() {
+        match runtime.invoke(function, &[]) {
             Ok(_) => Ok(Value::Nil),
             Err(exception) => Ok(exception.into()),
-        },
-        Some(_) => Err(Exception::from("block to invoke required")),
+        }
+    } else {
+        Err(Exception::from("block to invoke required"))
     }
 }
 

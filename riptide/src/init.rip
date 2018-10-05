@@ -1,0 +1,11 @@
+# This script bootstraps the runtime environment to the standard state.
+#
+# This script must never throw an exception, or the runtime will panic.
+
+def echo {
+    call $println (args)
+}
+
+def eval [string] {
+    call $source $string
+}

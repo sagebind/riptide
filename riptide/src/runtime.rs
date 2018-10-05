@@ -24,7 +24,6 @@ impl Default for RuntimeBuilder {
         Self::new()
             .module_loader(modules::relative_loader)
             .module_loader(modules::system_loader)
-            .with_stdlib()
     }
 }
 
@@ -36,22 +35,6 @@ impl RuntimeBuilder {
         }
     }
 
-    pub fn with_stdlib(mut self) -> Self {
-        self.globals.set("def", Value::ForeignFunction(builtins::def));
-        self.globals.set("exit", Value::ForeignFunction(builtins::exit));
-        self.globals.set("print", Value::ForeignFunction(builtins::print));
-        self.globals.set("println", Value::ForeignFunction(builtins::println));
-        self.globals.set("typeof", Value::ForeignFunction(builtins::type_of));
-        self.globals.set("list", Value::ForeignFunction(builtins::list));
-        self.globals.set("nil", Value::ForeignFunction(builtins::nil));
-        self.globals.set("throw", Value::ForeignFunction(builtins::throw));
-        self.globals.set("catch", Value::ForeignFunction(builtins::catch));
-        self.globals.set("args", Value::ForeignFunction(builtins::args));
-        self.globals.set("require", Value::ForeignFunction(builtins::require));
-
-        self
-    }
-
     /// Register a module loader.
     pub fn module_loader<T>(mut self, loader: T) -> Self where T: modules::ModuleLoader + 'static {
         self.module_loaders.push(Rc::new(loader));
@@ -59,14 +42,18 @@ impl RuntimeBuilder {
     }
 
     pub fn build(self) -> Runtime {
-        Runtime {
+        let mut runtime = Runtime {
             module_loaders: self.module_loaders,
             module_cache: Table::new(),
             globals: self.globals,
             call_stack: Vec::new(),
             exit_code: 0,
             exit_requested: false,
-        }
+        };
+
+        runtime.init();
+
+        runtime
     }
 }
 
@@ -93,6 +80,26 @@ impl Default for Runtime {
 }
 
 impl Runtime {
+    /// Initialize the runtime environment.
+    fn init(&mut self) {
+        self.globals.set("args", Value::ForeignFunction(builtins::args));
+        self.globals.set("call", Value::ForeignFunction(builtins::call));
+        self.globals.set("catch", Value::ForeignFunction(builtins::catch));
+        self.globals.set("def", Value::ForeignFunction(builtins::def));
+        self.globals.set("exit", Value::ForeignFunction(builtins::exit));
+        self.globals.set("list", Value::ForeignFunction(builtins::list));
+        self.globals.set("nil", Value::ForeignFunction(builtins::nil));
+        self.globals.set("print", Value::ForeignFunction(builtins::print));
+        self.globals.set("println", Value::ForeignFunction(builtins::println));
+        self.globals.set("require", Value::ForeignFunction(builtins::require));
+        self.globals.set("throw", Value::ForeignFunction(builtins::throw));
+        self.globals.set("typeof", Value::ForeignFunction(builtins::type_of));
+
+        self.execute(include_str!("init.rip"))
+            // This should never throw an exception.
+            .unwrap();
+    }
+
     pub fn load_module(&mut self, name: impl AsRef<str>) -> Result<Value, Exception> {
         let name = name.as_ref();
 
@@ -152,8 +159,7 @@ impl Runtime {
     }
 
     fn get_path(&self, path: &VariablePath) -> Option<Value> {
-        // todo
-        None
+        self.get(path.to_string())
     }
 
     /// Set a variable value in the current scope.
@@ -188,6 +194,15 @@ impl Runtime {
         };
 
         self.invoke_block(&block, &[])
+    }
+
+    /// Invoke the given value as a function with the given arguments.
+    pub fn invoke(&mut self, value: &Value, args: &[Value]) -> Result<Value, Exception> {
+        match value {
+            Value::Block(block) => self.invoke_block(block, args),
+            Value::ForeignFunction(function) => (function)(self, args),
+            _ => Err(format!("cannot invoke {:?} as a function", value))?,
+        }
     }
 
     /// Invoke a block with an array of arguments.
