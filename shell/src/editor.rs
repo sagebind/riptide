@@ -16,7 +16,7 @@ const DEFAULT_PROMPT: &str = "$ ";
 pub struct Editor {
     stdin: ReadPipe,
     stdout: WritePipe,
-    stderr: WritePipe,
+    _stderr: WritePipe,
     buffer: Buffer,
 }
 
@@ -29,7 +29,7 @@ impl Editor {
             stdout: unsafe {
                 WritePipe::from_raw_fd(0)
             },
-            stderr: unsafe {
+            _stderr: unsafe {
                 WritePipe::from_raw_fd(0)
             },
             buffer: Buffer::new(),
@@ -38,7 +38,7 @@ impl Editor {
 
     pub fn read_line(&mut self) -> String {
         let prompt = self.get_prompt_str();
-        write!(self.stdout, "{}", prompt);
+        write!(self.stdout, "{}", prompt).unwrap();
         self.stdout.flush().unwrap();
 
         // Duplicate stdin and stdout handles to workaround Termion's API.

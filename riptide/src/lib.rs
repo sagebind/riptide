@@ -5,13 +5,47 @@ extern crate nix;
 extern crate riptide_syntax;
 extern crate utf8;
 
+/// Convenience macro for creating a table.
+#[macro_export]
+macro_rules! table {
+    () => {
+        $crate::table::Table::default()
+    };
+
+    (
+        $(
+            $key:expr => $value:expr,
+        )*
+    ) => {
+        {
+            let mut table = table!();
+            $(
+                table.set($key, $value);
+            )*
+            table
+        }
+    };
+}
+
 pub mod builtins;
 pub mod exceptions;
 pub mod fd;
 pub mod modules;
-pub mod prelude;
 pub mod process;
 pub mod runtime;
+pub mod stdlib;
 pub mod string;
 pub mod table;
 pub mod value;
+
+// Re-export syntax crate.
+pub mod syntax {
+    pub use riptide_syntax::*;
+}
+
+pub mod prelude {
+    pub use exceptions::Exception;
+    pub use runtime::Runtime;
+    pub use table::Table;
+    pub use value::Value;
+}

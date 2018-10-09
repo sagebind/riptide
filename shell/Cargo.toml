@@ -5,15 +5,10 @@ authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "RipShell"
 
 [dependencies]
+clogger = "0.1"
 log = "0.4"
-stderrlog = "0.3"
+structopt = "0.2"
 termion = "1.5"
 
 [dependencies.riptide]
 path = "../riptide"
-
-[dependencies.riptide-stdlib]
-path = "../stdlib"
-
-[dependencies.riptide-syntax]
-path = "../syntax"

@@ -1,9 +1,9 @@
 //! Structures and implementations of the built-in data types.
-use riptide_syntax::ast;
 use runtime::ForeignFunction;
 use std::fmt;
 use std::rc::Rc;
 use string::RString;
+use syntax::ast;
 use table::Table;
 
 /// A Riptide value. This is a small enum that can represent any of the possible data types. Since Riptide is loosely

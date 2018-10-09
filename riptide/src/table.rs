@@ -14,12 +14,18 @@ pub struct Table {
     map: RefCell<FnvHashMap<RString, Value>>,
 }
 
+impl Default for Table {
+    fn default() -> Self {
+        Self {
+            map: RefCell::new(FnvHashMap::default()),
+        }
+    }
+}
+
 impl Table {
     /// Allocate a new table.
     pub fn new() -> Self {
-        Table {
-            map: RefCell::new(FnvHashMap::default()),
-        }
+        Self::default()
     }
 
     /// Get the value indexed by a key.

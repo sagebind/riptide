@@ -2,6 +2,5 @@
 members = [
     "riptide",
     "shell",
-    "stdlib",
     "syntax",
 ]

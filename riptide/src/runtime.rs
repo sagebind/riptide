@@ -2,12 +2,12 @@
 use builtins;
 use exceptions::Exception;
 use modules;
-use riptide_syntax;
-use riptide_syntax::ast::*;
-use riptide_syntax::source::*;
-use std::path::Path;
 use std::rc::Rc;
+use stdlib;
 use string::RString;
+use syntax;
+use syntax::ast::*;
+use syntax::source::*;
 use table::Table;
 use value::Value;
 
@@ -22,6 +22,7 @@ pub struct RuntimeBuilder {
 impl Default for RuntimeBuilder {
     fn default() -> Self {
         Self::new()
+            .module_loader(stdlib::stdlib_loader)
             .module_loader(modules::relative_loader)
             .module_loader(modules::system_loader)
     }
@@ -31,12 +32,22 @@ impl RuntimeBuilder {
     pub fn new() -> Self {
         Self {
             module_loaders: Vec::new(),
-            globals: Table::new(),
+            globals: table! {
+                "args" => Value::ForeignFunction(builtins::args),
+                "call" => Value::ForeignFunction(builtins::call),
+                "catch" => Value::ForeignFunction(builtins::catch),
+                "def" => Value::ForeignFunction(builtins::def),
+                "list" => Value::ForeignFunction(builtins::list),
+                "nil" => Value::ForeignFunction(builtins::nil),
+                "require" => Value::ForeignFunction(builtins::require),
+                "throw" => Value::ForeignFunction(builtins::throw),
+                "typeof" => Value::ForeignFunction(builtins::type_of),
+            },
         }
     }
 
     /// Register a module loader.
-    pub fn module_loader<T>(mut self, loader: T) -> Self where T: modules::ModuleLoader + 'static {
+    pub fn module_loader(mut self, loader: impl modules::ModuleLoader + 'static) -> Self {
         self.module_loaders.push(Rc::new(loader));
         self
     }
@@ -44,11 +55,11 @@ impl RuntimeBuilder {
     pub fn build(self) -> Runtime {
         let mut runtime = Runtime {
             module_loaders: self.module_loaders,
-            module_cache: Table::new(),
             globals: self.globals,
+            module_registry: Table::default(),
             call_stack: Vec::new(),
+            is_exiting: false,
             exit_code: 0,
-            exit_requested: false,
         };
 
         runtime.init();
@@ -59,16 +70,26 @@ impl RuntimeBuilder {
 
 /// Holds all of the state of a Riptide runtime.
 pub struct Runtime {
+    /// Registered module loaders, which are used to load modules the runtime has not seen before.
     module_loaders: Vec<Rc<modules::ModuleLoader>>,
-    module_cache: Table,
+
+    /// Table where global values are stored.
     globals: Table,
+
+    /// Table of tables for module-level values.
+    module_registry: Table,
+
     call_stack: Vec<CallFrame>,
+
+    /// If application code inside the runtime requests the runtime to exit, this is set to true.
+    is_exiting: bool,
+
+    /// The runtime exit code to return after it shuts down.
     exit_code: i32,
-    exit_requested: bool,
 }
 
 /// Contains information about the current function call.
-pub struct CallFrame {
+pub(crate) struct CallFrame {
     pub args: Vec<Value>,
     pub bindings: Table,
 }
@@ -82,20 +103,7 @@ impl Default for Runtime {
 impl Runtime {
     /// Initialize the runtime environment.
     fn init(&mut self) {
-        self.globals.set("args", Value::ForeignFunction(builtins::args));
-        self.globals.set("call", Value::ForeignFunction(builtins::call));
-        self.globals.set("catch", Value::ForeignFunction(builtins::catch));
-        self.globals.set("def", Value::ForeignFunction(builtins::def));
-        self.globals.set("exit", Value::ForeignFunction(builtins::exit));
-        self.globals.set("list", Value::ForeignFunction(builtins::list));
-        self.globals.set("nil", Value::ForeignFunction(builtins::nil));
-        self.globals.set("print", Value::ForeignFunction(builtins::print));
-        self.globals.set("println", Value::ForeignFunction(builtins::println));
-        self.globals.set("require", Value::ForeignFunction(builtins::require));
-        self.globals.set("throw", Value::ForeignFunction(builtins::throw));
-        self.globals.set("typeof", Value::ForeignFunction(builtins::type_of));
-
-        self.execute(include_str!("init.rip"))
+        self.execute(None, include_str!("init.rip"))
             // This should never throw an exception.
             .unwrap();
     }
@@ -103,18 +111,18 @@ impl Runtime {
     pub fn load_module(&mut self, name: impl AsRef<str>) -> Result<Value, Exception> {
         let name = name.as_ref();
 
-        if let Some(value) = self.module_cache.get(name) {
+        if let Some(value) = self.module_registry.get(name) {
             return Ok(value);
         }
 
-        debug!("module '{}' not loaded, calling loader chain", name);
+        debug!("module '{}' not defined, calling loader chain", name);
 
         for loader in self.module_loaders.clone() {
             match loader.load(self, name) {
                 Ok(Value::Nil) => continue,
                 Err(exception) => return Err(exception),
                 Ok(value) => {
-                    self.module_cache.set(name, value.clone());
+                    self.module_registry.set(name, value.clone());
                     return Ok(value);
                 },
             }
@@ -128,13 +136,16 @@ impl Runtime {
     }
 
     pub fn exit_requested(&self) -> bool {
-        self.exit_requested
+        self.is_exiting
     }
 
-    pub fn request_exit(&mut self, code: i32) {
-        info!("runtime exit requested with exit code {}", code);
+    /// Request the runtime to exit with the given exit code.
+    ///
+    /// The runtime will exit gracefully.
+    pub fn exit(&mut self, code: i32) {
+        debug!("runtime exit requested with exit code {}", code);
         self.exit_code = code;
-        self.exit_requested = true;
+        self.is_exiting = true;
     }
 
     pub fn get_global(&self, name: impl AsRef<[u8]>) -> Option<Value> {
@@ -159,7 +170,21 @@ impl Runtime {
     }
 
     fn get_path(&self, path: &VariablePath) -> Option<Value> {
-        self.get(path.to_string())
+        let mut result = None;
+
+        for part in &path.0 {
+            match part {
+                VariablePathPart::Ident(part) => {
+                    result = match result.take() {
+                        Some(Value::Table(table)) => table.get(part),
+                        None => self.get(part),
+                        _ => return None,
+                    }
+                }
+            }
+        }
+
+        result
     }
 
     /// Set a variable value in the current scope.
@@ -174,21 +199,20 @@ impl Runtime {
     }
 
     /// Get a reference to the current call stack frame.
-    pub fn current_frame(&self) -> &CallFrame {
+    pub(crate) fn current_frame(&self) -> &CallFrame {
         self.call_stack.last().unwrap()
     }
 
-    /// Execute the given script within this runtime context.
-    pub fn execute(&mut self, script: &str) -> Result<Value, Exception> {
-        self.execute_filemap(SourceFile::from(script))
-    }
+    /// Execute the given script within this runtime.
+    ///
+    /// The script will be executed inside the context of the module with the given name. If no module name is given, an
+    /// anonymous module will be created for the file.
+    ///
+    /// If a compilation error occurs with the given file, an exception will be returned.
+    pub fn execute(&mut self, module: Option<&str>, file: impl Into<SourceFile>) -> Result<Value, Exception> {
+        let _module = module.and_then(|name| self.module_registry.get(name));
 
-    pub fn execute_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Value, Exception> {
-        self.execute_filemap(SourceFile::open(path)?)
-    }
-
-    fn execute_filemap(&mut self, file: SourceFile) -> Result<Value, Exception> {
-        let block = match riptide_syntax::parse(file) {
+        let block = match syntax::parse(file) {
             Ok(block) => block,
             Err(e) => return Err(Exception::from(format!("error parsing: {}", e))),
         };

@@ -1,8 +1,5 @@
-use exceptions::Exception;
+use prelude::*;
 use process;
-use runtime::*;
-use std::io::{stdout, Write};
-use value::*;
 
 /// Binds a value to a new variable or updates an existing variable.
 pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
@@ -42,23 +39,6 @@ pub fn command(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
 /// Does not return.
 pub fn exec(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     unimplemented!();
-}
-
-pub fn print(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
-    for arg in args.iter() {
-        print!("{}", arg.to_string());
-    }
-    stdout().flush().unwrap();
-
-    Ok(Value::Nil)
-}
-
-pub fn println(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
-    for arg in args.iter() {
-        println!("{}", arg.to_string());
-    }
-
-    Ok(Value::Nil)
 }
 
 /// Returns the name of the primitive type of the given arguments.
@@ -125,16 +105,4 @@ pub fn require(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception
 
 pub fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     unimplemented!();
-}
-
-/// Terminate the current process.
-pub fn exit(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
-    let code = match args.first() {
-        Some(&Value::Number(number)) => number as i32,
-        _ => 0,
-    };
-
-    runtime.request_exit(code);
-
-    Ok(Value::Nil)
 }

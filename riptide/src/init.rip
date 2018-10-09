@@ -2,9 +2,12 @@
 #
 # This script must never throw an exception, or the runtime will panic.
 
-def echo {
-    call $println (args)
-}
+def _lang (require lang)
+
+def print $_lang.print
+def println $_lang.println
+def echo $_lang.println
+def exit $_lang.exit
 
 def eval [string] {
     call $source $string

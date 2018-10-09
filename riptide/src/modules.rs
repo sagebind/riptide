@@ -2,6 +2,7 @@ use exceptions::Exception;
 use runtime::Runtime;
 use std::env;
 use std::path::*;
+use syntax::source::SourceFile;
 use value::Value;
 
 /// Loads modules by name.
@@ -16,7 +17,7 @@ impl<F> ModuleLoader for F where F: Fn(&mut Runtime, &str) -> Result<Value, Exce
     }
 }
 
-pub fn relative_loader(runtime: &mut Runtime, name: &str) -> Result<Value, Exception> {
+pub fn relative_loader(_: &mut Runtime, _: &str) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
@@ -27,7 +28,7 @@ pub fn system_loader(runtime: &mut Runtime, name: &str) -> Result<Value, Excepti
             path.push(format!("{}.rip", name));
 
             if path.exists() {
-                return runtime.execute_file(path);
+                return runtime.execute(Some(name), SourceFile::open(path)?);
             }
         }
     }
