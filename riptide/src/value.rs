@@ -44,8 +44,8 @@ impl From<f64> for Value {
     }
 }
 
-impl From<&'static str> for Value {
-    fn from(value: &'static str) -> Self {
+impl<'a> From<&'a str> for Value {
+    fn from(value: &str) -> Self {
         Value::String(RString::from(value))
     }
 }

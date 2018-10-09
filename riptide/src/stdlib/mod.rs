@@ -8,6 +8,7 @@ mod lang;
 pub fn stdlib_loader(_: &mut Runtime, name: &str) -> Result<Value, Exception> {
     match name {
         "lang" => Ok(table! {
+            "VERSION" => Value::from(env!("CARGO_PKG_VERSION")),
             "assert" => Value::ForeignFunction(lang::assert),
             "panic" => Value::ForeignFunction(lang::panic),
             "print" => Value::ForeignFunction(lang::print),

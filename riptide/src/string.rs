@@ -51,7 +51,7 @@ impl RString {
 }
 
 impl<'s> From<&'s str> for RString {
-    fn from(value: &'s str) -> Self {
+    fn from(value: &str) -> Self {
         Self::allocate(value)
     }
 }
