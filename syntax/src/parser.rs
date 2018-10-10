@@ -55,11 +55,26 @@ impl FromPair for Call {
     fn from_pair(pair: Pair<Rule>) -> Self {
         assert_eq!(pair.as_rule(), Rule::call);
 
-        let mut pairs = pair.into_inner();
+        let pair = pair.into_inner().next().unwrap();
 
-        Self {
-            function: Box::new(pairs.next().map(Expr::from_pair).unwrap()),
-            args: pairs.map(Expr::from_pair).collect(),
+        match pair.as_rule() {
+            Rule::named_call => {
+                let mut pairs = pair.into_inner();
+
+                Call::Named(
+                    pairs.next().map(VariablePath::from_pair).unwrap(),
+                    pairs.map(Expr::from_pair).collect(),
+                )
+            },
+            Rule::unnamed_call => {
+                let mut pairs = pair.into_inner();
+
+                Call::Unnamed(
+                    Box::new(pairs.next().map(Expr::from_pair).unwrap()),
+                    pairs.map(Expr::from_pair).collect(),
+                )
+            },
+            rule => panic!("unexpected rule: {:?}", rule),
         }
     }
 }
@@ -129,15 +144,11 @@ impl FromPair for VariablePath {
     fn from_pair(pair: Pair<Rule>) -> Self {
         assert_eq!(pair.as_rule(), Rule::variable_path);
 
-        VariablePath(pair.into_inner().map(VariablePathPart::from_pair).collect())
-    }
-}
-
-impl FromPair for VariablePathPart {
-    fn from_pair(pair: Pair<Rule>) -> Self {
-        assert_eq!(pair.as_rule(), Rule::variable_path_part);
-
-        VariablePathPart::Ident(pair.as_str().to_owned())
+        VariablePath(pair
+            .into_inner()
+            .map(|pair| pair.into_inner().next().unwrap().as_str())
+            .map(translate_escapes)
+            .collect())
     }
 }
 

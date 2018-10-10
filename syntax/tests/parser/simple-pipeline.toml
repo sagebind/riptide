@@ -1,0 +1,24 @@
+source = '''
+hello | world
+'''
+ast = '''
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call::Named {
+                function: VariablePath [
+                    "hello"
+                ],
+                args: []
+            },
+            Call::Named {
+                function: VariablePath [
+                    "world"
+                ],
+                args: []
+            }
+        ]
+    ]
+}
+'''

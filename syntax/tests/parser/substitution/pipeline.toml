@@ -6,14 +6,18 @@ Block {
     named_params: None,
     statements: [
         Pipeline [
-            Call {
-                function: String("println"),
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
                 args: [
                     Substitution(
                         Pipeline(
                             Pipeline [
-                                Call {
-                                    function: String("foo"),
+                                Call::Named {
+                                    function: VariablePath [
+                                        "foo"
+                                    ],
                                     args: []
                                 }
                             ]

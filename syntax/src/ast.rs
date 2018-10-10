@@ -26,13 +26,28 @@ impl fmt::Debug for Pipeline {
 }
 
 /// A function call.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Call {
-    /// The function to invoke. Could be a binding name or a block.
-    pub function: Box<Expr>,
+#[derive(Clone, PartialEq)]
+pub enum Call {
+    /// A function call for a named function.
+    Named(VariablePath, Vec<Expr>),
 
-    /// A list of argument expressions to pass to the function.
-    pub args: Vec<Expr>,
+    /// A function call on a callable object.
+    Unnamed(Box<Expr>, Vec<Expr>),
+}
+
+impl fmt::Debug for Call {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Call::Named(path, args) => f.debug_struct("Call::Named")
+                .field("function", path)
+                .field("args", args)
+                .finish(),
+            Call::Unnamed(func, args) => f.debug_struct("Call::Unnamed")
+                .field("function", func)
+                .field("args", args)
+                .finish(),
+        }
+    }
 }
 
 /// Abstract representation of an expression.
@@ -91,38 +106,19 @@ pub enum Substitution {
     Variable(VariablePath),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VariablePath(pub Vec<VariablePathPart>);
+#[derive(Clone, Eq, PartialEq)]
+pub struct VariablePath(pub Vec<String>);
+
+impl fmt::Debug for VariablePath {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "VariablePath ").and_then(|_|
+            f.debug_list().entries(&self.0).finish())
+    }
+}
 
 impl fmt::Display for VariablePath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0
-            .iter()
-            .map(|part| part.to_string())
-            .collect::<Vec<String>>()
-            .join("."))
-    }
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub enum VariablePathPart {
-    /// An identifier referencing a variable by name.
-    Ident(String),
-}
-
-impl fmt::Debug for VariablePathPart {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Ident({})", match self {
-            VariablePathPart::Ident(s) => s,
-        })
-    }
-}
-
-impl fmt::Display for VariablePathPart {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match self {
-            VariablePathPart::Ident(s) => s,
-        })
+        write!(f, "{}", self.0.join("->"))
     }
 }
 

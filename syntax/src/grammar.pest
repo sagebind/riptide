@@ -34,8 +34,11 @@ expr = {
 // whitespace in a pipeline inside substitutions.
 pipeline = !{ call ~ ("|" ~ call)* }
 
-// Function calls are merely a list of adjacent expressions.
-call = { expr+ }
+// A function call is a reference to a function followed by a series of argument
+// expressions.
+call = { named_call | unnamed_call }
+named_call = { variable_path ~ expr* }
+unnamed_call = { expr+ }
 
 // An interpolated string is surrounded by double quotes, and is made up of a
 // sequence of parts that, when stringified and concatenated in order, form the
@@ -57,17 +60,20 @@ format_substitution_flags = ${ (ASCII_ALPHANUMERIC | "_" | ".")+ }
 pipeline_substitution = ${ "$(" ~ pipeline ~ ")" }
 variable_substitution = ${ "$" ~ variable_path }
 
-variable_path = ${ variable_path_part ~ ("." ~ variable_path_part)* }
-variable_path_part = ${ symbol }
+// A variable path is a nested series of identifiers for accessing variables.
+variable_path = ${ string_literal ~ ("->" ~ string_literal)* }
 
+// A literal string. String literals are static and have no runtime
+// interpolation.
 // Escapes are handled later in the parser pipeline.
-string_literal = ${ symbol | "'" ~ single_quote_inner ~ "'" }
+string_literal = ${ "'" ~ single_quote_inner ~ "'" | symbol }
 single_quote_inner = ${ ("\\'" | !"'" ~ ANY)* }
 
 // Numbers are floating point.
 number_literal = ${ "." ~ ASCII_DIGIT+ | ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
 
-symbol = ${ !ASCII_DIGIT ~ (ASCII_ALPHANUMERIC | "_")+ }
+// A symbol is an unquoted string, usually used for identifying variable names.
+symbol = ${ !ASCII_DIGIT ~ (!"->" ~ (ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "."))+ }
 
 // Inline comments are similar to UNIX shells, where "#" starts a comment and
 // includes all following characters until end of line.

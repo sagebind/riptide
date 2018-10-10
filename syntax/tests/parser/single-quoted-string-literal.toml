@@ -1,5 +1,5 @@
 source = '''
-println "hello world"
+println 'hello world'
 '''
 ast = '''
 Block {
@@ -11,9 +11,7 @@ Block {
                     "println"
                 ],
                 args: [
-                    InterpolatedString [
-                        String("hello world")
-                    ]
+                    String("hello world")
                 ]
             }
         ]

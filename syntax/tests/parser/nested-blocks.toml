@@ -12,23 +12,25 @@ Block {
     named_params: None,
     statements: [
         Pipeline [
-            Call {
+            Call::Unnamed {
                 function: Block {
                     named_params: None,
                     statements: [
                         Pipeline [
-                            Call {
+                            Call::Unnamed {
                                 function: Block {
                                     named_params: None,
                                     statements: [
                                         Pipeline [
-                                            Call {
+                                            Call::Unnamed {
                                                 function: Block {
                                                     named_params: None,
                                                     statements: [
                                                         Pipeline [
-                                                            Call {
-                                                                function: String("println"),
+                                                            Call::Named {
+                                                                function: VariablePath [
+                                                                    "println"
+                                                                ],
                                                                 args: []
                                                             }
                                                         ]

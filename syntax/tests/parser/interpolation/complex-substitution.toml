@@ -8,21 +8,25 @@ Block {
     named_params: None,
     statements: [
         Pipeline [
-            Call {
-                function: String("println"),
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
                 args: [
                     InterpolatedString [
                         String("hello "),
                         Substitution(
                             Pipeline(
                                 Pipeline [
-                                    Call {
+                                    Call::Unnamed {
                                         function: Block {
                                             named_params: None,
                                             statements: [
                                                 Pipeline [
-                                                    Call {
-                                                        function: String("whoami"),
+                                                    Call::Named {
+                                                        function: VariablePath [
+                                                            "whoami"
+                                                        ],
                                                         args: []
                                                     }
                                                 ]

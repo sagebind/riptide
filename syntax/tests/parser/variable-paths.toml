@@ -1,0 +1,59 @@
+source = '''
+lang->ext->panic 'hello world'
+
+println $mytable
+println $mytable->'key with spaces'->bar
+'''
+ast = '''
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call::Named {
+                function: VariablePath [
+                    "lang",
+                    "ext",
+                    "panic"
+                ],
+                args: [
+                    String("hello world")
+                ]
+            }
+        ],
+        Pipeline [
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
+                args: [
+                    Substitution(
+                        Variable(
+                            VariablePath [
+                                "mytable"
+                            ]
+                        )
+                    )
+                ]
+            }
+        ],
+        Pipeline [
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
+                args: [
+                    Substitution(
+                        Variable(
+                            VariablePath [
+                                "mytable",
+                                "key with spaces",
+                                "bar"
+                            ]
+                        )
+                    )
+                ]
+            }
+        ]
+    ]
+}
+'''

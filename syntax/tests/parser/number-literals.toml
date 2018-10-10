@@ -8,24 +8,30 @@ Block {
     named_params: None,
     statements: [
         Pipeline [
-            Call {
-                function: String("println"),
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
                 args: [
                     Number(100)
                 ]
             }
         ],
         Pipeline [
-            Call {
-                function: String("println"),
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
                 args: [
                     Number(102.5)
                 ]
             }
         ],
         Pipeline [
-            Call {
-                function: String("println"),
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
                 args: [
                     Number(0.25)
                 ]

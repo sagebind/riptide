@@ -169,18 +169,19 @@ impl Runtime {
         self.get_global(name)
     }
 
-    fn get_path(&self, path: &VariablePath) -> Option<Value> {
+    /// Lookup a variable, and throw an exception if it does not exist.
+    fn lookup_variable(&self, path: &VariablePath) -> Result<Value, Exception> {
+        self.try_lookup_variable(path).ok_or_else(|| Exception::from("undefined variable"))
+    }
+
+    fn try_lookup_variable(&self, path: &VariablePath) -> Option<Value> {
         let mut result = None;
 
         for part in &path.0 {
-            match part {
-                VariablePathPart::Ident(part) => {
-                    result = match result.take() {
-                        Some(Value::Table(table)) => table.get(part),
-                        None => self.get(part),
-                        _ => return None,
-                    }
-                }
+            result = match result.take() {
+                Some(Value::Table(table)) => table.get(part),
+                None => self.get(part),
+                _ => return None,
             }
         }
 
@@ -266,17 +267,37 @@ impl Runtime {
     }
 
     fn evaluate_call(&mut self, call: Call) -> Result<Value, Exception> {
-        let mut function = self.evaluate_expr(*call.function)?;
+        let (function, args) = match call {
+            Call::Named(path, args) => (
+                self.lookup_variable(&path)?,
+                {
+                    let mut arg_values = Vec::with_capacity(args.len());
+                    for expr in args {
+                        arg_values.push(self.evaluate_expr(expr)?);
+                    }
+                    arg_values
+                },
+            ),
+            Call::Unnamed(function, args) => (
+                {
+                    let mut function = self.evaluate_expr(*function)?;
 
-        let mut args = Vec::with_capacity(call.args.len());
-        for expr in call.args {
-            args.push(self.evaluate_expr(expr)?);
-        }
+                    // If the function is a string, resolve binding names first before we try to eval the item as a function.
+                    if let Some(value) = function.as_string().and_then(|name| self.get(name)) {
+                        function = value;
+                    }
 
-        // If the function is a string, resolve binding names first before we try to eval the item as a function.
-        if let Some(value) = function.as_string().and_then(|name| self.get(name)) {
-            function = value;
-        }
+                    function
+                },
+                {
+                    let mut arg_values = Vec::with_capacity(args.len());
+                    for expr in args {
+                        arg_values.push(self.evaluate_expr(expr)?);
+                    }
+                    arg_values
+                },
+            ),
+        };
 
         // Execute the function.
         match function {
@@ -302,10 +323,7 @@ impl Runtime {
 
     fn evaluate_substitution(&mut self, substitution: Substitution) -> Result<Value, Exception> {
         match substitution {
-            Substitution::Variable(path) => match self.get_path(&path) {
-                Some(name) => Ok(Value::from(name)),
-                None => Err(Exception::from("undefined variable")),
-            },
+            Substitution::Variable(path) => self.lookup_variable(&path),
             Substitution::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
             _ => unimplemented!(),
         }

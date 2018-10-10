@@ -1,15 +1,18 @@
 source = '''
-println 'hello world'
+println \
+    foo
 '''
 ast = '''
 Block {
     named_params: None,
     statements: [
         Pipeline [
-            Call {
-                function: String("println"),
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
                 args: [
-                    String("hello world")
+                    String("foo")
                 ]
             }
         ]

@@ -6,18 +6,18 @@ Block {
     named_params: None,
     statements: [
         Pipeline [
-            Call {
-                function: String("println"),
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
                 args: [
                     InterpolatedString [
                         String("hello "),
                         Substitution(
                             Variable(
-                                VariablePath(
-                                    [
-                                        Ident(foo)
-                                    ]
-                                )
+                                VariablePath [
+                                    "foo"
+                                ]
                             )
                         )
                     ]

@@ -178,7 +178,7 @@ The `environment` map is not linked to the process environment map after initial
 Example:
 
 ----
-let @environment.FOO "bar" {
+let @environment->FOO "bar" {
     printenv
 }
 ----
@@ -385,14 +385,14 @@ Split standard input into lines and executes a block for each line.
 ----
 # Filter out lines starting with "//"
 cat 'file.txt' | lines {
-    if not (str:starts-with '//' $1) {
+    if not (str->starts-with '//' $1) {
         println $1
     }
 }
 
 # Transform every line to upper case
 cat 'file.txt' | lines {
-    println (str:upper $1)
+    println (str->upper $1)
 }
 ----
 
@@ -404,15 +404,15 @@ cat 'file.txt' | lines {
 Check if the given values are strings.
 
 
-==== `str:format`
+==== `str->format`
 
 
-==== `str:match`
+==== `str->match`
 
 Applies a regular expression to a string and emits matches and captures.
 
 
-==== `str:replace`
+==== `str->replace`
 
 Applies a regular expression to a string and replaces matches with the received values.
 

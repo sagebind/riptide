@@ -15,15 +15,19 @@ Block {
     named_params: None,
     statements: [
         Pipeline [
-            Call {
-                function: String("call"),
+            Call::Named {
+                function: VariablePath [
+                    "call"
+                ],
                 args: [
                     Block {
                         named_params: None,
                         statements: [
                             Pipeline [
-                                Call {
-                                    function: String("println"),
+                                Call::Named {
+                                    function: VariablePath [
+                                        "println"
+                                    ],
                                     args: []
                                 }
                             ]
@@ -33,15 +37,19 @@ Block {
             }
         ],
         Pipeline [
-            Call {
-                function: String("call"),
+            Call::Named {
+                function: VariablePath [
+                    "call"
+                ],
                 args: [
                     Block {
                         named_params: None,
                         statements: [
                             Pipeline [
-                                Call {
-                                    function: String("println"),
+                                Call::Named {
+                                    function: VariablePath [
+                                        "println"
+                                    ],
                                     args: []
                                 }
                             ]
@@ -51,15 +59,19 @@ Block {
             }
         ],
         Pipeline [
-            Call {
-                function: String("call"),
+            Call::Named {
+                function: VariablePath [
+                    "call"
+                ],
                 args: [
                     Block {
                         named_params: None,
                         statements: [
                             Pipeline [
-                                Call {
-                                    function: String("println"),
+                                Call::Named {
+                                    function: VariablePath [
+                                        "println"
+                                    ],
                                     args: []
                                 }
                             ]

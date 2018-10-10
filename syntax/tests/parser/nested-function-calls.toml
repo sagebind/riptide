@@ -6,18 +6,22 @@ Block {
     named_params: None,
     statements: [
         Pipeline [
-            Call {
-                function: String("println"),
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
                 args: [
                     String("hello"),
                     Pipeline [
-                        Call {
+                        Call::Unnamed {
                             function: Block {
                                 named_params: None,
                                 statements: [
                                     Pipeline [
-                                        Call {
-                                            function: String("read"),
+                                        Call::Named {
+                                            function: VariablePath [
+                                                "read"
+                                            ],
                                             args: []
                                         }
                                     ]
@@ -29,8 +33,10 @@ Block {
                         }
                     ],
                     Pipeline [
-                        Call {
-                            function: String("uppercase"),
+                        Call::Named {
+                            function: VariablePath [
+                                "uppercase"
+                            ],
                             args: [
                                 String("World")
                             ]
