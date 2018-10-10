@@ -3,6 +3,7 @@ use runtime::Runtime;
 use value::Value;
 
 mod lang;
+mod process;
 
 /// This module loader is responsible for loading native and script modules in the standard library.
 pub fn stdlib_loader(_: &mut Runtime, name: &str) -> Result<Value, Exception> {
@@ -14,6 +15,11 @@ pub fn stdlib_loader(_: &mut Runtime, name: &str) -> Result<Value, Exception> {
             "print" => Value::ForeignFunction(lang::print),
             "println" => Value::ForeignFunction(lang::println),
             "exit" => Value::ForeignFunction(lang::exit),
+        }.into()),
+        "process" => Ok(table! {
+            "command" => Value::ForeignFunction(process::command),
+            "exec" => Value::ForeignFunction(process::exec),
+            "spawn" => Value::ForeignFunction(process::spawn),
         }.into()),
         "string" => Ok(table! {
             "len" => Value::ForeignFunction(|_, _| {

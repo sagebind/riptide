@@ -1,5 +1,4 @@
 use prelude::*;
-use process;
 
 /// Binds a value to a new variable or updates an existing variable.
 pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
@@ -13,32 +12,6 @@ pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     runtime.set_global(name, value);
 
     Ok(Value::Nil)
-}
-
-/// Spawns a new child process and executes a given block in it.
-///
-/// Returns the child process PID.
-pub fn spawn(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
-    let pid = process::spawn(|| {
-        // let child_interpreter = Runtime::new();
-        // child_interpreter.execute(Exp)
-    }).unwrap();
-
-    Ok(Value::Number(pid as f64))
-}
-
-/// Executes a shell command in the foreground, waiting for it to complete.
-///
-/// Returns the process exit code.
-pub fn command(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
-    unimplemented!();
-}
-
-/// Executes a shell command, replacing the current process with the new process.
-///
-/// Does not return.
-pub fn exec(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
-    unimplemented!();
 }
 
 /// Returns the name of the primitive type of the given arguments.
