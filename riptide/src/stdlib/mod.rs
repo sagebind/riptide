@@ -6,7 +6,12 @@ mod lang;
 mod process;
 
 /// This module loader is responsible for loading native and script modules in the standard library.
-pub fn stdlib_loader(_: &mut Runtime, name: &str) -> Result<Value, Exception> {
+pub fn stdlib_loader(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    let name = args.first()
+        .and_then(Value::as_string)
+        .and_then(|s| s.as_utf8())
+        .ok_or("module name must be a string")?;
+
     match name {
         "lang" => Ok(table! {
             "VERSION" => Value::from(env!("CARGO_PKG_VERSION")),

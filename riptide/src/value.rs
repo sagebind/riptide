@@ -56,6 +56,12 @@ impl From<String> for Value {
     }
 }
 
+impl From<RString> for Value {
+    fn from(value: RString) -> Self {
+        Value::String(value)
+    }
+}
+
 impl From<Table> for Value {
     fn from(table: Table) -> Self {
         Value::Table(Rc::new(table))
@@ -133,6 +139,11 @@ impl Value {
             &Value::Table(ref table) => Some(table.clone()),
             _ => None,
         }
+    }
+
+    /// If this is a table, get the value indexed by a key.
+    pub fn get(&self, key: impl AsRef<[u8]>) -> Option<Value> {
+        self.as_table().and_then(|t| t.get(key))
     }
 }
 

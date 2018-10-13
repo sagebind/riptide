@@ -18,6 +18,7 @@ macro_rules! table {
         )*
     ) => {
         {
+            #[allow(unused_mut)]
             let mut table = table!();
             $(
                 table.set($key, $value);
@@ -27,7 +28,7 @@ macro_rules! table {
     };
 }
 
-pub mod builtins;
+mod builtins;
 pub mod exceptions;
 pub mod fd;
 pub mod modules;

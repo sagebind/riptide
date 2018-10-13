@@ -69,13 +69,6 @@ pub fn args(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     Ok(Value::List(runtime.current_frame().args.to_vec()))
 }
 
-pub fn require(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
-    match args.first() {
-        Some(&Value::String(ref string)) => runtime.load_module(string.as_utf8().unwrap_or("")),
-        _ => Err(Exception::from("module name required")),
-    }
-}
-
 pub fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     unimplemented!();
 }

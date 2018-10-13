@@ -38,7 +38,7 @@ impl Table {
     /// Set the value for a given key.
     ///
     /// If `Nil` is given as the value, the key is unset.
-    pub fn set(&mut self, key: impl Into<RString>, value: impl Into<Value>) -> Option<Value> {
+    pub fn set(&self, key: impl Into<RString>, value: impl Into<Value>) -> Option<Value> {
         let value = value.into();
 
         match value {

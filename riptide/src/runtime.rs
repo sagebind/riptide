@@ -2,7 +2,6 @@
 use builtins;
 use exceptions::Exception;
 use modules;
-use std::rc::Rc;
 use stdlib;
 use string::RString;
 use syntax;
@@ -15,16 +14,16 @@ pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception
 
 /// Configure a runtime.
 pub struct RuntimeBuilder {
-    module_loaders: Vec<Rc<modules::ModuleLoader>>,
+    module_loaders: Vec<Value>,
     globals: Table,
 }
 
 impl Default for RuntimeBuilder {
     fn default() -> Self {
         Self::new()
-            .module_loader(stdlib::stdlib_loader)
             .module_loader(modules::relative_loader)
             .module_loader(modules::system_loader)
+            .with_stdlib()
     }
 }
 
@@ -33,28 +32,42 @@ impl RuntimeBuilder {
         Self {
             module_loaders: Vec::new(),
             globals: table! {
+                "require" => Value::ForeignFunction(modules::require),
                 "args" => Value::ForeignFunction(builtins::args),
                 "call" => Value::ForeignFunction(builtins::call),
                 "catch" => Value::ForeignFunction(builtins::catch),
                 "def" => Value::ForeignFunction(builtins::def),
                 "list" => Value::ForeignFunction(builtins::list),
                 "nil" => Value::ForeignFunction(builtins::nil),
-                "require" => Value::ForeignFunction(builtins::require),
                 "throw" => Value::ForeignFunction(builtins::throw),
                 "typeof" => Value::ForeignFunction(builtins::type_of),
+                "modules" => Value::from(table! {
+                    "loaded" => Value::from(table!()),
+                    "loaders" => Value::Nil,
+                }),
             },
         }
     }
 
     /// Register a module loader.
-    pub fn module_loader(mut self, loader: impl modules::ModuleLoader + 'static) -> Self {
-        self.module_loaders.push(Rc::new(loader));
+    pub fn module_loader(mut self, loader: ForeignFunction) -> Self {
+        self.module_loaders.push(loader.into());
         self
     }
 
+    pub fn with_stdlib(self) -> Self {
+        self.module_loader(stdlib::stdlib_loader)
+    }
+
     pub fn build(self) -> Runtime {
+        self.globals
+            .get("modules")
+            .unwrap()
+            .as_table()
+            .unwrap()
+            .set("loaders", Value::List(self.module_loaders));
+
         let mut runtime = Runtime {
-            module_loaders: self.module_loaders,
             globals: self.globals,
             module_registry: Table::default(),
             call_stack: Vec::new(),
@@ -70,9 +83,6 @@ impl RuntimeBuilder {
 
 /// Holds all of the state of a Riptide runtime.
 pub struct Runtime {
-    /// Registered module loaders, which are used to load modules the runtime has not seen before.
-    module_loaders: Vec<Rc<modules::ModuleLoader>>,
-
     /// Table where global values are stored.
     globals: Table,
 
@@ -106,29 +116,6 @@ impl Runtime {
         self.execute(None, include_str!("init.rip"))
             // This should never throw an exception.
             .unwrap();
-    }
-
-    pub fn load_module(&mut self, name: impl AsRef<str>) -> Result<Value, Exception> {
-        let name = name.as_ref();
-
-        if let Some(value) = self.module_registry.get(name) {
-            return Ok(value);
-        }
-
-        debug!("module '{}' not defined, calling loader chain", name);
-
-        for loader in self.module_loaders.clone() {
-            match loader.load(self, name) {
-                Ok(Value::Nil) => continue,
-                Err(exception) => return Err(exception),
-                Ok(value) => {
-                    self.module_registry.set(name, value.clone());
-                    return Ok(value);
-                },
-            }
-        }
-
-        Err(Exception::from("module not found"))
     }
 
     pub fn exit_code(&self) -> i32 {
