@@ -62,14 +62,13 @@ impl RuntimeBuilder {
     pub fn build(self) -> Runtime {
         self.globals
             .get("modules")
-            .unwrap()
             .as_table()
             .unwrap()
             .set("loaders", Value::List(self.module_loaders));
 
         let mut runtime = Runtime {
             globals: self.globals,
-            module_registry: Table::default(),
+            module_registry: table!(),
             call_stack: Vec::new(),
             is_exiting: false,
             exit_code: 0,
@@ -113,9 +112,10 @@ impl Default for Runtime {
 impl Runtime {
     /// Initialize the runtime environment.
     fn init(&mut self) {
+        self.globals.set("_GLOBALS", self.globals.clone());
+
         self.execute(None, include_str!("init.rip"))
-            // This should never throw an exception.
-            .unwrap();
+            .expect("error in runtime initialization");
     }
 
     pub fn exit_code(&self) -> i32 {
@@ -135,40 +135,36 @@ impl Runtime {
         self.is_exiting = true;
     }
 
-    pub fn get_global(&self, name: impl AsRef<[u8]>) -> Option<Value> {
-        self.globals.get(name)
-    }
-
-    pub fn set_global(&mut self, name: impl Into<RString>, value: impl Into<Value>) {
-        self.globals.set(name, value);
+    /// Get the table that holds all global variables.
+    pub fn globals(&self) -> &Table {
+        &self.globals
     }
 
     /// Lookup a variable name in the current scope.
-    pub fn get(&self, name: impl AsRef<[u8]>) -> Option<Value> {
+    pub fn get(&self, name: impl AsRef<[u8]>) -> Value {
         let name = name.as_ref();
 
         for frame in self.call_stack.iter().rev() {
-            if let Some(value) = frame.bindings.get(name) {
-                return Some(value);
+            match frame.bindings.get(name) {
+                Value::Nil => continue,
+                value => return value,
             }
         }
 
-        self.get_global(name)
+        self.globals.get(name)
     }
 
     /// Lookup a variable, and throw an exception if it does not exist.
     fn lookup_variable(&self, path: &VariablePath) -> Result<Value, Exception> {
-        self.try_lookup_variable(path).ok_or_else(|| Exception::from("undefined variable"))
+        Ok(self.try_lookup_variable(path))
     }
 
-    fn try_lookup_variable(&self, path: &VariablePath) -> Option<Value> {
-        let mut result = None;
+    fn try_lookup_variable(&self, path: &VariablePath) -> Value {
+        let mut result = self.get(&path.0[0]);
 
-        for part in &path.0 {
-            result = match result.take() {
-                Some(Value::Table(table)) => table.get(part),
-                None => self.get(part),
-                _ => return None,
+        if path.0.len() > 1 {
+            for part in &path.0[1..] {
+                result = result.get(part);
             }
         }
 
@@ -183,7 +179,7 @@ impl Runtime {
         }
 
         warn!("set called with an empty call stack");
-        self.set_global(name, value);
+        self.globals.set(name, value);
     }
 
     /// Get a reference to the current call stack frame.
@@ -198,11 +194,11 @@ impl Runtime {
     ///
     /// If a compilation error occurs with the given file, an exception will be returned.
     pub fn execute(&mut self, module: Option<&str>, file: impl Into<SourceFile>) -> Result<Value, Exception> {
-        let _module = module.and_then(|name| self.module_registry.get(name));
+        let _module = module.map(|name| self.module_registry.get(name));
 
         let block = match syntax::parse(file) {
             Ok(block) => block,
-            Err(e) => return Err(Exception::from(format!("error parsing: {}", e))),
+            Err(e) => throw!("error parsing: {}", e),
         };
 
         self.invoke_block(&block, &[])
@@ -213,7 +209,7 @@ impl Runtime {
         match value {
             Value::Block(block) => self.invoke_block(block, args),
             Value::ForeignFunction(function) => (function)(self, args),
-            _ => Err(format!("cannot invoke {:?} as a function", value))?,
+            _ => throw!("cannot invoke '{:?}' as a function", value),
         }
     }
 
@@ -222,7 +218,7 @@ impl Runtime {
         // Set up a new stack frame.
         self.call_stack.push(CallFrame {
             args: args.to_vec(),
-            bindings: Table::new(),
+            bindings: table!(),
         });
 
         let mut last_return_value = Value::Nil;
@@ -270,7 +266,7 @@ impl Runtime {
                     let mut function = self.evaluate_expr(*function)?;
 
                     // If the function is a string, resolve binding names first before we try to eval the item as a function.
-                    if let Some(value) = function.as_string().and_then(|name| self.get(name)) {
+                    if let Some(value) = function.as_string().map(|name| self.get(name)) {
                         function = value;
                     }
 
@@ -292,7 +288,7 @@ impl Runtime {
             Value::ForeignFunction(f) => {
                 f(self, &args)
             },
-            _ => Err(Exception::from(format!("cannot execute {:?} as a function", function))),
+            _ => throw!("cannot execute '{:?}' as a function", function),
         }
     }
 

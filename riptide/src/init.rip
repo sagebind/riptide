@@ -8,6 +8,7 @@ def print $_lang->print
 def println $_lang->println
 def echo $_lang->println
 def exit $_lang->exit
+def dump $_lang->dump
 
 def eval [string] {
     call $source $string

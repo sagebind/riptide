@@ -6,7 +6,7 @@ use value::Value;
 ///
 /// An exception is a value (typically a string) that is _thrown_ used to indicate some sort of error detected during
 /// runtime of a program.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Exception {
     message: Value,
     cause: Option<Box<Exception>>,
@@ -76,6 +76,12 @@ impl From<String> for Exception {
 impl From<io::Error> for Exception {
     fn from(error: io::Error) -> Self {
         Self::new(error.to_string())
+    }
+}
+
+impl fmt::Debug for Exception {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
 

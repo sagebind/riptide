@@ -12,7 +12,7 @@ use utf8;
 ///
 /// Since strings are copied and tossed around quite a bit, the string is
 /// reference counted to reduce memory and copying.
-#[derive(Clone, Debug, Eq)]
+#[derive(Clone, Eq)]
 pub enum RString {
     Static(&'static [u8]),
     Heap(Rc<Vec<u8>>),
@@ -116,6 +116,12 @@ impl PartialEq<[u8]> for RString {
 impl Hash for RString {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.as_bytes().hash(state);
+    }
+}
+
+impl fmt::Debug for RString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\"{}\"", self)
     }
 }
 

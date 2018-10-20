@@ -1,4 +1,5 @@
 //! Structures and implementations of the built-in data types.
+use exceptions::Exception;
 use runtime::ForeignFunction;
 use std::fmt;
 use std::rc::Rc;
@@ -74,7 +75,7 @@ impl From<ast::Block> for Value {
     }
 }
 
-impl From<ForeignFunction> for Value {
+impl From<for<'r, 'v> fn(&'r mut ::runtime::Runtime, &'v [Value]) -> Result<Value, Exception>> for Value {
     fn from(function: ForeignFunction) -> Self {
         Value::ForeignFunction(function)
     }
@@ -142,8 +143,8 @@ impl Value {
     }
 
     /// If this is a table, get the value indexed by a key.
-    pub fn get(&self, key: impl AsRef<[u8]>) -> Option<Value> {
-        self.as_table().and_then(|t| t.get(key))
+    pub fn get(&self, key: impl AsRef<[u8]>) -> Value {
+        self.as_table().map(|t| t.get(key)).unwrap_or(Value::Nil)
     }
 }
 
@@ -170,9 +171,8 @@ impl<S> PartialEq<S> for Value where S: AsRef<[u8]> {
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Value::Nil => write!(f, ""),
-            &Value::Number(number) => write!(f, "{}", number),
-            &Value::String(ref string) => write!(f, "\"{}\"", string),
+            Value::Number(number) => write!(f, "{}", number),
+            Value::String(string) => write!(f, "\"{}\"", string),
             _ => write!(f, "<{}>", self.type_name()),
         }
     }

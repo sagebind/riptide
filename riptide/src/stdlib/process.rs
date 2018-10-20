@@ -2,10 +2,18 @@ use prelude::*;
 use process;
 use std::process::Command;
 
+pub fn load() -> Result<Value, Exception> {
+    Ok(table! {
+        "command" => Value::ForeignFunction(command),
+        "exec" => Value::ForeignFunction(exec),
+        "spawn" => Value::ForeignFunction(spawn),
+    }.into())
+}
+
 /// Spawns a new child process and executes a given block in it.
 ///
 /// Returns the child process PID.
-pub fn spawn(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+fn spawn(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     let pid = process::spawn(|| {
         // let child_interpreter = Runtime::new();
         // child_interpreter.execute(Exp)
@@ -17,7 +25,7 @@ pub fn spawn(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
 /// Executes a shell command in the foreground, waiting for it to complete.
 ///
 /// Returns the process exit code.
-pub fn command(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn command(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     if let Some(command) = args.first() {
         let command = command
             .as_string()
@@ -43,13 +51,13 @@ pub fn command(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 
 
     } else {
-        Err(Exception::from("command to execute is required"))
+        throw!("command to execute is required")
     }
 }
 
 /// Executes a shell command, replacing the current process with the new process.
 ///
 /// Does not return.
-pub fn exec(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+fn exec(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     unimplemented!();
 }

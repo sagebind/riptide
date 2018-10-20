@@ -18,13 +18,20 @@ macro_rules! table {
         )*
     ) => {
         {
-            #[allow(unused_mut)]
-            let mut table = table!();
+            let table = table!();
             $(
                 table.set($key, $value);
             )*
             table
         }
+    };
+}
+
+/// Convenience macro for throwing a runtime exception.
+#[macro_export]
+macro_rules! throw {
+    ($($arg:tt)*) => {
+        return Err($crate::exceptions::Exception::from(format!($($arg)*)))
     };
 }
 

@@ -4,12 +4,12 @@ use prelude::*;
 pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
-        None => return Err(Exception::from("variable name required")),
+        None => throw!("variable name required"),
     };
 
     let value = args.get(1).cloned().unwrap_or(Value::Nil);
 
-    runtime.set_global(name, value);
+    runtime.globals().set(name, value);
 
     Ok(Value::Nil)
 }
@@ -48,7 +48,7 @@ pub fn call(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 
         runtime.invoke(function, args)
     } else {
-        Err(Exception::from("block to invoke required"))
+        throw!("block to invoke required")
     }
 }
 
@@ -60,7 +60,7 @@ pub fn catch(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> 
             Err(exception) => Ok(exception.into()),
         }
     } else {
-        Err(Exception::from("block to invoke required"))
+        throw!("block to invoke required")
     }
 }
 
@@ -70,5 +70,5 @@ pub fn args(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
 }
 
 pub fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
-    unimplemented!();
+    throw!("not implemented");
 }
