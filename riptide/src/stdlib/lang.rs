@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use prelude::*;
 use std::io::{stdout, Write};
 
@@ -10,6 +11,9 @@ pub fn load() -> Result<Value, Exception> {
         "println" => Value::ForeignFunction(println),
         "dump" => Value::ForeignFunction(dump),
         "exit" => Value::ForeignFunction(exit),
+        "eq" => Value::ForeignFunction(|_, args| {
+            Ok(args.iter().all_equal().into())
+        }),
     }.into())
 }
 
@@ -67,7 +71,7 @@ fn dump(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
                 }
                 println!("{:indent$}}}", "", indent=indent);
             },
-            value => println!("{:indent$}{}", "", value, indent=indent),
+            value => println!("{:indent$}{:?}", "", value, indent=indent),
         }
     }
 

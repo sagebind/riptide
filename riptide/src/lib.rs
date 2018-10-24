@@ -1,4 +1,5 @@
 extern crate fnv;
+extern crate itertools;
 #[macro_use]
 extern crate log;
 extern crate nix;

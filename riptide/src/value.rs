@@ -1,11 +1,12 @@
 //! Structures and implementations of the built-in data types.
-use exceptions::Exception;
-use runtime::ForeignFunction;
+use runtime::*;
 use std::fmt;
 use std::rc::Rc;
 use string::RString;
 use syntax::ast;
 use table::Table;
+
+type Number = f64;
 
 /// A Riptide value. This is a small enum that can represent any of the possible data types. Since Riptide is loosely
 /// typed, a value can be any of these types at runtime.
@@ -17,8 +18,11 @@ pub enum Value {
     /// The "empty" value. This is equivalent to a unit type or "null" in some languages.
     Nil,
 
+    /// A boolean value.
+    Boolean(bool),
+
     /// A plain number. Stored by value.
-    Number(f64),
+    Number(Number),
 
     /// A string. Immutable, and stored by reference.
     String(RString),
@@ -33,14 +37,20 @@ pub enum Value {
     Table(Rc<Table>),
 
     /// A block, containing a list of expressions to execute. Stored by reference.
-    Block(Rc<ast::Block>),
+    Block(Rc<Closure>),
 
     /// Reference to a foreign (native) function.
     ForeignFunction(ForeignFunction),
 }
 
-impl From<f64> for Value {
-    fn from(value: f64) -> Self {
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Value::Boolean(value)
+    }
+}
+
+impl From<Number> for Value {
+    fn from(value: Number) -> Self {
         Value::Number(value)
     }
 }
@@ -69,29 +79,46 @@ impl From<Table> for Value {
     }
 }
 
-impl From<ast::Block> for Value {
-    fn from(block: ast::Block) -> Self {
-        Value::Block(Rc::new(block))
+impl From<Rc<Table>> for Value {
+    fn from(table: Rc<Table>) -> Self {
+        Value::Table(table)
     }
 }
 
-impl From<for<'r, 'v> fn(&'r mut ::runtime::Runtime, &'v [Value]) -> Result<Value, Exception>> for Value {
-    fn from(function: ForeignFunction) -> Self {
-        Value::ForeignFunction(function)
+impl From<Closure> for Value {
+    fn from(closure: Closure) -> Self {
+        Value::Block(Rc::new(closure))
+    }
+}
+
+impl From<ForeignFunction> for Value {
+    fn from(f: ForeignFunction) -> Self {
+        Value::ForeignFunction(f)
     }
 }
 
 impl Value {
+    pub const TRUE: Self = Value::Boolean(true);
+    pub const FALSE: Self = Value::Boolean(false);
+
     /// Get the type of value, rendered as a string.
     pub fn type_name(&self) -> &'static str {
         match self {
-            &Value::Nil => "nil",
-            &Value::Number(_) => "number",
-            &Value::String(_) => "string",
-            &Value::List(_) => "list",
-            &Value::Table(_) => "table",
-            &Value::Block(_) => "block",
-            &Value::ForeignFunction(_) => "native",
+            Value::Nil => "nil",
+            Value::Boolean(_) => "boolean",
+            Value::Number(_) => "number",
+            Value::String(_) => "string",
+            Value::List(_) => "list",
+            Value::Table(_) => "table",
+            Value::Block(_) => "block",
+            Value::ForeignFunction(_) => "native",
+        }
+    }
+
+    pub fn is_nil(&self) -> bool {
+        match self {
+            Value::Nil => true,
+            _ => false,
         }
     }
 
@@ -101,19 +128,28 @@ impl Value {
     /// other values are considered truthy.
     pub fn is_truthy(&self) -> bool {
         match self {
-            &Value::Nil => false,
-            &Value::String(ref value) => {
+            Value::Nil => false,
+            Value::Boolean(b) => *b,
+            Value::String(value) => {
                 !(value == "0" || value.as_bytes().is_empty() || &value.to_lowercase() == "false")
             }
-            &Value::List(ref items) => !items.is_empty(),
+            Value::List(items) => !items.is_empty(),
             _ => true,
         }
     }
 
-    /// If this value is a number, get its numeric value.
-    pub fn as_number(&self) -> Option<f64> {
+    /// If this value is a boolean, get its value.
+    pub fn as_bool(&self) -> Option<bool> {
         match self {
-            &Value::Number(number) => Some(number),
+            Value::Boolean(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    /// If this value is a number, get its numeric value.
+    pub fn as_number(&self) -> Option<Number> {
+        match self {
+            Value::Number(number) => Some(*number),
             _ => None,
         }
     }
@@ -121,7 +157,7 @@ impl Value {
     /// If this value is a string, get its string value.
     pub fn as_string(&self) -> Option<&RString> {
         match self {
-            &Value::String(ref string) => Some(string),
+            Value::String(string) => Some(string),
             _ => None,
         }
     }
@@ -129,7 +165,7 @@ impl Value {
     /// If this value is a list, get its contents.
     pub fn as_list(&self) -> Option<&[Self]> {
         match self {
-            &Value::List(ref list) => Some(list),
+            Value::List(list) => Some(list),
             _ => None,
         }
     }
@@ -137,7 +173,7 @@ impl Value {
     /// If this value is a table, get a reference to it.
     pub fn as_table(&self) -> Option<Rc<Table>> {
         match self {
-            &Value::Table(ref table) => Some(table.clone()),
+            Value::Table(table) => Some(table.clone()),
             _ => None,
         }
     }
@@ -151,12 +187,13 @@ impl Value {
 impl PartialEq for Value {
     fn eq(&self, rhs: &Value) -> bool {
         match (self, rhs) {
-            (&Value::Nil, &Value::Nil) => true,
-            (&Value::Number(lhs), &Value::Number(rhs)) => lhs == rhs,
-            (&Value::String(ref lhs), &Value::String(ref rhs)) => lhs == rhs,
-            (&Value::List(ref lhs), &Value::List(ref rhs)) => lhs == rhs,
-            (&Value::Table(ref lhs), &Value::Table(ref rhs)) => Rc::ptr_eq(lhs, rhs),
-            (&Value::Block(ref lhs), &Value::Block(ref rhs)) => Rc::ptr_eq(lhs, rhs),
+            (Value::Nil, Value::Nil) => true,
+            (Value::Boolean(lhs), Value::Boolean(rhs)) => lhs == rhs,
+            (Value::Number(lhs), Value::Number(rhs)) => lhs == rhs,
+            (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
+            (Value::List(lhs), Value::List(rhs)) => lhs == rhs,
+            (Value::Table(lhs), Value::Table(rhs)) => Rc::ptr_eq(lhs, rhs),
+            (Value::Block(lhs), Value::Block(rhs)) => Rc::ptr_eq(lhs, rhs),
             _ => false,
         }
     }
@@ -171,6 +208,7 @@ impl<S> PartialEq<S> for Value where S: AsRef<[u8]> {
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Value::Boolean(boolean) => write!(f, "{}", boolean),
             Value::Number(number) => write!(f, "{}", number),
             Value::String(string) => write!(f, "\"{}\"", string),
             _ => write!(f, "<{}>", self.type_name()),
@@ -182,6 +220,7 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &Value::Nil => write!(f, "nil"),
+            &Value::Boolean(boolean) => write!(f, "{}", boolean),
             &Value::Number(number) => write!(f, "{}", number),
             &Value::String(ref string) => write!(f, "{}", string),
             &Value::List(ref items) => {
@@ -202,4 +241,10 @@ impl fmt::Display for Value {
             _ => write!(f, "<{}>", self.type_name()),
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct Closure {
+    pub(crate) block: ast::Block,
+    pub(crate) scope: Option<Scope>,
 }

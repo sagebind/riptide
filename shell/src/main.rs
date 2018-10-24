@@ -11,7 +11,6 @@ mod editor;
 
 use riptide::fd;
 use riptide::prelude::*;
-use riptide::syntax::parse;
 use riptide::syntax::source::SourceFile;
 use std::path::PathBuf;
 use std::process;
@@ -71,12 +70,9 @@ fn main_2() -> Result<i32, Exception> {
                 let line = editor.read_line();
 
                 if !line.is_empty() {
-                    match parse(SourceFile::named("<input>", line)) {
-                        Ok(ast) => match runtime.invoke_block(&ast, &[]) {
-                            Ok(Value::Nil) => {},
-                            Ok(value) => println!("{}", value),
-                            Err(e) => eprintln!("error: {}", e),
-                        },
+                    match runtime.execute(Some("main"), SourceFile::named("<input>", line)) {
+                        Ok(Value::Nil) => {},
+                        Ok(value) => println!("{}", value),
                         Err(e) => eprintln!("error: {}", e),
                     }
                 }

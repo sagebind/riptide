@@ -2,14 +2,16 @@
 use builtins;
 use exceptions::Exception;
 use modules;
+use std::rc::Rc;
 use stdlib;
 use string::RString;
 use syntax;
 use syntax::ast::*;
 use syntax::source::*;
 use table::Table;
-use value::Value;
+use value::*;
 
+/// A native function that can be called by managed code.
 pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception>;
 
 /// Configure a runtime.
@@ -37,6 +39,7 @@ impl RuntimeBuilder {
                 "call" => Value::ForeignFunction(builtins::call),
                 "catch" => Value::ForeignFunction(builtins::catch),
                 "def" => Value::ForeignFunction(builtins::def),
+                "defglobal" => Value::ForeignFunction(builtins::defglobal),
                 "list" => Value::ForeignFunction(builtins::list),
                 "nil" => Value::ForeignFunction(builtins::nil),
                 "throw" => Value::ForeignFunction(builtins::throw),
@@ -67,9 +70,8 @@ impl RuntimeBuilder {
             .set("loaders", Value::List(self.module_loaders));
 
         let mut runtime = Runtime {
-            globals: self.globals,
-            module_registry: table!(),
-            call_stack: Vec::new(),
+            globals: Rc::new(self.globals),
+            stack: Vec::new(),
             is_exiting: false,
             exit_code: 0,
         };
@@ -83,24 +85,16 @@ impl RuntimeBuilder {
 /// Holds all of the state of a Riptide runtime.
 pub struct Runtime {
     /// Table where global values are stored.
-    globals: Table,
+    globals: Rc<Table>,
 
-    /// Table of tables for module-level values.
-    module_registry: Table,
-
-    call_stack: Vec<CallFrame>,
+    /// Current call stack.
+    stack: Vec<Scope>,
 
     /// If application code inside the runtime requests the runtime to exit, this is set to true.
     is_exiting: bool,
 
     /// The runtime exit code to return after it shuts down.
     exit_code: i32,
-}
-
-/// Contains information about the current function call.
-pub(crate) struct CallFrame {
-    pub args: Vec<Value>,
-    pub bindings: Table,
 }
 
 impl Default for Runtime {
@@ -112,6 +106,11 @@ impl Default for Runtime {
 impl Runtime {
     /// Initialize the runtime environment.
     fn init(&mut self) {
+        self.stack.push(Scope {
+            args: Vec::new(),
+            bindings: self.globals.clone(),
+            parent: None,
+        });
         self.globals.set("_GLOBALS", self.globals.clone());
 
         self.execute(None, include_str!("init.rip"))
@@ -140,51 +139,9 @@ impl Runtime {
         &self.globals
     }
 
-    /// Lookup a variable name in the current scope.
-    pub fn get(&self, name: impl AsRef<[u8]>) -> Value {
-        let name = name.as_ref();
-
-        for frame in self.call_stack.iter().rev() {
-            match frame.bindings.get(name) {
-                Value::Nil => continue,
-                value => return value,
-            }
-        }
-
-        self.globals.get(name)
-    }
-
-    /// Lookup a variable, and throw an exception if it does not exist.
-    fn lookup_variable(&self, path: &VariablePath) -> Result<Value, Exception> {
-        Ok(self.try_lookup_variable(path))
-    }
-
-    fn try_lookup_variable(&self, path: &VariablePath) -> Value {
-        let mut result = self.get(&path.0[0]);
-
-        if path.0.len() > 1 {
-            for part in &path.0[1..] {
-                result = result.get(part);
-            }
-        }
-
-        result
-    }
-
-    /// Set a variable value in the current scope.
-    pub fn set(&mut self, name: impl Into<RString>, value: impl Into<Value>) {
-        if let Some(ref mut frame) = self.call_stack.last_mut() {
-            frame.bindings.set(name, value);
-            return;
-        }
-
-        warn!("set called with an empty call stack");
-        self.globals.set(name, value);
-    }
-
-    /// Get a reference to the current call stack frame.
-    pub(crate) fn current_frame(&self) -> &CallFrame {
-        self.call_stack.last().unwrap()
+    /// Get a reference to the current scope.
+    pub fn scope(&self) -> &Scope {
+        self.stack.last().unwrap()
     }
 
     /// Execute the given script within this runtime.
@@ -194,48 +151,71 @@ impl Runtime {
     ///
     /// If a compilation error occurs with the given file, an exception will be returned.
     pub fn execute(&mut self, module: Option<&str>, file: impl Into<SourceFile>) -> Result<Value, Exception> {
-        let _module = module.map(|name| self.module_registry.get(name));
-
         let block = match syntax::parse(file) {
             Ok(block) => block,
             Err(e) => throw!("error parsing: {}", e),
         };
 
-        self.invoke_block(&block, &[])
+        let closure = Closure {
+            block: block,
+            scope: None,
+        };
+
+        let module_scope = match module {
+            Some(name) => {
+                if self.globals.get("modules").get("loaded").get(name).is_nil() {
+                    self.globals.get("modules").get("loaded").as_table().unwrap().set(name, table!());
+                }
+
+                self.globals.get("modules").get("loaded").get(name).as_table().unwrap().clone()
+            },
+            None => Rc::new(table!()),
+        };
+
+        // HACK...
+        let parent = self.stack.last().cloned().map(Box::new);
+        self.stack.push(Scope {
+            args: Vec::new(),
+            bindings: module_scope,
+            parent: parent,
+        });
+
+        let result = self.invoke_closure(&closure, &[]);
+
+        self.end_scope();
+
+        result
     }
 
     /// Invoke the given value as a function with the given arguments.
     pub fn invoke(&mut self, value: &Value, args: &[Value]) -> Result<Value, Exception> {
         match value {
-            Value::Block(block) => self.invoke_block(block, args),
+            Value::Block(closure) => {
+                self.begin_scope(args.to_vec());
+                let result = self.invoke_closure(closure, args);
+                self.end_scope();
+                result
+            },
             Value::ForeignFunction(function) => (function)(self, args),
             _ => throw!("cannot invoke '{:?}' as a function", value),
         }
     }
 
     /// Invoke a block with an array of arguments.
-    pub fn invoke_block(&mut self, block: &Block, args: &[Value]) -> Result<Value, Exception> {
-        // Set up a new stack frame.
-        self.call_stack.push(CallFrame {
-            args: args.to_vec(),
-            bindings: table!(),
-        });
-
+    fn invoke_closure(&mut self, closure: &Closure, args: &[Value]) -> Result<Value, Exception> {
         let mut last_return_value = Value::Nil;
 
         // Evaluate each statement in order.
-        for statement in block.statements.iter() {
+        for statement in closure.block.statements.iter() {
             match self.evaluate_pipeline(&statement) {
                 Ok(return_value) => last_return_value = return_value,
                 Err(exception) => {
                     // Exception thrown; abort and unwind stack.
-                    self.call_stack.pop();
+                    self.end_scope();
                     return Err(exception);
                 },
             }
         }
-
-        self.call_stack.pop();
 
         Ok(last_return_value)
     }
@@ -251,45 +231,28 @@ impl Runtime {
 
     fn evaluate_call(&mut self, call: Call) -> Result<Value, Exception> {
         let (function, args) = match call {
-            Call::Named(path, args) => (
-                self.lookup_variable(&path)?,
-                {
-                    let mut arg_values = Vec::with_capacity(args.len());
-                    for expr in args {
-                        arg_values.push(self.evaluate_expr(expr)?);
-                    }
-                    arg_values
-                },
-            ),
+            Call::Named(path, args) => (self.scope().get_path(&path), args),
             Call::Unnamed(function, args) => (
                 {
                     let mut function = self.evaluate_expr(*function)?;
 
                     // If the function is a string, resolve binding names first before we try to eval the item as a function.
-                    if let Some(value) = function.as_string().map(|name| self.get(name)) {
+                    if let Some(value) = function.as_string().map(|name| self.scope().get(name)) {
                         function = value;
                     }
 
                     function
                 },
-                {
-                    let mut arg_values = Vec::with_capacity(args.len());
-                    for expr in args {
-                        arg_values.push(self.evaluate_expr(expr)?);
-                    }
-                    arg_values
-                },
+                args,
             ),
         };
 
-        // Execute the function.
-        match function {
-            Value::Block(block) => self.invoke_block(&block, &args),
-            Value::ForeignFunction(f) => {
-                f(self, &args)
-            },
-            _ => throw!("cannot execute '{:?}' as a function", function),
+        let mut arg_values = Vec::with_capacity(args.len());
+        for expr in args {
+            arg_values.push(self.evaluate_expr(expr)?);
         }
+
+        self.invoke(&function, &arg_values)
     }
 
     fn evaluate_expr(&mut self, expr: Expr) -> Result<Value, Exception> {
@@ -299,16 +262,82 @@ impl Runtime {
             // TODO: Handle expands
             Expr::InterpolatedString(_) => Ok(Value::Nil),
             Expr::Substitution(substitution) => self.evaluate_substitution(substitution),
-            Expr::Block(block) => Ok(Value::from(block)),
+            Expr::Block(block) => Ok(Value::from(Closure {
+                block: block,
+                scope: Some(self.scope().clone()),
+            })),
             Expr::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
         }
     }
 
     fn evaluate_substitution(&mut self, substitution: Substitution) -> Result<Value, Exception> {
         match substitution {
-            Substitution::Variable(path) => self.lookup_variable(&path),
+            Substitution::Variable(path) => Ok(self.scope().get_path(&path)),
             Substitution::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
             _ => unimplemented!(),
         }
+    }
+
+    /// Open a new scope.
+    fn begin_scope(&mut self, args: Vec<Value>) {
+        let scope = Scope {
+            args: args,
+            bindings: Rc::new(table!()),
+            parent: self.stack.last().cloned().map(Box::new),
+        };
+        self.stack.push(scope);
+    }
+
+    /// Close the current scope.
+    fn end_scope(&mut self) {
+        self.stack.pop();
+    }
+}
+
+/// A function evaluation scope.
+///
+/// A scope encompasses the _environment_ in which functions are evaluated. Scopes are hierarchial, and contain a
+/// reference to the enclosing, or parent, scope.
+#[derive(Clone, Debug, Default)]
+pub struct Scope {
+    args: Vec<Value>,
+    bindings: Rc<Table>,
+    parent: Option<Box<Scope>>,
+}
+
+impl Scope {
+    /// Get the arguments passed in to the current scope.
+    pub fn args(&self) -> &[Value] {
+        &self.args
+    }
+
+    /// Lookup a variable name in the current scope.
+    pub fn get(&self, name: impl AsRef<[u8]>) -> Value {
+        let name = name.as_ref();
+
+        match self.bindings.get(name) {
+            Value::Nil => match self.parent.as_ref() {
+                Some(parent) => parent.get(name),
+                None => Value::Nil,
+            },
+            value => value,
+        }
+    }
+
+    pub fn get_path(&self, path: &VariablePath) -> Value {
+        let mut result = self.get(&path.0[0]);
+
+        if path.0.len() > 1 {
+            for part in &path.0[1..] {
+                result = result.get(part);
+            }
+        }
+
+        result
+    }
+
+    /// Set a variable value in the current scope.
+    pub fn set(&self, name: impl Into<RString>, value: impl Into<Value>) {
+        self.bindings.set(name, value);
     }
 }

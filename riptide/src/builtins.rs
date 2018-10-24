@@ -9,6 +9,20 @@ pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 
     let value = args.get(1).cloned().unwrap_or(Value::Nil);
 
+    runtime.scope().set(name, value);
+
+    Ok(Value::Nil)
+}
+
+/// Binds a value to a new variable or updates an existing variable.
+pub fn defglobal(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    let name = match args.get(0).and_then(Value::as_string) {
+        Some(s) => s.clone(),
+        None => throw!("variable name required"),
+    };
+
+    let value = args.get(1).cloned().unwrap_or(Value::Nil);
+
     runtime.globals().set(name, value);
 
     Ok(Value::Nil)
@@ -16,9 +30,10 @@ pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 
 /// Returns the name of the primitive type of the given arguments.
 pub fn type_of(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
-    Ok(Value::List(args.iter().map(|arg| {
-        Value::from(arg.type_name())
-    }).collect()))
+    Ok(args.first()
+        .map(Value::type_name)
+        .map(Value::from)
+        .unwrap_or(Value::Nil))
 }
 
 /// Constructs a list from the given arguments.
@@ -66,7 +81,7 @@ pub fn catch(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> 
 
 /// Return all arguments passed to the current function as a list.
 pub fn args(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
-    Ok(Value::List(runtime.current_frame().args.to_vec()))
+    Ok(Value::List(runtime.scope().args().to_vec()))
 }
 
 pub fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
