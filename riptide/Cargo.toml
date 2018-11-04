@@ -5,6 +5,7 @@ authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "The Riptide language interpreter"
 
 [dependencies]
+bytes = "0.4"
 fnv = "1.0"
 itertools = "0.7"
 log = "0.4"

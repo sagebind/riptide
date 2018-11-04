@@ -4,7 +4,7 @@ use exceptions::Exception;
 use modules;
 use std::rc::Rc;
 use stdlib;
-use string::RString;
+use string::RipString;
 use syntax;
 use syntax::ast::*;
 use syntax::source::*;
@@ -202,7 +202,7 @@ impl Runtime {
     }
 
     /// Invoke a block with an array of arguments.
-    fn invoke_closure(&mut self, closure: &Closure, args: &[Value]) -> Result<Value, Exception> {
+    fn invoke_closure(&mut self, closure: &Closure, _: &[Value]) -> Result<Value, Exception> {
         let mut last_return_value = Value::Nil;
 
         // Evaluate each statement in order.
@@ -337,7 +337,7 @@ impl Scope {
     }
 
     /// Set a variable value in the current scope.
-    pub fn set(&self, name: impl Into<RString>, value: impl Into<Value>) {
+    pub fn set(&self, name: impl Into<RipString>, value: impl Into<Value>) {
         self.bindings.set(name, value);
     }
 }

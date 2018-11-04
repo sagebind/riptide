@@ -2,7 +2,7 @@
 use runtime::*;
 use std::fmt;
 use std::rc::Rc;
-use string::RString;
+use string::RipString;
 use syntax::ast;
 use table::Table;
 
@@ -25,7 +25,7 @@ pub enum Value {
     Number(Number),
 
     /// A string. Immutable, and stored by reference.
-    String(RString),
+    String(RipString),
 
     /// An immutable list of values. Stored by value.
     ///
@@ -57,18 +57,18 @@ impl From<Number> for Value {
 
 impl<'a> From<&'a str> for Value {
     fn from(value: &str) -> Self {
-        Value::String(RString::from(value))
+        Value::String(RipString::from(value))
     }
 }
 
 impl From<String> for Value {
     fn from(value: String) -> Self {
-        Value::String(RString::from(value))
+        Value::String(RipString::from(value))
     }
 }
 
-impl From<RString> for Value {
-    fn from(value: RString) -> Self {
+impl From<RipString> for Value {
+    fn from(value: RipString) -> Self {
         Value::String(value)
     }
 }
@@ -155,7 +155,7 @@ impl Value {
     }
 
     /// If this value is a string, get its string value.
-    pub fn as_string(&self) -> Option<&RString> {
+    pub fn as_string(&self) -> Option<&RipString> {
         match self {
             Value::String(string) => Some(string),
             _ => None,

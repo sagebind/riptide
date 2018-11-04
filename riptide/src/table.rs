@@ -2,7 +2,7 @@ use fnv::FnvHashMap;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
-use string::RString;
+use string::RipString;
 use value::Value;
 
 /// Implementation of a "table". Tables are used like a map or object.
@@ -13,7 +13,7 @@ pub struct Table {
     /// Internally a hashmap is used, but the implementation could vary.
     ///
     /// Unlike all other value types, tables are mutable, so we are using a cell here to implement that.
-    map: Rc<RefCell<FnvHashMap<RString, Value>>>,
+    map: Rc<RefCell<FnvHashMap<RipString, Value>>>,
 }
 
 impl Default for Table {
@@ -43,7 +43,7 @@ impl Table {
     /// Set the value for a given key, returning the old value.
     ///
     /// If `Nil` is given as the value, the key is unset.
-    pub fn set(&self, key: impl Into<RString>, value: impl Into<Value>) -> Value {
+    pub fn set(&self, key: impl Into<RipString>, value: impl Into<Value>) -> Value {
         let value = value.into();
 
         match value {
@@ -56,8 +56,8 @@ impl Table {
         }
     }
 
-    pub fn keys(&self) -> impl Iterator<Item=RString> {
-        self.map.borrow().keys().cloned().collect::<Vec<RString>>().into_iter()
+    pub fn keys(&self) -> impl Iterator<Item=RipString> {
+        self.map.borrow().keys().cloned().collect::<Vec<RipString>>().into_iter()
     }
 }
 

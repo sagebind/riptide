@@ -1,3 +1,4 @@
+extern crate bytes;
 extern crate fnv;
 extern crate itertools;
 #[macro_use]
