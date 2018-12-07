@@ -1,4 +1,4 @@
-use buffer::Buffer;
+use crate::buffer::Buffer;
 use riptide::fd::*;
 use std::borrow::Cow;
 use std::io::Write;
@@ -23,15 +23,9 @@ pub struct Editor {
 impl Editor {
     pub fn new() -> Self {
         Self {
-            stdin: unsafe {
-                ReadPipe::from_raw_fd(0)
-            },
-            stdout: unsafe {
-                WritePipe::from_raw_fd(0)
-            },
-            _stderr: unsafe {
-                WritePipe::from_raw_fd(0)
-            },
+            stdin: unsafe { ReadPipe::from_raw_fd(0) },
+            stdout: unsafe { WritePipe::from_raw_fd(0) },
+            _stderr: unsafe { WritePipe::from_raw_fd(0) },
             buffer: Buffer::new(),
         }
     }
@@ -57,29 +51,29 @@ impl Editor {
                 }
                 Key::Left => {
                     self.buffer.move_cursor_relative(-1);
-                },
+                }
                 Key::Right => {
                     self.buffer.move_cursor_relative(1);
-                },
+                }
                 Key::Home => {
                     self.buffer.move_to_start_of_line();
-                },
+                }
                 Key::End => {
                     self.buffer.move_to_end_of_line();
-                },
+                }
                 Key::Char(c) => {
                     self.buffer.insert_char(c);
-                },
+                }
                 Key::Backspace => {
                     self.buffer.delete_before_cursor();
-                },
+                }
                 Key::Delete => {
                     self.buffer.delete_after_cursor();
-                },
+                }
                 Key::Ctrl('c') => {
                     self.buffer.clear();
-                },
-                _ => {},
+                }
+                _ => {}
             }
 
             self.redraw();

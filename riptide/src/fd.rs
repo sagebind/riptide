@@ -5,21 +5,15 @@ use std::io::{self, Read, Write};
 use std::os::unix::io::*;
 
 pub fn stdin() -> ReadPipe {
-    unsafe {
-        ReadPipe::from_raw_fd(0)
-    }
+    unsafe { ReadPipe::from_raw_fd(0) }
 }
 
 pub fn stdout() -> WritePipe {
-    unsafe {
-        WritePipe::from_raw_fd(1)
-    }
+    unsafe { WritePipe::from_raw_fd(1) }
 }
 
 pub fn stderr() -> WritePipe {
-    unsafe {
-        WritePipe::from_raw_fd(1)
-    }
+    unsafe { WritePipe::from_raw_fd(1) }
 }
 
 /// Create a new IO pipe.

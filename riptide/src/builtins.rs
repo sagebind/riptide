@@ -1,4 +1,4 @@
-use prelude::*;
+use crate::prelude::*;
 
 /// Binds a value to a new variable or updates an existing variable.
 pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
@@ -30,10 +30,7 @@ pub fn defglobal(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Excepti
 
 /// Returns the name of the primitive type of the given arguments.
 pub fn type_of(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
-    Ok(args.first()
-        .map(Value::type_name)
-        .map(Value::from)
-        .unwrap_or(Value::Nil))
+    Ok(args.first().map(Value::type_name).map(Value::from).unwrap_or(Value::Nil))
 }
 
 /// Constructs a list from the given arguments.

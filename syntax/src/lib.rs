@@ -3,19 +3,15 @@
 //! The provided Riptide parser parses source code into a high-level abstract syntax tree, which can be used for
 //! evaluation directly, optimization, formatting tools, etc.
 
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
-
-use error::ParseError;
-use parser::FromPair;
+use crate::error::ParseError;
+use crate::parser::FromPair;
+use crate::source::*;
 use pest::Parser;
-use source::*;
 
 pub mod ast;
 pub mod error;
-pub mod source;
 mod parser;
+pub mod source;
 
 /// Attempt to parse a source file into an abstract syntax tree.
 ///

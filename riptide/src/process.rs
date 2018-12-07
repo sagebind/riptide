@@ -13,7 +13,9 @@ pub fn spawn<F: FnOnce()>(body: F) -> Result<i32, ()> {
             process::exit(0);
         }
 
-        Ok(unistd::ForkResult::Parent { child }) => Ok(child.into()),
+        Ok(unistd::ForkResult::Parent {
+            child,
+        }) => Ok(child.into()),
 
         Err(_) => Err(()),
     }

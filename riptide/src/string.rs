@@ -3,7 +3,6 @@ use std::borrow::*;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str;
-use utf8;
 
 /// A string value.
 ///
@@ -155,14 +154,21 @@ impl fmt::Display for RipString {
         while slice.len() > 0 {
             match utf8::decode(slice) {
                 Ok(s) => return write!(f, "{}", s),
-                Err(utf8::DecodeError::Incomplete {valid_prefix, ..}) => {
+                Err(utf8::DecodeError::Incomplete {
+                    valid_prefix,
+                    ..
+                }) => {
                     write!(f, "{}", valid_prefix)?;
                     slice = &slice[valid_prefix.len()..];
-                },
-                Err(utf8::DecodeError::Invalid {valid_prefix, remaining_input, ..}) => {
+                }
+                Err(utf8::DecodeError::Invalid {
+                    valid_prefix,
+                    remaining_input,
+                    ..
+                }) => {
                     write!(f, "{}\u{FFFD}", valid_prefix)?;
                     slice = remaining_input;
-                },
+                }
             }
         }
 

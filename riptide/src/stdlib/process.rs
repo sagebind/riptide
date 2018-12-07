@@ -1,5 +1,5 @@
-use prelude::*;
-use process;
+use crate::prelude::*;
+use crate::process;
 use std::process::Command;
 
 pub fn load() -> Result<Value, Exception> {
@@ -7,7 +7,8 @@ pub fn load() -> Result<Value, Exception> {
         "command" => Value::ForeignFunction(command),
         "exec" => Value::ForeignFunction(exec),
         "spawn" => Value::ForeignFunction(spawn),
-    }.into())
+    }
+    .into())
 }
 
 /// Spawns a new child process and executes a given block in it.
@@ -17,7 +18,8 @@ fn spawn(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     let pid = process::spawn(|| {
         // let child_interpreter = Runtime::new();
         // child_interpreter.execute(Exp)
-    }).unwrap();
+    })
+    .unwrap();
 
     Ok(Value::Number(pid as f64))
 }
@@ -27,19 +29,18 @@ fn spawn(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
 /// Returns the process exit code.
 fn command(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     if let Some(command) = args.first() {
-        let command = command
-            .as_string()
-            .and_then(|s| s.as_utf8())
-            .ok_or_else(|| Exception::from("invalid command name"))?;
+        let command =
+            command.as_string().and_then(|s| s.as_utf8()).ok_or_else(|| Exception::from("invalid command name"))?;
 
         let mut string_args = Vec::new();
 
         if args.len() > 1 {
             for arg in &args[1..] {
-                string_args.push(arg
-                    .as_string()
-                    .and_then(|s| s.as_utf8())
-                    .ok_or_else(|| Exception::from("argument must be UTF-8"))?);
+                string_args.push(
+                    arg.as_string()
+                        .and_then(|s| s.as_utf8())
+                        .ok_or_else(|| Exception::from("argument must be UTF-8"))?,
+                );
             }
         }
 
@@ -48,8 +49,6 @@ fn command(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
             .status()
             .map(|status| Value::from(status.code().unwrap_or(0) as f64))
             .map_err(|e| e.to_string().into())
-
-
     } else {
         throw!("command to execute is required")
     }

@@ -20,8 +20,7 @@ pub struct Pipeline {
 
 impl fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Pipeline ").and_then(|_|
-            f.debug_list().entries(&self.items).finish())
+        write!(f, "Pipeline ").and_then(|_| f.debug_list().entries(&self.items).finish())
     }
 }
 
@@ -38,14 +37,12 @@ pub enum Call {
 impl fmt::Debug for Call {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Call::Named(path, args) => f.debug_struct("Call::Named")
-                .field("function", path)
-                .field("args", args)
-                .finish(),
-            Call::Unnamed(func, args) => f.debug_struct("Call::Unnamed")
-                .field("function", func)
-                .field("args", args)
-                .finish(),
+            Call::Named(path, args) => {
+                f.debug_struct("Call::Named").field("function", path).field("args", args).finish()
+            }
+            Call::Unnamed(func, args) => {
+                f.debug_struct("Call::Unnamed").field("function", func).field("args", args).finish()
+            }
         }
     }
 }
@@ -111,8 +108,7 @@ pub struct VariablePath(pub Vec<String>);
 
 impl fmt::Debug for VariablePath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "VariablePath ").and_then(|_|
-            f.debug_list().entries(&self.0).finish())
+        write!(f, "VariablePath ").and_then(|_| f.debug_list().entries(&self.0).finish())
     }
 }
 
@@ -131,8 +127,7 @@ pub struct InterpolatedString(pub Vec<InterpolatedStringPart>);
 
 impl fmt::Debug for InterpolatedString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "InterpolatedString ").and_then(|_|
-            f.debug_list().entries(&self.0).finish())
+        write!(f, "InterpolatedString ").and_then(|_| f.debug_list().entries(&self.0).finish())
     }
 }
 

@@ -1,5 +1,6 @@
-use ast::*;
+use crate::ast::*;
 use pest::iterators::Pair;
+use pest_derive::Parser;
 
 #[derive(Parser)]
 #[grammar = "grammar.pest"]
@@ -19,19 +20,12 @@ impl FromPair for Block {
             pairs.pop();
         }
 
-        let statements = pairs.pop()
-            .unwrap()
-            .into_inner()
-            .map(Pipeline::from_pair)
-            .collect();
+        let statements = pairs.pop().unwrap().into_inner().map(Pipeline::from_pair).collect();
 
         let named_params = pairs.pop().map(|pair| {
             assert_eq!(pair.as_rule(), Rule::block_params);
 
-            pair
-                .into_inner()
-                .map(|pair| pair.as_str().to_owned())
-                .collect()
+            pair.into_inner().map(|pair| pair.as_str().to_owned()).collect()
         });
 
         Self {
@@ -61,11 +55,8 @@ impl FromPair for Call {
             Rule::named_call => {
                 let mut pairs = pair.into_inner();
 
-                Call::Named(
-                    pairs.next().map(VariablePath::from_pair).unwrap(),
-                    pairs.map(Expr::from_pair).collect(),
-                )
-            },
+                Call::Named(pairs.next().map(VariablePath::from_pair).unwrap(), pairs.map(Expr::from_pair).collect())
+            }
             Rule::unnamed_call => {
                 let mut pairs = pair.into_inner();
 
@@ -73,7 +64,7 @@ impl FromPair for Call {
                     Box::new(pairs.next().map(Expr::from_pair).unwrap()),
                     pairs.map(Expr::from_pair).collect(),
                 )
-            },
+            }
             rule => panic!("unexpected rule: {:?}", rule),
         }
     }
@@ -132,9 +123,13 @@ impl FromPair for Substitution {
                 let flags = pairs.next().map(|pair| pair.as_str().to_owned());
 
                 Substitution::Format(variable, flags)
-            },
-            Rule::pipeline_substitution => Substitution::Pipeline(Pipeline::from_pair(pair.into_inner().next().unwrap())),
-            Rule::variable_substitution => Substitution::Variable(VariablePath::from_pair(pair.into_inner().next().unwrap())),
+            }
+            Rule::pipeline_substitution => {
+                Substitution::Pipeline(Pipeline::from_pair(pair.into_inner().next().unwrap()))
+            }
+            Rule::variable_substitution => {
+                Substitution::Variable(VariablePath::from_pair(pair.into_inner().next().unwrap()))
+            }
             rule => panic!("unexpected rule: {:?}", rule),
         }
     }
@@ -144,11 +139,9 @@ impl FromPair for VariablePath {
     fn from_pair(pair: Pair<Rule>) -> Self {
         assert_eq!(pair.as_rule(), Rule::variable_path);
 
-        VariablePath(pair
-            .into_inner()
-            .map(|pair| pair.into_inner().next().unwrap().as_str())
-            .map(translate_escapes)
-            .collect())
+        VariablePath(
+            pair.into_inner().map(|pair| pair.into_inner().next().unwrap().as_str()).map(translate_escapes).collect(),
+        )
     }
 }
 

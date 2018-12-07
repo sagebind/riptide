@@ -1,15 +1,16 @@
 //! The Riptide runtime.
-use builtins;
-use exceptions::Exception;
-use modules;
+use crate::builtins;
+use crate::exceptions::Exception;
+use crate::modules;
+use crate::stdlib;
+use crate::string::RipString;
+use crate::syntax;
+use crate::syntax::ast::*;
+use crate::syntax::source::*;
+use crate::table::Table;
+use crate::value::*;
+use log::*;
 use std::rc::Rc;
-use stdlib;
-use string::RipString;
-use syntax;
-use syntax::ast::*;
-use syntax::source::*;
-use table::Table;
-use value::*;
 
 /// A native function that can be called by managed code.
 pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception>;
@@ -22,10 +23,7 @@ pub struct RuntimeBuilder {
 
 impl Default for RuntimeBuilder {
     fn default() -> Self {
-        Self::new()
-            .module_loader(modules::relative_loader)
-            .module_loader(modules::system_loader)
-            .with_stdlib()
+        Self::new().module_loader(modules::relative_loader).module_loader(modules::system_loader).with_stdlib()
     }
 }
 
@@ -63,11 +61,7 @@ impl RuntimeBuilder {
     }
 
     pub fn build(self) -> Runtime {
-        self.globals
-            .get("modules")
-            .as_table()
-            .unwrap()
-            .set("loaders", Value::List(self.module_loaders));
+        self.globals.get("modules").as_table().unwrap().set("loaders", Value::List(self.module_loaders));
 
         let mut runtime = Runtime {
             globals: Rc::new(self.globals),
@@ -113,8 +107,7 @@ impl Runtime {
         });
         self.globals.set("_GLOBALS", self.globals.clone());
 
-        self.execute(None, include_str!("init.rip"))
-            .expect("error in runtime initialization");
+        self.execute(None, include_str!("init.rip")).expect("error in runtime initialization");
     }
 
     pub fn exit_code(&self) -> i32 {
@@ -168,7 +161,7 @@ impl Runtime {
                 }
 
                 self.globals.get("modules").get("loaded").get(name).as_table().unwrap().clone()
-            },
+            }
             None => Rc::new(table!()),
         };
 
@@ -195,7 +188,7 @@ impl Runtime {
                 let result = self.invoke_closure(closure, args);
                 self.end_scope();
                 result
-            },
+            }
             Value::ForeignFunction(function) => (function)(self, args),
             _ => throw!("cannot invoke '{:?}' as a function", value),
         }
@@ -213,7 +206,7 @@ impl Runtime {
                     // Exception thrown; abort and unwind stack.
                     self.end_scope();
                     return Err(exception);
-                },
+                }
             }
         }
 

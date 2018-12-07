@@ -33,10 +33,7 @@ impl SourceFile {
 
     /// Get the name of the file.
     pub fn name(&self) -> &str {
-        self.name
-            .as_ref()
-            .map(String::as_str)
-            .unwrap_or("<unknown>")
+        self.name.as_ref().map(String::as_str).unwrap_or("<unknown>")
     }
 
     pub fn len(&self) -> usize {

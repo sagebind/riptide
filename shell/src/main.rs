@@ -1,14 +1,4 @@
-extern crate clogger;
-#[macro_use]
-extern crate log;
-extern crate riptide;
-#[macro_use]
-extern crate structopt;
-extern crate termion;
-
-mod buffer;
-mod editor;
-
+use log::*;
 use riptide::fd;
 use riptide::prelude::*;
 use riptide::syntax::source::SourceFile;
@@ -16,6 +6,8 @@ use std::path::PathBuf;
 use std::process;
 use structopt::StructOpt;
 
+mod buffer;
+mod editor;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -55,12 +47,10 @@ fn main_2() -> Result<i32, Exception> {
             runtime.execute(None, command)?;
         }
     }
-
     // If a file is given, execute it and exit.
     else if let Some(file) = options.file.as_ref() {
         runtime.execute(None, SourceFile::open(file)?)?;
     }
-
     // Interactive mode.
     else {
         if stdin.is_tty() {
@@ -71,7 +61,7 @@ fn main_2() -> Result<i32, Exception> {
 
                 if !line.is_empty() {
                     match runtime.execute(Some("main"), SourceFile::named("<input>", line)) {
-                        Ok(Value::Nil) => {},
+                        Ok(Value::Nil) => {}
                         Ok(value) => println!("{}", value),
                         Err(e) => eprintln!("error: {}", e),
                     }
@@ -89,6 +79,6 @@ fn main() {
         Err(e) => {
             error!("{}", e);
             process::exit(1);
-        },
+        }
     }
 }

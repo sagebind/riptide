@@ -1,9 +1,9 @@
+use crate::string::RipString;
+use crate::value::Value;
 use fnv::FnvHashMap;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
-use string::RipString;
-use value::Value;
 
 /// Implementation of a "table". Tables are used like a map or object.
 ///
@@ -34,10 +34,7 @@ impl Table {
     ///
     /// If the key does not exist, `Nil` is returned.
     pub fn get(&self, key: impl AsRef<[u8]>) -> Value {
-        self.map.borrow()
-            .get(key.as_ref())
-            .cloned()
-            .unwrap_or(Value::Nil)
+        self.map.borrow().get(key.as_ref()).cloned().unwrap_or(Value::Nil)
     }
 
     /// Set the value for a given key, returning the old value.
@@ -47,16 +44,12 @@ impl Table {
         let value = value.into();
 
         match value {
-            Value::Nil => self.map.borrow_mut()
-                .remove(key.into().as_bytes())
-                .unwrap_or(Value::Nil),
-            value => self.map.borrow_mut()
-                .insert(key.into(), value)
-                .unwrap_or(Value::Nil),
+            Value::Nil => self.map.borrow_mut().remove(key.into().as_bytes()).unwrap_or(Value::Nil),
+            value => self.map.borrow_mut().insert(key.into(), value).unwrap_or(Value::Nil),
         }
     }
 
-    pub fn keys(&self) -> impl Iterator<Item=RipString> {
+    pub fn keys(&self) -> impl Iterator<Item = RipString> {
         self.map.borrow().keys().cloned().collect::<Vec<RipString>>().into_iter()
     }
 }

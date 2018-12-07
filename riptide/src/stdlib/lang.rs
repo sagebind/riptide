@@ -1,5 +1,5 @@
+use crate::prelude::*;
 use itertools::Itertools;
-use prelude::*;
 use std::io::{stdout, Write};
 
 pub fn load() -> Result<Value, Exception> {
@@ -14,7 +14,8 @@ pub fn load() -> Result<Value, Exception> {
         "eq" => Value::ForeignFunction(|_, args| {
             Ok(args.iter().all_equal().into())
         }),
-    }.into())
+    }
+    .into())
 }
 
 fn assert(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
@@ -49,29 +50,29 @@ fn dump(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     fn dump(value: &Value, indent: usize, depth: usize) {
         match value {
             Value::List(items) => {
-                println!("{:indent$}[", "", indent=indent);
+                println!("{:indent$}[", "", indent = indent);
                 for item in items {
                     if depth > 0 {
                         dump(item, indent + 4, depth - 1);
                     } else {
-                        println!("{:indent$}...", "", indent=indent + 4);
+                        println!("{:indent$}...", "", indent = indent + 4);
                     }
                 }
-                println!("{:indent$}]", "", indent=indent);
-            },
+                println!("{:indent$}]", "", indent = indent);
+            }
             Value::Table(table) => {
-                println!("{:indent$}{{", "", indent=indent);
+                println!("{:indent$}{{", "", indent = indent);
                 for key in table.keys() {
-                    println!("{:indent$}{:?} =>", "", key, indent=indent + 4);
+                    println!("{:indent$}{:?} =>", "", key, indent = indent + 4);
                     if depth > 0 {
                         dump(&table.get(key), indent + 4, depth - 1);
                     } else {
-                        println!("{:indent$}...", "", indent=indent + 4);
+                        println!("{:indent$}...", "", indent = indent + 4);
                     }
                 }
-                println!("{:indent$}}}", "", indent=indent);
-            },
-            value => println!("{:indent$}{:?}", "", value, indent=indent),
+                println!("{:indent$}}}", "", indent = indent);
+            }
+            value => println!("{:indent$}{:?}", "", value, indent = indent),
         }
     }
 

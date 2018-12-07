@@ -1,10 +1,10 @@
 //! Structures and implementations of the built-in data types.
-use runtime::*;
+use crate::runtime::*;
+use crate::string::RipString;
+use crate::syntax::ast;
+use crate::table::Table;
 use std::fmt;
 use std::rc::Rc;
-use string::RipString;
-use syntax::ast;
-use table::Table;
 
 type Number = f64;
 
@@ -130,9 +130,7 @@ impl Value {
         match self {
             Value::Nil => false,
             Value::Boolean(b) => *b,
-            Value::String(value) => {
-                !(value == "0" || value.as_bytes().is_empty() || &value.to_lowercase() == "false")
-            }
+            Value::String(value) => !(value == "0" || value.as_bytes().is_empty() || &value.to_lowercase() == "false"),
             Value::List(items) => !items.is_empty(),
             _ => true,
         }
@@ -199,7 +197,10 @@ impl PartialEq for Value {
     }
 }
 
-impl<S> PartialEq<S> for Value where S: AsRef<[u8]> {
+impl<S> PartialEq<S> for Value
+where
+    S: AsRef<[u8]>,
+{
     fn eq(&self, rhs: &S) -> bool {
         self.as_string().map(|s| s.as_ref()) == Some(rhs.as_ref())
     }
@@ -237,7 +238,7 @@ impl fmt::Display for Value {
                 }
 
                 write!(f, "]")
-            },
+            }
             _ => write!(f, "<{}>", self.type_name()),
         }
     }

@@ -1,6 +1,6 @@
+use crate::value::Value;
 use std::fmt;
 use std::io;
-use value::Value;
 
 /// An exception thrown at runtime.
 ///

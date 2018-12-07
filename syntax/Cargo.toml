@@ -3,6 +3,7 @@ name = "riptide-syntax"
 version = "0.2.0"
 authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "The Riptide language parser"
+edition = "2018"
 
 [dependencies]
 pest = "2.0"
@@ -12,5 +13,5 @@ pest_derive = "2.0"
 difference = "2.0"
 glob = "0.2"
 log = "0.4"
-stderrlog = "0.3"
+stderrlog = "0.4"
 toml = "0.4"

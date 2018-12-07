@@ -1,12 +1,3 @@
-extern crate bytes;
-extern crate fnv;
-extern crate itertools;
-#[macro_use]
-extern crate log;
-extern crate nix;
-extern crate riptide_syntax;
-extern crate utf8;
-
 /// Convenience macro for creating a table.
 #[macro_export]
 macro_rules! table {
@@ -54,8 +45,8 @@ pub mod syntax {
 }
 
 pub mod prelude {
-    pub use exceptions::Exception;
-    pub use runtime::Runtime;
-    pub use table::Table;
-    pub use value::Value;
+    pub use crate::exceptions::Exception;
+    pub use crate::runtime::Runtime;
+    pub use crate::table::Table;
+    pub use crate::value::Value;
 }

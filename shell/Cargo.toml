@@ -3,6 +3,7 @@ name = "riptide-shell"
 version = "0.2.0"
 authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "RipShell"
+edition = "2018"
 
 [dependencies]
 clogger = "0.1"

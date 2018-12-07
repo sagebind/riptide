@@ -1,4 +1,4 @@
-use prelude::*;
+use crate::prelude::*;
 
 pub fn load() -> Result<Value, Exception> {
     Ok(table! {
@@ -12,5 +12,6 @@ pub fn load() -> Result<Value, Exception> {
                 .map(Value::from)
                 .unwrap_or(Value::Nil))
         }),
-    }.into())
+    }
+    .into())
 }
