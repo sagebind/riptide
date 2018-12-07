@@ -20,6 +20,12 @@ pub enum RipString {
     Heap(Bytes),
 }
 
+impl Default for RipString {
+    fn default() -> Self {
+        Self::EMPTY
+    }
+}
+
 impl RipString {
     /// The empty string.
     pub const EMPTY: Self = RipString::Static(b"");
