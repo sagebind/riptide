@@ -1,7 +1,5 @@
 # Riptide
 
-[![Build Status](https://semaphoreci.com/api/v1/sagebind/riptide/branches/master/badge.svg)](https://semaphoreci.com/sagebind/riptide)
-
 Ripide is a powerful scripting language and interpreter that seeks to accomplish two goals:
 
 - Provide a powerful, stream-oriented scripting language where the UNIX philosophy is first-class.
