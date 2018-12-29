@@ -24,8 +24,8 @@ impl Editor {
     pub fn new() -> Self {
         Self {
             stdin: unsafe { ReadPipe::from_raw_fd(0) },
-            stdout: unsafe { WritePipe::from_raw_fd(0) },
-            _stderr: unsafe { WritePipe::from_raw_fd(0) },
+            stdout: unsafe { WritePipe::from_raw_fd(1) },
+            _stderr: unsafe { WritePipe::from_raw_fd(2) },
             buffer: Buffer::new(),
         }
     }

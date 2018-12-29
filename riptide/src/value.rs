@@ -4,6 +4,7 @@ use crate::string::RipString;
 use crate::syntax::ast;
 use crate::table::Table;
 use std::fmt;
+use std::iter::FromIterator;
 use std::rc::Rc;
 
 type Number = f64;
@@ -41,6 +42,12 @@ pub enum Value {
 
     /// Reference to a foreign (native) function.
     ForeignFunction(ForeignFunction),
+}
+
+impl Default for Value {
+    fn default() -> Self {
+        Value::Nil
+    }
 }
 
 impl From<bool> for Value {
@@ -94,6 +101,12 @@ impl From<Closure> for Value {
 impl From<ForeignFunction> for Value {
     fn from(f: ForeignFunction) -> Self {
         Value::ForeignFunction(f)
+    }
+}
+
+impl<T: Into<Value>> FromIterator<T> for Value {
+    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+        Value::List(iter.into_iter().map(Into::into).collect())
     }
 }
 
@@ -220,11 +233,11 @@ impl fmt::Debug for Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Value::Nil => write!(f, "nil"),
-            &Value::Boolean(boolean) => write!(f, "{}", boolean),
-            &Value::Number(number) => write!(f, "{}", number),
-            &Value::String(ref string) => write!(f, "{}", string),
-            &Value::List(ref items) => {
+            Value::Nil => write!(f, "nil"),
+            Value::Boolean(boolean) => write!(f, "{}", boolean),
+            Value::Number(number) => write!(f, "{}", number),
+            Value::String(string) => write!(f, "{}", string),
+            Value::List(items) => {
                 write!(f, "[")?;
                 let mut first = true;
 
@@ -239,6 +252,7 @@ impl fmt::Display for Value {
 
                 write!(f, "]")
             }
+            Value::Table(table) => write!(f, "{}", table),
             _ => write!(f, "<{}>", self.type_name()),
         }
     }

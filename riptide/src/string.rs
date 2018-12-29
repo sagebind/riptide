@@ -1,5 +1,6 @@
 use bytes::Bytes;
 use std::borrow::*;
+use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str;
@@ -132,6 +133,18 @@ impl PartialEq<str> for RipString {
 impl PartialEq<[u8]> for RipString {
     fn eq(&self, rhs: &[u8]) -> bool {
         self.as_bytes() == rhs
+    }
+}
+
+impl PartialOrd for RipString {
+    fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
+        self.as_bytes().partial_cmp(rhs.as_bytes())
+    }
+}
+
+impl Ord for RipString {
+    fn cmp(&self, rhs: &Self) -> Ordering {
+        self.as_bytes().cmp(rhs.as_bytes())
     }
 }
 

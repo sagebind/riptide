@@ -1,7 +1,7 @@
 use crate::string::RipString;
 use crate::value::Value;
-use fnv::FnvHashMap;
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::rc::Rc;
 
@@ -10,16 +10,14 @@ use std::rc::Rc;
 /// Only string keys are allowed.
 #[derive(Clone)]
 pub struct Table {
-    /// Internally a hashmap is used, but the implementation could vary.
-    ///
     /// Unlike all other value types, tables are mutable, so we are using a cell here to implement that.
-    map: Rc<RefCell<FnvHashMap<RipString, Value>>>,
+    map: Rc<RefCell<BTreeMap<RipString, Value>>>,
 }
 
 impl Default for Table {
     fn default() -> Self {
         Self {
-            map: Rc::new(RefCell::new(FnvHashMap::default())),
+            map: Rc::new(RefCell::new(BTreeMap::default())),
         }
     }
 }
@@ -28,6 +26,10 @@ impl Table {
     /// Allocate a new table.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    fn id(&self) -> usize {
+        &*self.map as *const _ as usize
     }
 
     /// Get the value indexed by a key.
@@ -41,11 +43,12 @@ impl Table {
     ///
     /// If `Nil` is given as the value, the key is unset.
     pub fn set(&self, key: impl Into<RipString>, value: impl Into<Value>) -> Value {
+        let key = key.into();
         let value = value.into();
 
         match value {
-            Value::Nil => self.map.borrow_mut().remove(key.into().as_bytes()).unwrap_or(Value::Nil),
-            value => self.map.borrow_mut().insert(key.into(), value).unwrap_or(Value::Nil),
+            Value::Nil => self.map.borrow_mut().remove(key.as_bytes()).unwrap_or(Value::Nil),
+            value => self.map.borrow_mut().insert(key, value).unwrap_or(Value::Nil),
         }
     }
 
@@ -57,6 +60,12 @@ impl Table {
 impl fmt::Debug for Table {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.map.borrow().fmt(f)
+    }
+}
+
+impl fmt::Display for Table {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<table@{:x}>", self.id())
     }
 }
 

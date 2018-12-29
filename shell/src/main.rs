@@ -28,7 +28,7 @@ struct Options {
     file: Option<PathBuf>,
 }
 
-fn main_2() -> Result<i32, Exception> {
+fn main_impl() -> Result<i32, Exception> {
     // Set up logger.
     clogger::init();
 
@@ -74,7 +74,7 @@ fn main_2() -> Result<i32, Exception> {
 }
 
 fn main() {
-    match main_2() {
+    match main_impl() {
         Ok(exit_code) => process::exit(exit_code),
         Err(e) => {
             error!("{}", e);

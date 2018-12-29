@@ -9,7 +9,7 @@ pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 
     let value = args.get(1).cloned().unwrap_or(Value::Nil);
 
-    runtime.scope().set(name, value);
+    runtime.scope().parent.as_ref().unwrap().set(name, value);
 
     Ok(Value::Nil)
 }
@@ -83,4 +83,13 @@ pub fn args(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
 
 pub fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     throw!("not implemented");
+}
+
+/// Returns a backtrace of the call stack as a list of strings.
+pub fn backtrace(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+    Ok(runtime.stack
+        .iter()
+        .rev()
+        .map(|scope| format!("{:?}", scope))
+        .collect())
 }
