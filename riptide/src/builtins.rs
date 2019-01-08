@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-/// Binds a value to a new variable or updates an existing variable.
+/// Binds a value to a new variable.
 pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
@@ -28,6 +28,19 @@ pub fn defglobal(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Excepti
     Ok(Value::Nil)
 }
 
+pub fn set(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    let name = match args.get(0).and_then(Value::as_string) {
+        Some(s) => s.clone(),
+        None => throw!("variable name required"),
+    };
+
+    let value = args.get(1).cloned().unwrap_or(Value::Nil);
+
+    runtime.scope().parent.as_ref().unwrap().set(name, value);
+
+    Ok(Value::Nil)
+}
+
 /// Returns the name of the primitive type of the given arguments.
 pub fn type_of(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(args.first().map(Value::type_name).map(Value::from).unwrap_or(Value::Nil))
@@ -36,6 +49,28 @@ pub fn type_of(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 /// Constructs a list from the given arguments.
 pub fn list(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::List(args.to_vec()))
+}
+
+/// Constructs a table from the given arguments.
+pub fn table(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    if args.len() & 1 == 1 {
+        throw!("an even number of arguments is required");
+    }
+
+    let table = table!();
+    let mut iter = args.iter();
+
+    while let Some(key) = iter.next() {
+        let value = iter.next().unwrap();
+
+        if let Some(key) = key.as_string() {
+            table.set(key.clone(), value.clone());
+        } else {
+            throw!("table key must be a string");
+        }
+    }
+
+    Ok(table.into())
 }
 
 /// Function that always returns Nil.

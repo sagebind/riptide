@@ -89,6 +89,8 @@ impl RuntimeBuilder {
                 "defglobal" => Value::ForeignFunction(builtins::defglobal),
                 "list" => Value::ForeignFunction(builtins::list),
                 "nil" => Value::ForeignFunction(builtins::nil),
+                "set" => Value::ForeignFunction(builtins::set),
+                "table" => Value::ForeignFunction(builtins::table),
                 "throw" => Value::ForeignFunction(builtins::throw),
                 "typeof" => Value::ForeignFunction(builtins::type_of),
                 "modules" => Value::from(table! {
