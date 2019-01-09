@@ -4,13 +4,13 @@
 
 def lang (require lang)
 
-defglobal print $lang->print
-defglobal println $lang->println
-defglobal echo $lang->println
-defglobal exit $lang->exit
-defglobal dump $lang->dump
-defglobal eq $lang->eq
+table-set $GLOBALS print $lang->print
+table-set $GLOBALS println $lang->println
+table-set $GLOBALS echo $lang->println
+table-set $GLOBALS exit $lang->exit
+table-set $GLOBALS dump $lang->dump
+table-set $GLOBALS eq $lang->eq
 
-defglobal eval [string] {
+table-set $GLOBALS eval [string] {
     call $source $string
 }

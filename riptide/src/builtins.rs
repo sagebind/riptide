@@ -14,20 +14,6 @@ pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
-/// Binds a value to a new variable or updates an existing variable.
-pub fn defglobal(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
-    let name = match args.get(0).and_then(Value::as_string) {
-        Some(s) => s.clone(),
-        None => throw!("variable name required"),
-    };
-
-    let value = args.get(1).cloned().unwrap_or(Value::Nil);
-
-    runtime.globals().set(name, value);
-
-    Ok(Value::Nil)
-}
-
 pub fn set(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
@@ -51,6 +37,20 @@ pub fn list(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::List(args.to_vec()))
 }
 
+pub fn nth(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    let list = match args.get(0).and_then(Value::as_list) {
+        Some(s) => s.to_vec(),
+        None => throw!("first argument must be a list"),
+    };
+
+    let index = match args.get(1).and_then(Value::as_number) {
+        Some(s) => s,
+        None => throw!("index must be a number"),
+    };
+
+    Ok(list.get(index as usize).cloned().unwrap_or(Value::Nil))
+}
+
 /// Constructs a table from the given arguments.
 pub fn table(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     if args.len() & 1 == 1 {
@@ -71,6 +71,24 @@ pub fn table(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     }
 
     Ok(table.into())
+}
+
+pub fn table_set(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    let table = match args.get(0).and_then(Value::as_table) {
+        Some(s) => s.clone(),
+        None => throw!("first argument must be a table"),
+    };
+
+    let key = match args.get(1).and_then(Value::as_string) {
+        Some(s) => s.clone(),
+        None => throw!("key must be a string"),
+    };
+
+    let value = args.get(2).cloned().unwrap_or(Value::Nil);
+
+    table.set(key, value);
+
+    Ok(Value::Nil)
 }
 
 /// Function that always returns Nil.
@@ -113,7 +131,7 @@ pub fn catch(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> 
 
 /// Return all arguments passed to the current function as a list.
 pub fn args(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
-    Ok(Value::List(runtime.scope().args().to_vec()))
+    Ok(Value::List(runtime.scope().parent.as_ref().unwrap().args().to_vec()))
 }
 
 pub fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {

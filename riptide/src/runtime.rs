@@ -86,11 +86,12 @@ impl RuntimeBuilder {
                 "call" => Value::ForeignFunction(builtins::call),
                 "catch" => Value::ForeignFunction(builtins::catch),
                 "def" => Value::ForeignFunction(builtins::def),
-                "defglobal" => Value::ForeignFunction(builtins::defglobal),
                 "list" => Value::ForeignFunction(builtins::list),
                 "nil" => Value::ForeignFunction(builtins::nil),
+                "nth" => Value::ForeignFunction(builtins::nth),
                 "set" => Value::ForeignFunction(builtins::set),
                 "table" => Value::ForeignFunction(builtins::table),
+                "table-set" => Value::ForeignFunction(builtins::table_set),
                 "throw" => Value::ForeignFunction(builtins::throw),
                 "typeof" => Value::ForeignFunction(builtins::type_of),
                 "modules" => Value::from(table! {
