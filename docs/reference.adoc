@@ -5,6 +5,10 @@
 :sectnumlevels: 2
 :idprefix:
 :idseparator: -
+:docinfo: shared
+
+:ref-utf8: http://www.unicode.org/faq/utf_bom.html#UTF8[UTF-8]
+
 
 == Introduction
 
@@ -15,58 +19,30 @@ If you are just getting started with Riptide, we recommend checking out the <<gu
 
 == Syntax
 
-Riptide has a very small syntax with only a few rules and only a few forms. This makes Riptide easy to learn, and also allows the Riptide interpreter to be really small and fast.
+The Riptide _syntax_ describes how to read the source code of a valid Riptide program into valid structures.
+
+Riptide programs are always written as a sequence of {ref-utf8} characters.
 
 
 === Lines and whitespace
 
 Horizontal whitespace has no meaning, except when used as a separator. When whitespace is used to separate syntactic elements, any one or more combination of horizontal whitespace counts as one separator.
 
-Line separators are treated just like horizontal whitespace, except inside blocks.
+Line separators are treated just like horizontal whitespace, except inside blocks. For greater cross-platform support, a newline can be represented in any of three ways: line feed (`\n`), carriage return (`\r`), or carriage return followed by a line feed (`\r\n`).
 
 
-=== Formal grammar
+=== Comments
 
-Below is the full specification of the Riptide grammar. This is the actual specification used to generate the language parser from.
+Single line comments begin with a hash character (`pass:c[#]`) and continue until the end of the line. Multiline comments begin with `pass:c[###]` and end with `pass:c[###]`. Nesting multiline comments is allowed, but the comment markers must be balanced.
 
-----
-include::../syntax/src/grammar.pest[]
-----
-
-The grammar is written in the https://pest.rs[Pest] syntax, an excellent modern parser generator. Reading through the Pest book to get a thorough understanding of how the Riptide grammar works.
+Comments are ignored by the parser and are otherwise treated as whitespace.
 
 
-== Expressions
+=== Literals
 
-Riptide is an expression based language, where nearly every construct is an expression. All expression types are legal in the same places.
+==== String literals
 
-Every expression has a resulting value when it is executed.
-
-
-=== Literal expressions
-
-A _literal expression_ consists of a single literal value.
-
-The resulting value for a literal expression is always the the literal value written.
-
-
-=== Pipeline expressions
-
-
-=== Block expressions
-
-A _block expression_ defines a new _block_.
-
-
-== Lexical scope and variables
-
-Variables must be explicitly declared before they are used. By default, a variable is confined to the lexical scope in which it is defined.
-
-
-=== Function calls
-
-
-=== Pipelines
+==== Number literals
 
 
 === Blocks
@@ -75,6 +51,7 @@ A _block_ is a special section of code whose execution is deferred until at a la
 
 A block is defined using curly braces (`{` and `}`) and includes all code between the opening and closing braces.
 
+[source,riptide]
 ----
 {
     println "I am in a block."
@@ -83,12 +60,25 @@ A block is defined using curly braces (`{` and `}`) and includes all code betwee
 
 Inside a block is a list of _statements_, which are each pipelines to be executed. Statements may be separated by newlines or optionally by the _statement terminator_, a single semicolon (`;`). Both separators are equivalent.
 
+[source,riptide]
 ----
 {
     println "Statement one."
     println "Statement two."; println "Statement three."
 }
 ----
+
+
+=== Formal grammar
+
+Below is the full specification of the Riptide grammar. This is the actual specification used to generate the language parser from.
+
+[source,pest]
+----
+include::../syntax/src/grammar.pest[]
+----
+
+The grammar is written in the https://pest.rs[Pest] syntax, an excellent modern parser generator. Reading through the Pest book to get a thorough understanding of how the Riptide grammar works.
 
 
 == Data types
@@ -132,6 +122,40 @@ Unlike other data types, tables are _mutable_ and can be modified in place.
 Tables are passed by reference instead of by value.
 
 The storage representation of a table is implementation-defined.
+
+
+=== Closures
+
+
+== Expressions
+
+Riptide is an expression based language, where nearly every construct is an expression, and is the most important building block of Riptide.
+
+Every expression has a resulting value when it is executed.
+
+
+=== Literal expressions
+
+A _literal expression_ consists of a single literal value. The resulting value for a literal expression is always the the literal value written. See <<Literals>> for details.
+
+
+=== Pipeline expressions
+
+
+=== Block expressions
+
+A _block expression_ defines a new _block_.
+
+
+== Lexical scope and variables
+
+Variables must be explicitly declared before they are used. By default, a variable is confined to the lexical scope in which it is defined.
+
+
+=== Function calls
+
+
+=== Pipelines
 
 
 == Execution model
@@ -187,6 +211,7 @@ The `environment` map is not linked to the process environment map after initial
 
 Example:
 
+[source,riptide]
 ----
 let @environment->FOO "bar" {
     printenv
@@ -276,6 +301,7 @@ Iterate over a list.
 
 Define a new variable. Throws an exception if the variable is already defined.
 
+[source,riptide]
 ----
 def myvar "Hello, World!"
 ----
@@ -285,6 +311,7 @@ def myvar "Hello, World!"
 
 Introduces a scoped local variable binding.
 
+[source,riptide]
 ----
 def foo "bar"
 
@@ -399,6 +426,7 @@ Read from input.
 
 Split standard input into lines and executes a block for each line.
 
+[source,riptide]
 ----
 # Filter out lines starting with "//"
 cat 'file.txt' | lines {
@@ -508,6 +536,20 @@ Throw an exception.
 ==== `catch`
 
 Execute a block, and if the block throws an exception, return the thrown exception.
+
+
+[appendix]
+== Design goals
+
+* The language should be simple to parse and evaluate so the interpreter can be simple, fast, and maintainable.
+* Only a few orthogonal language semantics so that the core language is easy to learn.
+* Support traditional command line syntax as the core of the language syntax (`command args`), so users can get started right away using Riptide as a shell, and then learn the language gradually afterward.
+* Provide a built-in module system. Let users create their own package managers that work together automatically.
+* Low-level functionality can be scripted through C extension modules.
+* Provide built-in support for concurrency through forking processes.
+* Scripts should fail fast using exceptions with clear messages, rather than continue lumbering along, leaving the user unclear of the state of the world.
+* Provide data structures needed to create complex programs.
+* Extend the UNIX philosophy of many small programs that work together. Instead of creating _functions_ that run inside your shell, encourage users to create their scripts as standalone files that can be run from within any shell.
 
 
 [appendix]
