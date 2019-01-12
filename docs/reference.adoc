@@ -508,3 +508,14 @@ Throw an exception.
 ==== `catch`
 
 Execute a block, and if the block throws an exception, return the thrown exception.
+
+
+[appendix]
+== Influences
+
+Riptide draws inspiration from several other languages:
+
+* http://fishshell.com/[Fish]: A shell scripting language that trades POSIX compatibility for friendlier syntax.
+* https://en.wikipedia.org/wiki/Lisp_(programming_language)[Lisp]: Functional composition.
+* https://www.ruby-lang.org/[Ruby]: Block design.
+* https://www.tcl.tk/[Tcl]: Everything is a command, including control structures!
