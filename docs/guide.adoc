@@ -1,4 +1,10 @@
 = Riptide Guide
+:author: Stephen M. Coakley
+:toc: left
+:sectnums:
+:sectnumlevels: 2
+:idprefix:
+:idseparator: -
 
 == Introduction
 

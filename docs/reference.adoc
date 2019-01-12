@@ -1,8 +1,16 @@
 = Riptide Language Reference
+:author: Stephen M. Coakley
+:toc: left
+:sectnums:
+:sectnumlevels: 2
+:idprefix:
+:idseparator: -
 
 == Introduction
 
-This manual is the primary reference for the Riptide programming language and defines its core syntax and semantics. IThe intended audience is for developers working on the language itself and for curious users who wish to dig deeper into the language. This document is not a complete formal specification at this time.
+This manual is the primary reference for the Riptide programming language and defines its core syntax and semantics. The intended audience is for developers working on the language itself and for curious users who wish to dig deeper into the language. This document is not a complete formal specification at this time.
+
+If you are just getting started with Riptide, we recommend checking out the <<guide#introduction,Guide>> first.
 
 
 == Syntax
@@ -24,6 +32,8 @@ Below is the full specification of the Riptide grammar. This is the actual speci
 ----
 include::../syntax/src/grammar.pest[]
 ----
+
+The grammar is written in the https://pest.rs[Pest] syntax, an excellent modern parser generator. Reading through the Pest book to get a thorough understanding of how the Riptide grammar works.
 
 
 == Expressions
@@ -153,7 +163,7 @@ When the Riptide runtime encounters a _recoverable_ error, it _raises_ an except
 
 NOTE: Not all errors in the runtime get turned into exceptions. If an error occurs that the runtime cannot safely recover from, such as running out of memory or data corruption, the program will be aborted instead.
 
-Riptide programs are also free to raise their own exceptions at any time during program execution using the `raise` builtin function.
+Riptide programs are also free to raise their own exceptions at any time during program execution using the <<code-throw-code,`throw`>> builtin function.
 
 Regardless of the origin of the exception, when an exception is raised, the current function call is aborted recursively in a process called _stack unwinding_, until the exception is caught. A raised exception may be caught by the first `try` block encountered that wraps the offending code.
 
@@ -213,6 +223,8 @@ On Unix-like systems, when the process
 
 
 == Module system
+
+CAUTION: The module system has yet to be designed!
 
 
 == Standard library
