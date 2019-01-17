@@ -6,6 +6,7 @@ COMMIT_MESSAGE="Deploy $COMMIT_HASH"
 ORIGIN="https://${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
 rm -rf target/docs/.git
+touch target/docs/.nojekyll
 
 git -C target/docs init .
 git -C target/docs config user.name "${GITHUB_ACTOR}"

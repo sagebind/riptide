@@ -168,6 +168,14 @@ Local variables are mutable in the sense that they can be redefined at any time.
 
 Local variables can be referenced by name using the `$` sigil.
 
+Variables can be defined or reassigned using the `set` builtin function:
+
+[source,riptide]
+----
+# Bind the string "Hello world!" to the variable $foo.
+set foo "Hello world!"
+----
+
 
 === Context variables
 
@@ -192,6 +200,11 @@ Riptide programs are also free to raise their own exceptions at any time during 
 Regardless of the origin of the exception, when an exception is raised, the current function call is aborted recursively in a process called _stack unwinding_, until the exception is caught. A raised exception may be caught by the first `try` block encountered that wraps the offending code.
 
 If a raised exception is not caught during stack unwinding before the top of the stack is reached, then the runtime will attempt to print a stack trace of the exception if possible, then abort the program.
+
+
+== Modules
+
+CAUTION: The module system has yet to be designed!
 
 
 == External commands
@@ -245,11 +258,6 @@ On Unix-like systems, when the process
 === Input and output
 
 ==== Pipes
-
-
-== Module system
-
-CAUTION: The module system has yet to be designed!
 
 
 == Standard library
