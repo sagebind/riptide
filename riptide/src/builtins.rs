@@ -9,7 +9,7 @@ pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 
     let value = args.get(1).cloned().unwrap_or(Value::Nil);
 
-    runtime.scope().parent.as_ref().unwrap().set(name, value);
+    runtime.set_parent(name, value);
 
     Ok(Value::Nil)
 }
@@ -22,7 +22,7 @@ pub fn set(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 
     let value = args.get(1).cloned().unwrap_or(Value::Nil);
 
-    runtime.scope().parent.as_ref().unwrap().set(name, value);
+    runtime.set_parent(name, value);
 
     Ok(Value::Nil)
 }
@@ -127,11 +127,6 @@ pub fn catch(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> 
     } else {
         throw!("block to invoke required")
     }
-}
-
-/// Return all arguments passed to the current function as a list.
-pub fn args(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
-    Ok(Value::List(runtime.scope().parent.as_ref().unwrap().args().to_vec()))
 }
 
 pub fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {

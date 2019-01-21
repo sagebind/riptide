@@ -73,7 +73,7 @@ single_quote_inner = ${ ("\\'" | !"'" ~ ANY)* }
 number_literal = ${ "." ~ ASCII_DIGIT+ | ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
 
 // A symbol is an unquoted string, usually used for identifying variable names.
-symbol = ${ !ASCII_DIGIT ~ (!"->" ~ (ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "."))+ }
+symbol = ${ !ASCII_DIGIT ~ (!"->" ~ (ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/"))+ }
 
 // Inline comments are similar to UNIX shells, where "#" starts a comment and
 // includes all following characters until end of line.

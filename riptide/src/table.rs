@@ -10,7 +10,7 @@ use std::rc::Rc;
 /// Only string keys are allowed.
 #[derive(Clone)]
 pub struct Table {
-    /// Unlike all other value types, tables are mutable, so we are using a cell here to implement that.
+    /// Unlike all other value types, tables are internally mutable, so we are using a cell here to implement that.
     map: Rc<RefCell<BTreeMap<RipString, Value>>>,
 }
 

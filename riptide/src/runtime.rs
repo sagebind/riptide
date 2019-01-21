@@ -48,6 +48,10 @@ impl Scope {
     pub fn get(&self, name: impl AsRef<[u8]>) -> Value {
         let name = name.as_ref();
 
+        if name == b"args" {
+            return self.args.iter().cloned().collect();
+        }
+
         match self.bindings.get(name) {
             Value::Nil => match self.parent.as_ref() {
                 Some(parent) => parent.get(name),
@@ -81,7 +85,6 @@ impl RuntimeBuilder {
             module_loaders: Vec::new(),
             globals: table! {
                 "require" => Value::ForeignFunction(modules::require),
-                "args" => Value::ForeignFunction(builtins::args),
                 "backtrace" => Value::ForeignFunction(builtins::backtrace),
                 "call" => Value::ForeignFunction(builtins::call),
                 "catch" => Value::ForeignFunction(builtins::catch),
@@ -154,13 +157,6 @@ impl Default for Runtime {
 impl Runtime {
     /// Initialize the runtime environment.
     fn init(&mut self) {
-        self.stack.push(Rc::new(Scope {
-            name: Some(String::from("<global scope>")),
-            function: Value::Nil,
-            args: Vec::new(),
-            bindings: self.globals.clone(),
-            parent: None,
-        }));
         self.globals.set("GLOBALS", self.globals.clone());
 
         self.execute(None, include_str!("init.rip")).expect("error in runtime initialization");
@@ -192,11 +188,6 @@ impl Runtime {
         &self.globals
     }
 
-    /// Get a reference to the current scope.
-    pub fn scope(&self) -> &Scope {
-        self.stack.last().unwrap()
-    }
-
     /// Lookup a variable name in the current scope.
     pub fn get(&self, name: impl AsRef<[u8]>) -> Value {
         let name = name.as_ref();
@@ -221,6 +212,15 @@ impl Runtime {
         }
 
         result
+    }
+
+    /// Set a variable value in the current scope.
+    pub fn set(&self, name: impl Into<RipString>, value: impl Into<Value>) {
+        self.stack.last().unwrap().set(name, value);
+    }
+
+    pub(crate) fn set_parent(&self, name: impl Into<RipString>, value: impl Into<Value>) {
+        self.stack.last().unwrap().parent.as_ref().unwrap().set(name, value);
     }
 
     /// Execute the given script within this runtime.
@@ -396,7 +396,7 @@ impl Runtime {
             Expr::Substitution(substitution) => self.evaluate_substitution(substitution),
             Expr::Block(block) => Ok(Value::from(Closure {
                 block: block,
-                scope: Some(self.scope().clone()),
+                scope: Some(self.stack.last().unwrap().as_ref().clone()),
             })),
             Expr::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
         }
