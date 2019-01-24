@@ -3,6 +3,7 @@ use crate::value::Value;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt;
+use std::iter::FromIterator;
 use std::ptr;
 
 /// Implementation of a "table". Tables are used like a map or object.
@@ -54,6 +55,16 @@ impl Table {
 
     pub fn keys(&self) -> impl Iterator<Item = RipString> {
         self.map.borrow().keys().cloned().collect::<Vec<RipString>>().into_iter()
+    }
+}
+
+impl<K: Into<RipString>, V: Into<Value>> FromIterator<(K, V)> for Table {
+    fn from_iter<I: IntoIterator<Item=(K, V)>>(iter: I) -> Self {
+        Self {
+            map: RefCell::new(iter.into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect()),
+        }
     }
 }
 

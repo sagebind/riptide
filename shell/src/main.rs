@@ -2,6 +2,7 @@ use log::*;
 use riptide::fd;
 use riptide::prelude::*;
 use riptide::syntax::source::SourceFile;
+use std::io::Read;
 use std::path::PathBuf;
 use std::process;
 use std::rc::Rc;
@@ -39,7 +40,7 @@ fn run() -> Result<i32, Exception> {
     // Increase log level by the number of -v flags given.
     clogger::set_verbosity(options.verbosity);
 
-    let stdin = fd::stdin();
+    let mut stdin = fd::stdin();
     let mut runtime = Runtime::default();
 
     // We want successive commands to act like they are being executed in the
@@ -57,22 +58,26 @@ fn run() -> Result<i32, Exception> {
         runtime.execute(None, SourceFile::open(file)?)?;
     }
     // Interactive mode.
-    else {
-        if stdin.is_tty() {
-            let mut editor = editor::Editor::new();
+    else if stdin.is_tty() {
+        let mut editor = editor::Editor::new();
 
-            while !runtime.exit_requested() {
-                let line = editor.read_line();
+        while !runtime.exit_requested() {
+            let line = editor.read_line();
 
-                if !line.is_empty() {
-                    match runtime.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()) {
-                        Ok(Value::Nil) => {}
-                        Ok(value) => println!("{}", value),
-                        Err(e) => eprintln!("error: {}", e),
-                    }
+            if !line.is_empty() {
+                match runtime.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()) {
+                    Ok(Value::Nil) => {}
+                    Ok(value) => println!("{}", value),
+                    Err(e) => eprintln!("error: {}", e),
                 }
             }
         }
+    }
+    // Execute stdin
+    else {
+        let mut source = String::new();
+        stdin.read_to_string(&mut source)?;
+        runtime.execute(None, SourceFile::named("<stdin>", source))?;
     }
 
     Ok(runtime.exit_code())

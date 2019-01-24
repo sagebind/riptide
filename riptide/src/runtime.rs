@@ -10,6 +10,7 @@ use crate::syntax::source::*;
 use crate::table::Table;
 use crate::value::*;
 use log::*;
+use std::env;
 use std::rc::Rc;
 
 /// A native function that can be called by managed code.
@@ -170,6 +171,7 @@ impl Runtime {
     /// Initialize the runtime environment.
     fn init(&mut self) {
         self.globals.set("GLOBALS", self.globals.clone());
+        self.globals.set("env", env::vars().collect::<Table>()); // Isn't that easy?
 
         self.execute(None, include_str!("init.rip")).expect("error in runtime initialization");
     }
