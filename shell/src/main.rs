@@ -4,6 +4,7 @@ use riptide::prelude::*;
 use riptide::syntax::source::SourceFile;
 use std::path::PathBuf;
 use std::process;
+use std::rc::Rc;
 use structopt::StructOpt;
 
 mod buffer;
@@ -28,7 +29,7 @@ struct Options {
     file: Option<PathBuf>,
 }
 
-fn main_impl() -> Result<i32, Exception> {
+fn run() -> Result<i32, Exception> {
     // Set up logger.
     clogger::init();
 
@@ -40,6 +41,10 @@ fn main_impl() -> Result<i32, Exception> {
 
     let stdin = fd::stdin();
     let mut runtime = Runtime::default();
+
+    // We want successive commands to act like they are being executed in the
+    // same file, so set up a shared scope to execute them in.
+    let scope = Rc::new(riptide::table!());
 
     // If at least one command is given, execute those in order and exit.
     if !options.commands.is_empty() {
@@ -60,7 +65,7 @@ fn main_impl() -> Result<i32, Exception> {
                 let line = editor.read_line();
 
                 if !line.is_empty() {
-                    match runtime.execute(Some("main"), SourceFile::named("<input>", line)) {
+                    match runtime.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()) {
                         Ok(Value::Nil) => {}
                         Ok(value) => println!("{}", value),
                         Err(e) => eprintln!("error: {}", e),
@@ -74,7 +79,7 @@ fn main_impl() -> Result<i32, Exception> {
 }
 
 fn main() {
-    match main_impl() {
+    match run() {
         Ok(exit_code) => process::exit(exit_code),
         Err(e) => {
             error!("{}", e);

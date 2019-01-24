@@ -1,5 +1,56 @@
-= RipShell Guide
+= RipShell Manual
+:author: Stephen M. Coakley
+:toc: left
+:sectnums:
+:sectnumlevels: 2
+:idprefix:
+:idseparator: -
+:docinfo: shared
 
 RipShell is an interactive command-line shell that uses Riptide as its scripting language.
 
 RipShell is usually available under the command name `ripsh`.
+
+
+== Features
+
+* Interactive history that can be browsed through.
+* Customizable key bindings.
+* Customizable prompt elements.
+* Directory bookmarks that allow you to jump to common locations quickly.
+* Autocomplete commands.
+
+
+== Plugins
+
+RipShell's behavior can be customized and extended by adding one or more _plugins_. A plugin is simply a <<reference#modules,module>> that provides one or more callback functions to the shell. These callback functions will be invoked by the shell at certain times, giving the plugin a chance to modify behavior.
+
+=== Callbacks
+
+==== `on_init`
+
+This callback is invoked when the plugin is loaded by the shell.
+
+==== `on_prompt`
+
+This callback is invoked when the shell is about to render the command prompt.
+
+==== `on_command`
+
+This callback is invoked when the user runs a command on the command line.
+
+==== `on_command_not_found`
+
+This callback is invoked when a command lookup fails.
+
+
+[appendix]
+== Goals
+
+* Provide hooks in the runtime that can be scripted. Implement as much of the shell in Riptide as possible (except maybe hot code paths).
+* Allow users to customize the shell behavior by writing plugins in Riptide.
+* Themes should be data, not code. Prompt info should be provided by other means and be theme-agnostic.
+* Provide sane defaults that remind users of other shells. Copy a lot of Fish Shell's useful behaviors.
+* Deviate from traditional REPL shells where a better or more powerful interface could be provided.
+* Unline Riptide which is designed to provide minimal features out of the box, RipShell should be full-featured and come with everything that most users will ever need.
+* Extending the shell can be done using plugins, which is specific to the shell. Simple commands should not be plugins and should be standalone Riptide scripts instead (that can be executed from within any shell).

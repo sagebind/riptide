@@ -257,6 +257,16 @@ impl Runtime {
     ///
     /// If a compilation error occurs with the given file, an exception will be returned.
     pub fn execute(&mut self, module: Option<&str>, file: impl Into<SourceFile>) -> Result<Value, Exception> {
+        self.execute_in_scope(module, file, Rc::new(table!()))
+    }
+
+    /// Execute the given script using the given scope.
+    ///
+    /// The script will be executed inside the context of the module with the given name. If no module name is given, an
+    /// anonymous module will be created for the file.
+    ///
+    /// If a compilation error occurs with the given file, an exception will be returned.
+    pub fn execute_in_scope(&mut self, module: Option<&str>, file: impl Into<SourceFile>, scope: Rc<Table>) -> Result<Value, Exception> {
         let file = file.into();
         let file_name = file.name().to_string();
 
@@ -280,7 +290,7 @@ impl Runtime {
             name: Some(file_name),
             function: Value::Nil,
             args: Vec::new(),
-            bindings: Rc::new(table!()),
+            bindings: scope,
             module: module_scope,
             parent: self.stack.last().cloned(),
         }));
