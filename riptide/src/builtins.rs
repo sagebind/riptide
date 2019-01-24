@@ -27,6 +27,20 @@ pub fn set(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
+pub fn export(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    let name = match args.get(0).and_then(Value::as_string) {
+        Some(s) => s.clone(),
+        None => throw!("variable name to export required"),
+    };
+
+    let value = args.get(1).cloned()
+        .unwrap_or(runtime.get(&name));
+
+    runtime.module_scope().set(name, value);
+
+    Ok(Value::Nil)
+}
+
 /// Returns the name of the primitive type of the given arguments.
 pub fn type_of(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(args.first().map(Value::type_name).map(Value::from).unwrap_or(Value::Nil))

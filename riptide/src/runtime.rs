@@ -30,6 +30,9 @@ pub struct Scope {
 
     bindings: Rc<Table>,
 
+    /// A reference to the module this scope is executed in.
+    pub(crate) module: Rc<Table>,
+
     pub(crate) parent: Option<Rc<Scope>>,
 }
 
@@ -89,6 +92,7 @@ impl RuntimeBuilder {
                 "call" => Value::ForeignFunction(builtins::call),
                 "catch" => Value::ForeignFunction(builtins::catch),
                 "def" => Value::ForeignFunction(builtins::def),
+                "export" => Value::ForeignFunction(builtins::export),
                 "list" => Value::ForeignFunction(builtins::list),
                 "nil" => Value::ForeignFunction(builtins::nil),
                 "nth" => Value::ForeignFunction(builtins::nth),
@@ -188,12 +192,27 @@ impl Runtime {
         &self.globals
     }
 
+    /// Get the current executing scope.
+    fn scope(&self) -> &Scope {
+        self.stack.last().as_ref().unwrap()
+    }
+
+    /// Get the table that holds all global variables.
+    pub(crate) fn module_scope(&self) -> &Table {
+        &self.scope().module
+    }
+
     /// Lookup a variable name in the current scope.
     pub fn get(&self, name: impl AsRef<[u8]>) -> Value {
         let name = name.as_ref();
 
         if let Some(scope) = self.stack.last() {
             match scope.get(name) {
+                Value::Nil => {},
+                value => return value,
+            }
+
+            match scope.module.get(name) {
                 Value::Nil => {},
                 value => return value,
             }
@@ -216,11 +235,11 @@ impl Runtime {
 
     /// Set a variable value in the current scope.
     pub fn set(&self, name: impl Into<RipString>, value: impl Into<Value>) {
-        self.stack.last().unwrap().set(name, value);
+        self.scope().set(name, value);
     }
 
     pub(crate) fn set_parent(&self, name: impl Into<RipString>, value: impl Into<Value>) {
-        self.stack.last().unwrap().parent.as_ref().unwrap().set(name, value);
+        self.scope().parent.as_ref().unwrap().set(name, value);
     }
 
     /// Execute the given script within this runtime.
@@ -253,7 +272,8 @@ impl Runtime {
             name: Some(file_name),
             function: Value::Nil,
             args: Vec::new(),
-            bindings: module_scope,
+            bindings: Rc::new(table!()),
+            module: module_scope,
             parent: self.stack.last().cloned(),
         }));
 
@@ -271,6 +291,7 @@ impl Runtime {
             function: value.clone(),
             args: args.to_vec(),
             bindings: Rc::new(table!()),
+            module: self.scope().module.clone(),
             parent: self.stack.last().cloned(),
         }));
 

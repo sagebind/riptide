@@ -55,13 +55,13 @@ substitution = ${ &"$" ~ (
     | pipeline_substitution
     | variable_substitution
 ) }
-format_substitution = ${ "${" ~ variable_path ~ (":" ~ format_substitution_flags)? ~ "}" }
+format_substitution = ${ "${" ~ variable_path ~ (format_flags_separator ~ format_substitution_flags)? ~ "}" }
 format_substitution_flags = ${ (ASCII_ALPHANUMERIC | "_" | ".")+ }
 pipeline_substitution = ${ "$(" ~ pipeline ~ ")" }
 variable_substitution = ${ "$" ~ variable_path }
 
 // A variable path is a nested series of identifiers for accessing variables.
-variable_path = ${ string_literal ~ ("->" ~ string_literal)* }
+variable_path = ${ string_literal ~ (member_operator ~ string_literal)* }
 
 // A literal string. String literals are static and have no runtime
 // interpolation.
@@ -73,7 +73,13 @@ single_quote_inner = ${ ("\\'" | !"'" ~ ANY)* }
 number_literal = ${ "." ~ ASCII_DIGIT+ | ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
 
 // A symbol is an unquoted string, usually used for identifying variable names.
-symbol = ${ !ASCII_DIGIT ~ (!"->" ~ (ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/"))+ }
+symbol = ${ !ASCII_DIGIT ~ (!member_operator ~ (ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/"))+ }
+
+// Operator to access namespaces and table members.
+member_operator = _{ "->" }
+
+// Separator for specifying format parameters.
+format_flags_separator = _{ ":" }
 
 // Inline comments are similar to UNIX shells, where "#" starts a comment and
 // includes all following characters until end of line.
