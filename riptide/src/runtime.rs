@@ -21,18 +21,22 @@ pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception
 /// reference to the enclosing, or parent, scope.
 #[derive(Clone, Debug, Default)]
 pub struct Scope {
+    /// The scope name, for debugging purposes.
     name: Option<String>,
 
     /// The function reference to invoke.
     function: Value,
 
+    /// Arguments that were passed into this scope.
     args: Vec<Value>,
 
+    /// Local scope bindings. May shadow bindings in the parent scope.
     bindings: Rc<Table>,
 
     /// A reference to the module this scope is executed in.
     pub(crate) module: Rc<Table>,
 
+    /// The parent scope to this one.
     pub(crate) parent: Option<Rc<Scope>>,
 }
 
@@ -53,6 +57,10 @@ impl Scope {
 
         if name == b"args" {
             return self.args.iter().cloned().collect();
+        }
+
+        if name == b"exports" {
+            return self.module.clone().into();
         }
 
         match self.bindings.get(name) {

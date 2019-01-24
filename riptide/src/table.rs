@@ -3,7 +3,7 @@ use crate::value::Value;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt;
-use std::rc::Rc;
+use std::ptr;
 
 /// Implementation of a "table". Tables are used like a map or object.
 ///
@@ -11,13 +11,13 @@ use std::rc::Rc;
 #[derive(Clone)]
 pub struct Table {
     /// Unlike all other value types, tables are internally mutable, so we are using a cell here to implement that.
-    map: Rc<RefCell<BTreeMap<RipString, Value>>>,
+    map: RefCell<BTreeMap<RipString, Value>>,
 }
 
 impl Default for Table {
     fn default() -> Self {
         Self {
-            map: Rc::new(RefCell::new(BTreeMap::default())),
+            map: RefCell::new(BTreeMap::default()),
         }
     }
 }
@@ -29,7 +29,7 @@ impl Table {
     }
 
     fn id(&self) -> usize {
-        &*self.map as *const _ as usize
+        &self.map as *const _ as usize
     }
 
     /// Get the value indexed by a key.
@@ -54,6 +54,13 @@ impl Table {
 
     pub fn keys(&self) -> impl Iterator<Item = RipString> {
         self.map.borrow().keys().cloned().collect::<Vec<RipString>>().into_iter()
+    }
+}
+
+impl PartialEq for Table {
+    fn eq(&self, rhs: &Table) -> bool {
+        // Table equality is based on identity rather than value.
+        ptr::eq(self, rhs)
     }
 }
 

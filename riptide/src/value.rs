@@ -5,6 +5,7 @@ use crate::syntax::ast;
 use crate::table::Table;
 use std::fmt;
 use std::iter::FromIterator;
+use std::ptr;
 use std::rc::Rc;
 
 type Number = f64;
@@ -203,8 +204,8 @@ impl PartialEq for Value {
             (Value::Number(lhs), Value::Number(rhs)) => lhs == rhs,
             (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
             (Value::List(lhs), Value::List(rhs)) => lhs == rhs,
-            (Value::Table(lhs), Value::Table(rhs)) => Rc::ptr_eq(lhs, rhs),
-            (Value::Block(lhs), Value::Block(rhs)) => Rc::ptr_eq(lhs, rhs),
+            (Value::Table(lhs), Value::Table(rhs)) => lhs == rhs,
+            (Value::Block(lhs), Value::Block(rhs)) => lhs == rhs,
             _ => false,
         }
     }
@@ -262,4 +263,10 @@ impl fmt::Display for Value {
 pub struct Closure {
     pub(crate) block: ast::Block,
     pub(crate) scope: Option<Scope>,
+}
+
+impl PartialEq for Closure {
+    fn eq(&self, rhs: &Closure) -> bool {
+        ptr::eq(self, rhs)
+    }
 }
