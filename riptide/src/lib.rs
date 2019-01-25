@@ -13,7 +13,7 @@ macro_rules! table {
         {
             let table = table!();
             $(
-                table.set($key, $value);
+                table.set($key, $crate::value::Value::from($value));
             )*
             table
         }
@@ -29,6 +29,7 @@ macro_rules! throw {
 }
 
 mod builtins;
+pub mod closure;
 pub mod exceptions;
 pub mod fd;
 pub mod modules;

@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::runtime::Scope;
 
 /// Binds a value to a new variable.
 pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
@@ -149,9 +150,19 @@ pub fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
 
 /// Returns a backtrace of the call stack as a list of strings.
 pub fn backtrace(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+    fn scope_to_value(scope: impl AsRef<Scope>) -> Value {
+        let scope = scope.as_ref();
+        Value::from(table! {
+            "name" => scope.name(),
+            "args" => scope.args(),
+            "bindings" => scope.bindings.clone(),
+            "parent" => scope.parent.as_ref().map(scope_to_value).unwrap_or(Value::Nil),
+        })
+    }
+
     Ok(runtime.stack
         .iter()
         .rev()
-        .map(|scope| format!("{:?}", scope))
+        .map(scope_to_value)
         .collect())
 }

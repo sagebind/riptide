@@ -1,11 +1,10 @@
 //! Structures and implementations of the built-in data types.
+use crate::closure::Closure;
 use crate::runtime::*;
 use crate::string::RipString;
-use crate::syntax::ast;
 use crate::table::Table;
 use std::fmt;
 use std::iter::FromIterator;
-use std::ptr;
 use std::rc::Rc;
 
 type Number = f64;
@@ -78,6 +77,18 @@ impl From<String> for Value {
 impl From<RipString> for Value {
     fn from(value: RipString) -> Self {
         Value::String(value)
+    }
+}
+
+impl From<Vec<Value>> for Value {
+    fn from(list: Vec<Value>) -> Self {
+        Value::List(list)
+    }
+}
+
+impl<'a> From<&'a [Value]> for Value {
+    fn from(list: &[Value]) -> Self {
+        Value::List(list.to_vec())
     }
 }
 
@@ -256,17 +267,5 @@ impl fmt::Display for Value {
             Value::Table(table) => write!(f, "{}", table),
             _ => write!(f, "<{}>", self.type_name()),
         }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Closure {
-    pub(crate) block: ast::Block,
-    pub(crate) scope: Option<Scope>,
-}
-
-impl PartialEq for Closure {
-    fn eq(&self, rhs: &Closure) -> bool {
-        ptr::eq(self, rhs)
     }
 }
