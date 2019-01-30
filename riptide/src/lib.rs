@@ -29,6 +29,7 @@ macro_rules! throw {
 }
 
 mod builtins;
+mod paths;
 pub mod closure;
 pub mod exceptions;
 pub mod fd;
