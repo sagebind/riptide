@@ -9,7 +9,7 @@ edition = "2018"
 bytes = "0.4"
 itertools = "0.8"
 log = "0.4"
-nix = "0.12"
+nix = "0.13"
 utf-8 = "0.7"
 
 [dependencies.riptide-syntax]
