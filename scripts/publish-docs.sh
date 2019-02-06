@@ -3,7 +3,7 @@ set -eu
 
 COMMIT_HASH=$(git rev-parse HEAD)
 COMMIT_MESSAGE="Deploy $COMMIT_HASH"
-ORIGIN="https://${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+ORIGIN="https://${GH_PAT}@github.com/${GITHUB_REPOSITORY}.git"
 
 rm -rf target/docs/.git
 touch target/docs/.nojekyll
