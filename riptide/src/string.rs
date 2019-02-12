@@ -10,43 +10,32 @@ use std::str;
 /// Strings are really just byte arrays and do not force any particular encoding, though UTF-8 is assumed when
 /// displaying them.
 ///
-/// Since strings are copied and tossed around quite a bit, the string is
-/// reference counted to reduce memory and copying.
+/// Since strings are copied and tossed around quite a bit, the string is reference counted to reduce memory and
+/// copying.
 #[derive(Clone, Eq)]
-pub enum RipString {
-    /// A statically defined string. Saves an allocation for hard-coded strings in the interpreter.
-    Static(&'static [u8]),
-    /// A dynamically created string as a reference-counted byte buffer.
-    Heap(Bytes),
-}
+pub struct RipString(Bytes);
 
 impl Default for RipString {
     fn default() -> Self {
-        Self::EMPTY
+        Self::from_static("")
     }
 }
 
 impl RipString {
-    /// The empty string.
-    pub const EMPTY: Self = RipString::Static(b"");
-
     /// Allocate a new string and populate it with the given data.
-    pub fn allocate(string: impl Into<Bytes>) -> Self {
-        RipString::Heap(string.into())
+    pub fn new(string: impl Into<Bytes>) -> Self {
+        RipString(string.into())
     }
 
     /// Create a string from a static Rust string.
     pub fn from_static(string: &'static str) -> Self {
-        RipString::Static(string.as_bytes())
+        RipString(Bytes::from_static(string.as_bytes()))
     }
 
     /// Get a view of the raw bytes in the string.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
-        match self {
-            RipString::Static(s) => s,
-            RipString::Heap(ref ptr) => ptr.as_ref(),
-        }
+        self.0.as_ref()
     }
 
     pub fn as_utf8(&self) -> Option<&str> {
@@ -60,40 +49,37 @@ impl RipString {
 
 impl<'s> From<&'s str> for RipString {
     fn from(value: &str) -> Self {
-        Self::allocate(value)
+        Self::new(value)
     }
 }
 
 impl From<String> for RipString {
     fn from(value: String) -> Self {
-        Self::allocate(value)
+        Self::new(value)
     }
 }
 
 impl<'s> From<&'s [u8]> for RipString {
     fn from(value: &'s [u8]) -> Self {
-        Self::allocate(value)
+        Self::new(value)
     }
 }
 
 impl From<Vec<u8>> for RipString {
     fn from(value: Vec<u8>) -> Self {
-        Self::allocate(value)
+        Self::new(value)
     }
 }
 
 impl From<Bytes> for RipString {
     fn from(value: Bytes) -> Self {
-        Self::allocate(value)
+        Self::new(value)
     }
 }
 
 impl From<RipString> for Bytes {
     fn from(string: RipString) -> Self {
-        match string {
-            RipString::Static(bytes) => bytes.into(),
-            RipString::Heap(bytes) => bytes,
-        }
+        string.0
     }
 }
 
