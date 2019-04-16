@@ -18,5 +18,5 @@ action "Publish docs" {
   uses = "docker://asciidoctor/docker-asciidoctor"
   needs = ["Master"]
   args = ["sh", "-c", "apk --no-cache add git && make publish-docs"]
-  secrets = ["GH_PAT", "GITHUB_TOKEN"]
+  secrets = ["GITHUB_TOKEN"]
 }
