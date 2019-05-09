@@ -10,7 +10,7 @@ program = { SOI ~ statement_list ~ EOI }
 // Blocks are surrounded by curly braces, with an optional square bracket
 // delimited parameter list proceeding it.
 block = { block_params? ~ "{" ~ statement_list ~ "}" }
-block_params = { "[" ~ symbol* ~ "]" }
+block_params = { "<" ~ symbol* ~ ">" }
 
 // Statements are just pipelines separated by one or more separators. Extra
 // separators are ignored.

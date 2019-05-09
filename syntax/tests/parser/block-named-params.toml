@@ -1,5 +1,5 @@
 source = '''
-call [left right] {
+call <left right> {
     println
 }
 '''

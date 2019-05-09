@@ -201,11 +201,11 @@ They are also accessible in variables named with an integer of the position, suc
 Named arguments need some work. How can we implement flags?
 ====
 
-Positional arguments are useful when accepting a sequence or list of like-values, but can become more difficult to read in a function where argument order matters. Instead of using argument positions, we can give our arguments names inside square brackets (`[]`) proceeding the block:
+Positional arguments are useful when accepting a sequence or list of like-values, but can become more difficult to read in a function where argument order matters. Instead of using argument positions, we can give our arguments names inside angle brackets (`<>`) proceeding the block:
 
 [source,riptide]
 ----
-def log [level message] {
+def log <level message> {
     eprintln (str:upper $level)": $message"
 }
 
@@ -450,7 +450,7 @@ Map function using recursion:
 
 [source,riptide]
 ----
-def map [list callback] {
+def map <list callback> {
     if $list {
         callback (first $list)
         map (tail $list) $callback
