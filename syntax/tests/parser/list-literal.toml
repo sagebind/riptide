@@ -1,0 +1,24 @@
+source = '''
+println [a b c]
+'''
+ast = '''
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
+                args: [
+                    ListLiteral [
+                        String("a"),
+                        String("b"),
+                        String("c")
+                    ]
+                ]
+            }
+        ]
+    ]
+}
+'''

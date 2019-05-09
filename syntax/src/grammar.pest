@@ -22,8 +22,10 @@ statement = _{ pipeline }
 expr = {
     block
     | "(" ~ pipeline ~ ")"
-    | interpolation
     | substitution
+    | table_literal
+    | list_literal
+    | interpolated_string
     | number_literal
     | string_literal
 }
@@ -40,15 +42,6 @@ call = { named_call | unnamed_call }
 named_call = { variable_path ~ expr* }
 unnamed_call = { expr+ }
 
-// An interpolated string is surrounded by double quotes, and is made up of a
-// sequence of parts that, when stringified and concatenated in order, form the
-// desired string value.
-//
-// Escapes are handled later in the parser pipeline.
-interpolation = ${ "\"" ~ interpolation_part* ~ "\"" }
-interpolation_part = ${ substitution | interpolation_literal_part }
-interpolation_literal_part = ${ ("\\\"" | !"\"" ~ !"$" ~ ANY)+ }
-
 // Dollar sign indicates the start of some form of substitution.
 substitution = ${ &"$" ~ (
     format_substitution
@@ -62,6 +55,22 @@ variable_substitution = ${ "$" ~ variable_path }
 
 // A variable path is a nested series of identifiers for accessing variables.
 variable_path = ${ string_literal ~ (member_operator ~ string_literal)* }
+
+// A table literal expression is used to create tables declaratively.
+table_literal = { "[" ~ (table_literal_entry+ | ":") ~ "]" }
+table_literal_entry = { expr ~ ":" ~ expr }
+
+// A list literal creates a list declaratively from a sequence of expressions.
+list_literal = { "[" ~ expr* ~ "]" }
+
+// An interpolated string is surrounded by double quotes, and is made up of a
+// sequence of parts that, when stringified and concatenated in order, form the
+// desired string value.
+//
+// Escapes are handled later in the parser pipeline.
+interpolated_string = ${ "\"" ~ interpolated_string_part* ~ "\"" }
+interpolated_string_part = ${ substitution | interpolated_string_literal_part }
+interpolated_string_literal_part = ${ ("\\\"" | !"\"" ~ !"$" ~ ANY)+ }
 
 // A literal string. String literals are static and have no runtime
 // interpolation.

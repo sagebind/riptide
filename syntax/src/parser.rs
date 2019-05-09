@@ -79,32 +79,12 @@ impl FromPair for Expr {
         match pair.as_rule() {
             Rule::block => Expr::Block(Block::from_pair(pair)),
             Rule::pipeline => Expr::Pipeline(Pipeline::from_pair(pair)),
-            Rule::interpolation => Expr::InterpolatedString(InterpolatedString::from_pair(pair)),
             Rule::substitution => Expr::Substitution(Substitution::from_pair(pair)),
+            Rule::table_literal => Expr::Table(TableLiteral::from_pair(pair)),
+            Rule::list_literal => Expr::List(ListLiteral::from_pair(pair)),
+            Rule::interpolated_string => Expr::InterpolatedString(InterpolatedString::from_pair(pair)),
             Rule::string_literal => Expr::String(translate_escapes(pair.into_inner().next().unwrap().as_str())),
             Rule::number_literal => Expr::Number(pair.as_str().parse().unwrap()),
-            rule => panic!("unexpected rule: {:?}", rule),
-        }
-    }
-}
-
-impl FromPair for InterpolatedString {
-    fn from_pair(pair: Pair<Rule>) -> Self {
-        assert_eq!(pair.as_rule(), Rule::interpolation);
-
-        InterpolatedString(pair.into_inner().map(InterpolatedStringPart::from_pair).collect())
-    }
-}
-
-impl FromPair for InterpolatedStringPart {
-    fn from_pair(pair: Pair<Rule>) -> Self {
-        assert_eq!(pair.as_rule(), Rule::interpolation_part);
-
-        let pair = pair.into_inner().next().unwrap();
-
-        match pair.as_rule() {
-            Rule::substitution => InterpolatedStringPart::Substitution(Substitution::from_pair(pair)),
-            Rule::interpolation_literal_part => InterpolatedStringPart::String(translate_escapes(pair.as_str())),
             rule => panic!("unexpected rule: {:?}", rule),
         }
     }
@@ -142,6 +122,57 @@ impl FromPair for VariablePath {
         VariablePath(
             pair.into_inner().map(|pair| pair.into_inner().next().unwrap().as_str()).map(translate_escapes).collect(),
         )
+    }
+}
+
+impl FromPair for TableLiteral {
+    fn from_pair(pair: Pair<Rule>) -> Self {
+        assert_eq!(pair.as_rule(), Rule::table_literal);
+
+        TableLiteral(pair.into_inner().map(TableEntry::from_pair).collect())
+    }
+}
+
+impl FromPair for TableEntry {
+    fn from_pair(pair: Pair<Rule>) -> Self {
+        assert_eq!(pair.as_rule(), Rule::table_literal_entry);
+
+        let mut pairs = pair.into_inner();
+
+        Self {
+            key: pairs.next().map(Expr::from_pair).unwrap(),
+            value: pairs.next().map(Expr::from_pair).unwrap(),
+        }
+    }
+}
+
+impl FromPair for ListLiteral {
+    fn from_pair(pair: Pair<Rule>) -> Self {
+        assert_eq!(pair.as_rule(), Rule::list_literal);
+
+        ListLiteral(pair.into_inner().map(Expr::from_pair).collect())
+    }
+}
+
+impl FromPair for InterpolatedString {
+    fn from_pair(pair: Pair<Rule>) -> Self {
+        assert_eq!(pair.as_rule(), Rule::interpolated_string);
+
+        InterpolatedString(pair.into_inner().map(InterpolatedStringPart::from_pair).collect())
+    }
+}
+
+impl FromPair for InterpolatedStringPart {
+    fn from_pair(pair: Pair<Rule>) -> Self {
+        assert_eq!(pair.as_rule(), Rule::interpolated_string_part);
+
+        let pair = pair.into_inner().next().unwrap();
+
+        match pair.as_rule() {
+            Rule::substitution => InterpolatedStringPart::Substitution(Substitution::from_pair(pair)),
+            Rule::interpolated_string_literal_part => InterpolatedStringPart::String(translate_escapes(pair.as_str())),
+            rule => panic!("unexpected rule: {:?}", rule),
+        }
     }
 }
 

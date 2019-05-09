@@ -1,0 +1,44 @@
+source = '''
+println [:]
+
+println [\
+    foo: bar\
+    baz: 1234\
+]
+'''
+ast = '''
+Block {
+    named_params: None,
+    statements: [
+        Pipeline [
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
+                args: [
+                    TableLiteral []
+                ]
+            }
+        ],
+        Pipeline [
+            Call::Named {
+                function: VariablePath [
+                    "println"
+                ],
+                args: [
+                    TableLiteral [
+                        TableEntry {
+                            key: String("foo"),
+                            value: String("bar")
+                        },
+                        TableEntry {
+                            key: String("baz"),
+                            value: Number(1234)
+                        }
+                    ]
+                ]
+            }
+        ]
+    ]
+}
+'''

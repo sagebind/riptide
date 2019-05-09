@@ -52,22 +52,13 @@ impl fmt::Debug for Call {
 /// Contains a variant for each different expression type.
 #[derive(Clone, PartialEq)]
 pub enum Expr {
-    /// A number literal.
     Number(f64),
-
-    /// A string literal.
     String(String),
-
-    /// A substitution.
     Substitution(Substitution),
-
-    /// An interpolated string literal.
+    Table(TableLiteral),
+    List(ListLiteral),
     InterpolatedString(InterpolatedString),
-
-    /// A function block.
     Block(Block),
-
-    /// A function pipeline.
     Pipeline(Pipeline),
 }
 
@@ -77,6 +68,8 @@ impl fmt::Debug for Expr {
             Expr::Number(v) => write!(f, "Number({})", v),
             Expr::String(v) => write!(f, "String({:?})", v),
             Expr::Substitution(v) => f.debug_tuple("Substitution").field(v).finish(),
+            Expr::Table(v) => v.fmt(f),
+            Expr::List(v) => v.fmt(f),
             Expr::InterpolatedString(v) => v.fmt(f),
             Expr::Block(v) => v.fmt(f),
             Expr::Pipeline(v) => v.fmt(f),
@@ -115,6 +108,30 @@ impl fmt::Debug for VariablePath {
 impl fmt::Display for VariablePath {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0.join("->"))
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct TableLiteral(pub Vec<TableEntry>);
+
+impl fmt::Debug for TableLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "TableLiteral ").and_then(|_| f.debug_list().entries(&self.0).finish())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TableEntry {
+    pub key: Expr,
+    pub value: Expr
+}
+
+#[derive(Clone, PartialEq)]
+pub struct ListLiteral(pub Vec<Expr>);
+
+impl fmt::Debug for ListLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ListLiteral ").and_then(|_| f.debug_list().entries(&self.0).finish())
     }
 }
 

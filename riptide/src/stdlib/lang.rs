@@ -61,7 +61,7 @@ fn dump(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
                 println!("{:indent$}]", "", indent = indent);
             }
             Value::Table(table) => {
-                println!("{:indent$}{{", "", indent = indent);
+                println!("{:indent$}[", "", indent = indent);
                 for key in table.keys() {
                     println!("{:indent$}{:?} =>", "", key, indent = indent + 4);
                     if depth > 0 {
@@ -70,7 +70,7 @@ fn dump(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
                         println!("{:indent$}...", "", indent = indent + 4);
                     }
                 }
-                println!("{:indent$}}}", "", indent = indent);
+                println!("{:indent$}]", "", indent = indent);
             }
             value => println!("{:indent$}{:?}", "", value, indent = indent),
         }

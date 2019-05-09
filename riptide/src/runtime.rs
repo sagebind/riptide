@@ -406,12 +406,14 @@ impl Runtime {
         match expr {
             Expr::Number(number) => Ok(Value::Number(number)),
             Expr::String(string) => Ok(Value::from(string)),
+            Expr::Substitution(substitution) => self.evaluate_substitution(substitution),
+            Expr::Table(literal) => self.evaluate_table_literal(literal),
+            Expr::List(list) => self.evaluate_list_literal(list),
             // TODO: Handle expands
             Expr::InterpolatedString(_) => {
                 warn!("string interpolation not yet supported");
                 Ok(Value::Nil)
             },
-            Expr::Substitution(substitution) => self.evaluate_substitution(substitution),
             Expr::Block(block) => self.evaluate_block(block),
             Expr::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
         }
@@ -436,5 +438,28 @@ impl Runtime {
             Substitution::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
             _ => unimplemented!(),
         }
+    }
+
+    fn evaluate_table_literal(&mut self, literal: TableLiteral) -> Result<Value, Exception> {
+        let table = Table::default();
+
+        for entry in literal.0 {
+            let key = self.evaluate_expr(entry.key)?;
+            let value = self.evaluate_expr(entry.value)?;
+
+            table.set(key.to_string(), value);
+        }
+
+        Ok(Value::from(table))
+    }
+
+    fn evaluate_list_literal(&mut self, list: ListLiteral) -> Result<Value, Exception> {
+        let mut values = Vec::new();
+
+        for expr in list.0 {
+            values.push(self.evaluate_expr(expr)?);
+        }
+
+        Ok(Value::List(values))
     }
 }
