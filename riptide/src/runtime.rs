@@ -368,8 +368,8 @@ impl Runtime {
 
     fn evaluate_pipeline(&mut self, pipeline: &Pipeline) -> Result<Value, Exception> {
         // If there's only one call in the pipeline, we don't need to fork and can just execute the function by itself.
-        if pipeline.items.len() == 1 {
-            self.evaluate_call(pipeline.items[0].clone())
+        if pipeline.0.len() == 1 {
+            self.evaluate_call(pipeline.0[0].clone())
         } else {
             warn!("parallel pipelines not implemented!");
             Ok(Value::Nil)
@@ -378,8 +378,8 @@ impl Runtime {
 
     fn evaluate_call(&mut self, call: Call) -> Result<Value, Exception> {
         let (function, args) = match call {
-            Call::Named(path, args) => (self.get_path(&path), args),
-            Call::Unnamed(function, args) => (
+            Call::Named {function, args} => (self.get_path(&function), args),
+            Call::Unnamed {function, args} => (
                 {
                     let mut function = self.evaluate_expr(*function)?;
 

@@ -2,49 +2,49 @@ source = '''
 println hello ({read} THE) (uppercase World)
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
-                ],
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    String("hello"),
-                    Pipeline [
-                        Call::Unnamed {
-                            function: Block {
+                    "hello",
+                    Pipeline([
+                        UnnamedCall(
+                            function: Block(
                                 named_params: None,
                                 statements: [
-                                    Pipeline [
-                                        Call::Named {
-                                            function: VariablePath [
-                                                "read"
-                                            ],
-                                            args: []
-                                        }
-                                    ]
-                                ]
-                            },
+                                    Pipeline([
+                                        NamedCall(
+                                            function: VariablePath([
+                                                "read",
+                                            ]),
+                                            args: [],
+                                        ),
+                                    ]),
+                                ],
+                            ),
                             args: [
-                                String("THE")
-                            ]
-                        }
-                    ],
-                    Pipeline [
-                        Call::Named {
-                            function: VariablePath [
-                                "uppercase"
+                                "THE",
                             ],
+                        ),
+                    ]),
+                    Pipeline([
+                        NamedCall(
+                            function: VariablePath([
+                                "uppercase",
+                            ]),
                             args: [
-                                String("World")
-                            ]
-                        }
-                    ]
-                ]
-            }
-        ]
-    ]
-}
+                                "World",
+                            ],
+                        ),
+                    ]),
+                ],
+            ),
+        ]),
+    ],
+)
 '''

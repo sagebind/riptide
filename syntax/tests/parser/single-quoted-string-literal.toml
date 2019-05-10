@@ -2,19 +2,19 @@ source = '''
 println 'hello world'
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
-                ],
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    String("hello world")
-                ]
-            }
-        ]
-    ]
-}
+                    "hello world",
+                ],
+            ),
+        ]),
+    ],
+)
 '''

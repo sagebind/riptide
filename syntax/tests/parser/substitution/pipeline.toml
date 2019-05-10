@@ -2,30 +2,26 @@ source = '''
 println $(foo)
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
-                ],
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    Substitution(
-                        Pipeline(
-                            Pipeline [
-                                Call::Named {
-                                    function: VariablePath [
-                                        "foo"
-                                    ],
-                                    args: []
-                                }
-                            ]
-                        )
-                    )
-                ]
-            }
-        ]
-    ]
-}
+                    Pipeline(Pipeline([
+                        NamedCall(
+                            function: VariablePath([
+                                "foo",
+                            ]),
+                            args: [],
+                        ),
+                    ])),
+                ],
+            ),
+        ]),
+    ],
+)
 '''

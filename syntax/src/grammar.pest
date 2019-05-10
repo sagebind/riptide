@@ -25,8 +25,8 @@ expr = {
     | substitution
     | table_literal
     | list_literal
-    | interpolated_string
     | number_literal
+    | interpolated_string
     | string_literal
 }
 

@@ -11,75 +11,75 @@ call {
 call{println}
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "call"
-                ],
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "call",
+                ]),
                 args: [
-                    Block {
+                    Block(
                         named_params: None,
                         statements: [
-                            Pipeline [
-                                Call::Named {
-                                    function: VariablePath [
-                                        "println"
-                                    ],
-                                    args: []
-                                }
-                            ]
-                        ]
-                    }
-                ]
-            }
-        ],
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "call"
+                            Pipeline([
+                                NamedCall(
+                                    function: VariablePath([
+                                        "println",
+                                    ]),
+                                    args: [],
+                                ),
+                            ]),
+                        ],
+                    ),
                 ],
+            ),
+        ]),
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "call",
+                ]),
                 args: [
-                    Block {
+                    Block(
                         named_params: None,
                         statements: [
-                            Pipeline [
-                                Call::Named {
-                                    function: VariablePath [
-                                        "println"
-                                    ],
-                                    args: []
-                                }
-                            ]
-                        ]
-                    }
-                ]
-            }
-        ],
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "call"
+                            Pipeline([
+                                NamedCall(
+                                    function: VariablePath([
+                                        "println",
+                                    ]),
+                                    args: [],
+                                ),
+                            ]),
+                        ],
+                    ),
                 ],
+            ),
+        ]),
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "call",
+                ]),
                 args: [
-                    Block {
+                    Block(
                         named_params: None,
                         statements: [
-                            Pipeline [
-                                Call::Named {
-                                    function: VariablePath [
-                                        "println"
-                                    ],
-                                    args: []
-                                }
-                            ]
-                        ]
-                    }
-                ]
-            }
-        ]
-    ]
-}
+                            Pipeline([
+                                NamedCall(
+                                    function: VariablePath([
+                                        "println",
+                                    ]),
+                                    args: [],
+                                ),
+                            ]),
+                        ],
+                    ),
+                ],
+            ),
+        ]),
+    ],
+)
 '''

@@ -9,9 +9,14 @@ edition = "2018"
 pest = "2.0"
 pest_derive = "2.0"
 
+[dependencies.serde]
+version = "1.0"
+features = ["derive"]
+
 [dev-dependencies]
 difference = "2.0"
 glob = "0.3"
 log = "0.4"
+ron = "0.5"
 stderrlog = "0.4"
 toml = "0.5"

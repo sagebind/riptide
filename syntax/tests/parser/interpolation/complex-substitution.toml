@@ -4,43 +4,39 @@ println "hello $({
 })"
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
-                ],
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    InterpolatedString [
-                        String("hello "),
-                        Substitution(
-                            Pipeline(
-                                Pipeline [
-                                    Call::Unnamed {
-                                        function: Block {
-                                            named_params: None,
-                                            statements: [
-                                                Pipeline [
-                                                    Call::Named {
-                                                        function: VariablePath [
-                                                            "whoami"
-                                                        ],
-                                                        args: []
-                                                    }
-                                                ]
-                                            ]
-                                        },
-                                        args: []
-                                    }
-                                ]
-                            )
-                        )
-                    ]
-                ]
-            }
-        ]
-    ]
-}
+                    InterpolatedString([
+                        "hello ",
+                        Pipeline(Pipeline([
+                            UnnamedCall(
+                                function: Block(
+                                    named_params: None,
+                                    statements: [
+                                        Pipeline([
+                                            NamedCall(
+                                                function: VariablePath([
+                                                    "whoami",
+                                                ]),
+                                                args: [],
+                                            ),
+                                        ]),
+                                    ],
+                                ),
+                                args: [],
+                            ),
+                        ])),
+                    ]),
+                ],
+            ),
+        ]),
+    ],
+)
 '''

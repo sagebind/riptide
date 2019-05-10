@@ -8,47 +8,47 @@ source = '''
 }
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Unnamed {
-                function: Block {
+        Pipeline([
+            UnnamedCall(
+                function: Block(
                     named_params: None,
                     statements: [
-                        Pipeline [
-                            Call::Unnamed {
-                                function: Block {
+                        Pipeline([
+                            UnnamedCall(
+                                function: Block(
                                     named_params: None,
                                     statements: [
-                                        Pipeline [
-                                            Call::Unnamed {
-                                                function: Block {
+                                        Pipeline([
+                                            UnnamedCall(
+                                                function: Block(
                                                     named_params: None,
                                                     statements: [
-                                                        Pipeline [
-                                                            Call::Named {
-                                                                function: VariablePath [
-                                                                    "println"
-                                                                ],
-                                                                args: []
-                                                            }
-                                                        ]
-                                                    ]
-                                                },
-                                                args: []
-                                            }
-                                        ]
-                                    ]
-                                },
-                                args: []
-                            }
-                        ]
-                    ]
-                },
-                args: []
-            }
-        ]
-    ]
-}
+                                                        Pipeline([
+                                                            NamedCall(
+                                                                function: VariablePath([
+                                                                    "println",
+                                                                ]),
+                                                                args: [],
+                                                            ),
+                                                        ]),
+                                                    ],
+                                                ),
+                                                args: [],
+                                            ),
+                                        ]),
+                                    ],
+                                ),
+                                args: [],
+                            ),
+                        ]),
+                    ],
+                ),
+                args: [],
+            ),
+        ]),
+    ],
+)
 '''

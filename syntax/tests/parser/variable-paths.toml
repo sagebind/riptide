@@ -5,55 +5,47 @@ println $mytable
 println $mytable->'key with spaces'->bar
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
                     "lang",
                     "ext",
-                    "panic"
-                ],
+                    "panic",
+                ]),
                 args: [
-                    String("hello world")
-                ]
-            }
-        ],
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
+                    "hello world",
                 ],
+            ),
+        ]),
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    Substitution(
-                        Variable(
-                            VariablePath [
-                                "mytable"
-                            ]
-                        )
-                    )
-                ]
-            }
-        ],
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
+                    Variable(VariablePath([
+                        "mytable",
+                    ])),
                 ],
+            ),
+        ]),
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    Substitution(
-                        Variable(
-                            VariablePath [
-                                "mytable",
-                                "key with spaces",
-                                "bar"
-                            ]
-                        )
-                    )
-                ]
-            }
-        ]
-    ]
-}
+                    Variable(VariablePath([
+                        "mytable",
+                        "key with spaces",
+                        "bar",
+                    ])),
+                ],
+            ),
+        ]),
+    ],
+)
 '''

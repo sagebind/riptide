@@ -4,39 +4,39 @@ println 102.5
 println .25
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
-                ],
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    Number(100)
-                ]
-            }
-        ],
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
+                    100,
                 ],
+            ),
+        ]),
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    Number(102.5)
-                ]
-            }
-        ],
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
+                    102.5,
                 ],
+            ),
+        ]),
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    Number(0.25)
-                ]
-            }
-        ]
-    ]
-}
+                    0.25,
+                ],
+            ),
+        ]),
+    ],
+)
 '''

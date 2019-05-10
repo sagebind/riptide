@@ -7,38 +7,38 @@ println [\
 ]
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
-                ],
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    TableLiteral []
-                ]
-            }
-        ],
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
+                    TableLiteral([]),
                 ],
+            ),
+        ]),
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    TableLiteral [
-                        TableEntry {
-                            key: String("foo"),
-                            value: String("bar")
-                        },
-                        TableEntry {
-                            key: String("baz"),
-                            value: Number(1234)
-                        }
-                    ]
-                ]
-            }
-        ]
-    ]
-}
+                    TableLiteral([
+                        TableEntry(
+                            key: "foo",
+                            value: "bar",
+                        ),
+                        TableEntry(
+                            key: "baz",
+                            value: 1234,
+                        ),
+                    ]),
+                ],
+            ),
+        ]),
+    ],
+)
 '''

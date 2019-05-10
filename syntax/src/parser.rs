@@ -39,9 +39,7 @@ impl FromPair for Pipeline {
     fn from_pair(pair: Pair<Rule>) -> Self {
         assert_eq!(pair.as_rule(), Rule::pipeline);
 
-        Self {
-            items: pair.into_inner().map(Call::from_pair).collect(),
-        }
+        Pipeline(pair.into_inner().map(Call::from_pair).collect())
     }
 }
 
@@ -55,15 +53,18 @@ impl FromPair for Call {
             Rule::named_call => {
                 let mut pairs = pair.into_inner();
 
-                Call::Named(pairs.next().map(VariablePath::from_pair).unwrap(), pairs.map(Expr::from_pair).collect())
+                Call::Named {
+                    function: pairs.next().map(VariablePath::from_pair).unwrap(),
+                    args: pairs.map(Expr::from_pair).collect(),
+                }
             }
             Rule::unnamed_call => {
                 let mut pairs = pair.into_inner();
 
-                Call::Unnamed(
-                    Box::new(pairs.next().map(Expr::from_pair).unwrap()),
-                    pairs.map(Expr::from_pair).collect(),
-                )
+                Call::Unnamed {
+                    function: Box::new(pairs.next().map(Expr::from_pair).unwrap()),
+                    args: pairs.map(Expr::from_pair).collect(),
+                }
             }
             rule => panic!("unexpected rule: {:?}", rule),
         }

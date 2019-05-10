@@ -4,36 +4,34 @@ call <left right> {
 }
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "call"
-                ],
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "call",
+                ]),
                 args: [
-                    Block {
-                        named_params: Some(
-                            [
-                                "left",
-                                "right"
-                            ]
-                        ),
+                    Block(
+                        named_params: Some([
+                            "left",
+                            "right",
+                        ]),
                         statements: [
-                            Pipeline [
-                                Call::Named {
-                                    function: VariablePath [
-                                        "println"
-                                    ],
-                                    args: []
-                                }
-                            ]
-                        ]
-                    }
-                ]
-            }
-        ]
-    ]
-}
+                            Pipeline([
+                                NamedCall(
+                                    function: VariablePath([
+                                        "println",
+                                    ]),
+                                    args: [],
+                                ),
+                            ]),
+                        ],
+                    ),
+                ],
+            ),
+        ]),
+    ],
+)
 '''

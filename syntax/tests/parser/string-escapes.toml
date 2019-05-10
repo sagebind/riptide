@@ -2,23 +2,23 @@ source = '''
 println foo 'bar\'' "baz' a \" b"
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
-                ],
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    String("foo"),
-                    String("bar\'"),
-                    InterpolatedString [
-                        String("baz\' a \" b")
-                    ]
-                ]
-            }
-        ]
-    ]
-}
+                    "foo",
+                    "bar\'",
+                    InterpolatedString([
+                        "baz\' a \" b",
+                    ]),
+                ],
+            ),
+        ]),
+    ],
+)
 '''

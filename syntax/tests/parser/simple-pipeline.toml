@@ -2,23 +2,23 @@ source = '''
 hello | world
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "hello"
-                ],
-                args: []
-            },
-            Call::Named {
-                function: VariablePath [
-                    "world"
-                ],
-                args: []
-            }
-        ]
-    ]
-}
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "hello",
+                ]),
+                args: [],
+            ),
+            NamedCall(
+                function: VariablePath([
+                    "world",
+                ]),
+                args: [],
+            ),
+        ]),
+    ],
+)
 '''

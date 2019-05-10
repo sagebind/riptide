@@ -2,23 +2,23 @@ source = '''
 println [a b c]
 '''
 ast = '''
-Block {
+Block(
     named_params: None,
     statements: [
-        Pipeline [
-            Call::Named {
-                function: VariablePath [
-                    "println"
-                ],
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
                 args: [
-                    ListLiteral [
-                        String("a"),
-                        String("b"),
-                        String("c")
-                    ]
-                ]
-            }
-        ]
-    ]
-}
+                    ListLiteral([
+                        "a",
+                        "b",
+                        "c",
+                    ]),
+                ],
+            ),
+        ]),
+    ],
+)
 '''
