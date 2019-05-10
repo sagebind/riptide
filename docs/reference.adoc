@@ -40,9 +40,37 @@ Comments are ignored by the parser and are otherwise treated as whitespace.
 
 === Literals
 
+==== Number literals
+
 ==== String literals
 
-==== Number literals
+A _string literal_ is a sequence of any Unicode characters enclosed within two single-quote characters.
+
+[source,riptide]
+----
+println 'I am a string literal.'
+----
+
+==== List literals
+
+[source,riptide]
+----
+[1 2 3 'a' 'b' 'c']
+----
+
+==== Table literals
+
+A _table literal_ is an expression used to construct a <<Tables,table>> with entries defined in code.
+
+[source,riptide]
+----
+[
+    foo: 'bar'
+    say-hello: {
+        println 'hello'
+    }
+]
+----
 
 
 === Blocks
