@@ -1,5 +1,11 @@
 source = '''
 println [a b c]
+
+println [
+    1
+    2
+    3
+]
 '''
 ast = '''
 Block(
@@ -15,6 +21,20 @@ Block(
                         "a",
                         "b",
                         "c",
+                    ]),
+                ],
+            ),
+        ]),
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
+                args: [
+                    ListLiteral([
+                        1,
+                        2,
+                        3,
                     ]),
                 ],
             ),

@@ -57,11 +57,11 @@ variable_substitution = ${ "$" ~ variable_path }
 variable_path = ${ string_literal ~ (member_operator ~ string_literal)* }
 
 // A table literal expression is used to create tables declaratively.
-table_literal = { "[" ~ (table_literal_entry+ | ":") ~ "]" }
+table_literal = { "[" ~ NEWLINE* ~ ((table_literal_entry ~ NEWLINE*)+ | ":") ~ NEWLINE* ~ "]" }
 table_literal_entry = { expr ~ ":" ~ expr }
 
 // A list literal creates a list declaratively from a sequence of expressions.
-list_literal = { "[" ~ expr* ~ "]" }
+list_literal = { "[" ~ (NEWLINE* ~ expr)* ~ NEWLINE* ~ "]" }
 
 // An interpolated string is surrounded by double quotes, and is made up of a
 // sequence of parts that, when stringified and concatenated in order, form the
