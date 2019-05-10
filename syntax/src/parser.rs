@@ -1,8 +1,7 @@
 use crate::ast::*;
 use pest::iterators::Pair;
-use pest_derive::Parser;
 
-#[derive(Parser)]
+#[derive(pest_derive::Parser)]
 #[grammar = "grammar.pest"]
 pub struct Grammar;
 
