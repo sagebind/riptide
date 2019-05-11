@@ -2,6 +2,7 @@ source = '''
 println 100
 println 102.5
 println .25
+println -255
 '''
 ast = '''
 Block(
@@ -34,6 +35,16 @@ Block(
                 ]),
                 args: [
                     0.25,
+                ],
+            ),
+        ]),
+        Pipeline([
+            NamedCall(
+                function: VariablePath([
+                    "println",
+                ]),
+                args: [
+                    -255,
                 ],
             ),
         ]),
