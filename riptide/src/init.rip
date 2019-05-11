@@ -2,6 +2,12 @@
 #
 # This script must never throw an exception, or the runtime will panic.
 
+# Pre-define the global modules table.
+# table-set $GLOBALS modules [
+#     loaders: [] # A list of loader functions.
+#     loaded: [:] # A table mapping module names to the loaded object.
+# ]
+
 def lang (require lang)
 
 table-set $GLOBALS print $lang->print

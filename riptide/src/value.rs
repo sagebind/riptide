@@ -205,6 +205,18 @@ impl Value {
     pub fn get(&self, key: impl AsRef<[u8]>) -> Value {
         self.as_table().map(|t| t.get(key)).unwrap_or(Value::Nil)
     }
+
+    /// If this is a list, return a new list with the given value appended.
+    pub fn append(&self, value: impl Into<Value>) -> Option<Value> {
+        match self {
+            Value::List(items) => {
+                let mut new = items.clone();
+                new.push(value.into());
+                Some(Value::List(new))
+            },
+            _ => None,
+        }
+    }
 }
 
 impl PartialEq for Value {

@@ -1,11 +1,14 @@
 use crate::prelude::*;
 use crate::process;
 use std::process::Command;
+use std::thread;
+use std::time::Duration;
 
 pub fn load() -> Result<Value, Exception> {
     Ok(table! {
         "command" => Value::ForeignFunction(command),
         "exec" => Value::ForeignFunction(exec),
+        "sleep" => Value::ForeignFunction(sleep),
         "spawn" => Value::ForeignFunction(spawn),
     }
     .into())
@@ -59,4 +62,27 @@ fn command(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 /// Does not return.
 fn exec(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     unimplemented!();
+}
+
+/// Puts the current process to sleep for a given number of seconds.
+fn sleep(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    if let Some(Value::Number(seconds)) = args.first() {
+        let seconds = *seconds;
+
+        let duration = if seconds.is_normal() && seconds > 0f64 {
+            Duration::new(
+                seconds.trunc() as u64,
+                (seconds.fract() * 1_000_000_000f64) as u32,
+            )
+        } else {
+            Duration::from_secs(0)
+        };
+
+        log::debug!("sleeping for {}ms", duration.as_millis());
+        thread::sleep(duration);
+
+        Ok(Value::Nil)
+    } else {
+        throw!("sleep duration required")
+    }
 }

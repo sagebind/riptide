@@ -82,8 +82,7 @@ impl Scope {
 
 /// Configure a runtime.
 pub struct RuntimeBuilder {
-    module_loaders: Vec<Value>,
-    globals: Table,
+    module_loaders: Vec<ForeignFunction>,
 }
 
 impl Default for RuntimeBuilder {
@@ -96,33 +95,12 @@ impl RuntimeBuilder {
     pub fn new() -> Self {
         Self {
             module_loaders: Vec::new(),
-            globals: table! {
-                "require" => Value::ForeignFunction(modules::require),
-                "backtrace" => Value::ForeignFunction(builtins::backtrace),
-                "call" => Value::ForeignFunction(builtins::call),
-                "catch" => Value::ForeignFunction(builtins::catch),
-                "def" => Value::ForeignFunction(builtins::def),
-                "export" => Value::ForeignFunction(builtins::export),
-                "include" => Value::ForeignFunction(builtins::include),
-                "list" => Value::ForeignFunction(builtins::list),
-                "nil" => Value::ForeignFunction(builtins::nil),
-                "nth" => Value::ForeignFunction(builtins::nth),
-                "set" => Value::ForeignFunction(builtins::set),
-                "table" => Value::ForeignFunction(builtins::table),
-                "table-set" => Value::ForeignFunction(builtins::table_set),
-                "throw" => Value::ForeignFunction(builtins::throw),
-                "typeof" => Value::ForeignFunction(builtins::type_of),
-                "modules" => Value::from(table! {
-                    "loaded" => Value::from(table!()),
-                    "loaders" => Value::Nil,
-                }),
-            },
         }
     }
 
     /// Register a module loader.
     pub fn module_loader(mut self, loader: ForeignFunction) -> Self {
-        self.module_loaders.push(loader.into());
+        self.module_loaders.push(loader);
         self
     }
 
@@ -131,16 +109,27 @@ impl RuntimeBuilder {
     }
 
     pub fn build(self) -> Runtime {
-        self.globals.get("modules").as_table().unwrap().set("loaders", Value::List(self.module_loaders));
-
         let mut runtime = Runtime {
-            globals: Rc::new(self.globals),
+            globals: Rc::new(Table::new()),
             stack: Vec::new(),
             is_exiting: false,
             exit_code: 0,
         };
 
-        runtime.init();
+        // Set up globals
+        runtime.globals.set("GLOBALS", runtime.globals.clone());
+        runtime.globals.set("env", env::vars().collect::<Table>()); // Isn't that easy?
+
+        // Initialize builtins
+        builtins::init(&mut runtime);
+
+        // Register predefined module loaders
+        for loader in self.module_loaders {
+            runtime.register_module_loader(loader);
+        }
+
+        // Execute initialization
+        runtime.execute(None, include_str!("init.rip")).expect("error in runtime initialization");
 
         runtime
     }
@@ -170,16 +159,14 @@ impl Default for Runtime {
 }
 
 impl Runtime {
-    /// Initialize the runtime environment.
-    fn init(&mut self) {
-        self.globals.set("GLOBALS", self.globals.clone());
-        self.globals.set("env", env::vars().collect::<Table>()); // Isn't that easy?
-
-        self.execute(None, include_str!("init.rip")).expect("error in runtime initialization");
-    }
-
     pub fn builder() -> RuntimeBuilder {
         RuntimeBuilder::new()
+    }
+
+    /// Register a module loader.
+    pub fn register_module_loader(&self, loader: ForeignFunction) {
+        let modules = self.globals.get("modules").as_table().unwrap();
+        modules.set("loaders", modules.get("loaders").append(loader).unwrap());
     }
 
     pub fn exit_code(&self) -> i32 {

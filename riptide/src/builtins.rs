@@ -1,8 +1,34 @@
+//! Implementations of built-in global functions that are always available.
+
+use crate::modules;
 use crate::prelude::*;
 use crate::runtime::Scope;
 
+pub fn init(runtime: &mut Runtime) {
+    runtime.globals().set("require", Value::ForeignFunction(modules::require));
+    runtime.globals().set("backtrace", Value::ForeignFunction(backtrace));
+    runtime.globals().set("call", Value::ForeignFunction(call));
+    runtime.globals().set("catch", Value::ForeignFunction(catch));
+    runtime.globals().set("def", Value::ForeignFunction(def));
+    runtime.globals().set("export", Value::ForeignFunction(export));
+    runtime.globals().set("include", Value::ForeignFunction(include));
+    runtime.globals().set("list", Value::ForeignFunction(list));
+    runtime.globals().set("nil", Value::ForeignFunction(nil));
+    runtime.globals().set("nth", Value::ForeignFunction(nth));
+    runtime.globals().set("set", Value::ForeignFunction(set));
+    runtime.globals().set("table", Value::ForeignFunction(table));
+    runtime.globals().set("table-set", Value::ForeignFunction(table_set));
+    runtime.globals().set("throw", Value::ForeignFunction(throw));
+    runtime.globals().set("typeof", Value::ForeignFunction(type_of));
+
+    runtime.globals().set("modules", Value::from(table! {
+        "loaders" => Value::List(Vec::new()),
+        "loaded" => Value::from(table!()),
+    }));
+}
+
 /// Binds a value to a new variable.
-pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
         None => throw!("variable name required"),
@@ -15,7 +41,7 @@ pub fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
-pub fn set(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn set(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
         None => throw!("variable name required"),
@@ -28,7 +54,7 @@ pub fn set(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
-pub fn export(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn export(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
         None => throw!("variable name to export required"),
@@ -43,16 +69,16 @@ pub fn export(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception>
 }
 
 /// Returns the name of the primitive type of the given arguments.
-pub fn type_of(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn type_of(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(args.first().map(Value::type_name).map(Value::from).unwrap_or(Value::Nil))
 }
 
 /// Constructs a list from the given arguments.
-pub fn list(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn list(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::List(args.to_vec()))
 }
 
-pub fn nth(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn nth(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     let list = match args.get(0).and_then(Value::as_list) {
         Some(s) => s.to_vec(),
         None => throw!("first argument must be a list"),
@@ -67,7 +93,7 @@ pub fn nth(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Constructs a table from the given arguments.
-pub fn table(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn table(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     if args.len() & 1 == 1 {
         throw!("an even number of arguments is required");
     }
@@ -88,7 +114,7 @@ pub fn table(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(table.into())
 }
 
-pub fn table_set(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn table_set(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     let table = match args.get(0).and_then(Value::as_table) {
         Some(s) => s.clone(),
         None => throw!("first argument must be a table"),
@@ -107,19 +133,19 @@ pub fn table_set(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Function that always returns Nil.
-pub fn nil(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+fn nil(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
 /// Throw an exception.
-pub fn throw(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn throw(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     match args.first() {
         Some(value) => Err(Exception::from(value.clone())),
         None => Err(Exception::from(Value::Nil)),
     }
 }
 
-pub fn call(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn call(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     if let Some(function) = args.first() {
         let args = match args.get(1) {
             Some(Value::List(args)) => &args[..],
@@ -133,7 +159,7 @@ pub fn call(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Invoke a block. If the block throws an exception, catch it and return it.
-pub fn catch(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+fn catch(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     if let Some(function) = args.first() {
         match runtime.invoke(function, &[]) {
             Ok(_) => Ok(Value::Nil),
@@ -144,12 +170,12 @@ pub fn catch(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> 
     }
 }
 
-pub fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     throw!("not implemented");
 }
 
 /// Returns a backtrace of the call stack as a list of strings.
-pub fn backtrace(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+fn backtrace(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     fn scope_to_value(scope: impl AsRef<Scope>) -> Value {
         let scope = scope.as_ref();
         Value::from(table! {
