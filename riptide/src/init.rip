@@ -20,3 +20,11 @@ table-set $GLOBALS eq $lang->eq
 table-set $GLOBALS eval <string> {
     call $source $string
 }
+
+def require-x <module> {
+    send $GLOBALS->modules->loaders | map {
+        call $0 $module
+    } | filter {
+        nil? $0
+    } | head
+}

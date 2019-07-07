@@ -1,22 +1,28 @@
-workflow "Main" {
+workflow "build" {
   on = "push"
-  resolves = ["Publish docs"]
+  resolves = ["test", "publish-docs"]
 }
 
-action "Test" {
+action "test" {
   uses = "docker://rust"
   args = "cargo test"
 }
 
-action "Master" {
+action "master-branch" {
   uses = "actions/bin/filter@b2bea0749eed6beb495a8fa194c071847af60ea1"
-  needs = ["Test"]
   args = "branch master"
 }
 
-action "Publish docs" {
+action "docs" {
   uses = "docker://asciidoctor/docker-asciidoctor"
-  needs = ["Master"]
-  args = ["sh", "-c", "apk --no-cache add git && make publish-docs"]
-  secrets = ["GH_PAT", "GITHUB_TOKEN"]
+  args = "make docs"
+}
+
+action "publish-docs" {
+  uses = "maxheld83/ghpages@v0.2.1"
+  needs = ["master-branch", "docs"]
+  env = {
+    BUILD_DIR = "target/docs/"
+  }
+  secrets = ["GH_PAT"]
 }
