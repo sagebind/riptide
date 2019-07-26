@@ -4,9 +4,9 @@
 //! evaluation directly, optimization, formatting tools, etc.
 
 use crate::error::ParseError;
-use crate::parser::FromPair;
 use crate::source::*;
 use pest::Parser;
+use std::convert::TryFrom;
 
 pub mod ast;
 pub mod error;
@@ -22,7 +22,7 @@ pub fn parse(file: impl Into<SourceFile>) -> Result<ast::Block, ParseError> {
 
     parser::Grammar::parse(parser::Rule::program, file.source())
         .map(|mut pairs| pairs.next().unwrap())
-        .map(ast::Block::from_pair)
+        .and_then(ast::Block::try_from)
         .map_err(|e| translate_error(e, file.clone()))
 }
 

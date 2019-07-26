@@ -1,16 +1,16 @@
 use crate::ast::*;
+use pest::error::Error;
 use pest::iterators::Pair;
+use std::convert::TryFrom;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "grammar.pest"]
 pub struct Grammar;
 
-pub trait FromPair {
-    fn from_pair<'a>(pair: Pair<'a, Rule>) -> Self;
-}
+impl TryFrom<Pair<'_, Rule>> for Block {
+    type Error = Error<Rule>;
 
-impl FromPair for Block {
-    fn from_pair(pair: Pair<Rule>) -> Self {
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
         assert!(pair.as_rule() == Rule::program || pair.as_rule() == Rule::block);
 
         let mut pairs = pair.into_inner().collect::<Vec<_>>();
@@ -19,7 +19,10 @@ impl FromPair for Block {
             pairs.pop();
         }
 
-        let statements = pairs.pop().unwrap().into_inner().map(Pipeline::from_pair).collect();
+        let statements = pairs.pop().unwrap()
+            .into_inner()
+            .map(Pipeline::try_from)
+            .collect::<Result<_, Error<Rule>>>()?;
 
         let named_params = pairs.pop().map(|pair| {
             assert_eq!(pair.as_rule(), Rule::block_params);
@@ -27,23 +30,27 @@ impl FromPair for Block {
             pair.into_inner().map(|pair| pair.as_str().to_owned()).collect()
         });
 
-        Self {
+        Ok(Self {
             named_params,
             statements,
-        }
+        })
     }
 }
 
-impl FromPair for Pipeline {
-    fn from_pair(pair: Pair<Rule>) -> Self {
+impl TryFrom<Pair<'_, Rule>> for Pipeline {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
         assert_eq!(pair.as_rule(), Rule::pipeline);
 
-        Pipeline(pair.into_inner().map(Call::from_pair).collect())
+        Ok(Pipeline(pair.into_inner().map(Call::try_from).collect::<Result<_, _>>()?))
     }
 }
 
-impl FromPair for Call {
-    fn from_pair(pair: Pair<Rule>) -> Self {
+impl TryFrom<Pair<'_, Rule>> for Call {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
         assert_eq!(pair.as_rule(), Rule::call);
 
         let pair = pair.into_inner().next().unwrap();
@@ -52,46 +59,50 @@ impl FromPair for Call {
             Rule::named_call => {
                 let mut pairs = pair.into_inner();
 
-                Call::Named {
-                    function: pairs.next().map(VariablePath::from_pair).unwrap(),
-                    args: pairs.map(Expr::from_pair).collect(),
-                }
+                Ok(Call::Named {
+                    function: VariablePath::try_from(pairs.next().unwrap())?,
+                    args: pairs.map(Expr::try_from).collect::<Result<_, _>>()?,
+                })
             }
             Rule::unnamed_call => {
                 let mut pairs = pair.into_inner();
 
-                Call::Unnamed {
-                    function: Box::new(pairs.next().map(Expr::from_pair).unwrap()),
-                    args: pairs.map(Expr::from_pair).collect(),
-                }
+                Ok(Call::Unnamed {
+                    function: Box::new(pairs.next().map(Expr::try_from).unwrap()?),
+                    args: pairs.map(Expr::try_from).collect::<Result<_, _>>()?,
+                })
             }
             rule => panic!("unexpected rule: {:?}", rule),
         }
     }
 }
 
-impl FromPair for Expr {
-    fn from_pair(pair: Pair<Rule>) -> Self {
+impl TryFrom<Pair<'_, Rule>> for Expr {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
         assert_eq!(pair.as_rule(), Rule::expr);
 
         let pair = pair.into_inner().next().unwrap();
 
         match pair.as_rule() {
-            Rule::block => Expr::Block(Block::from_pair(pair)),
-            Rule::pipeline => Expr::Pipeline(Pipeline::from_pair(pair)),
-            Rule::substitution => Expr::Substitution(Substitution::from_pair(pair)),
-            Rule::table_literal => Expr::Table(TableLiteral::from_pair(pair)),
-            Rule::list_literal => Expr::List(ListLiteral::from_pair(pair)),
-            Rule::interpolated_string => Expr::InterpolatedString(InterpolatedString::from_pair(pair)),
-            Rule::string_literal => Expr::String(translate_escapes(pair.into_inner().next().unwrap().as_str())),
-            Rule::number_literal => Expr::Number(pair.as_str().parse().unwrap()),
+            Rule::block => Ok(Expr::Block(Block::try_from(pair)?)),
+            Rule::pipeline => Ok(Expr::Pipeline(Pipeline::try_from(pair)?)),
+            Rule::substitution => Ok(Expr::Substitution(Substitution::try_from(pair)?)),
+            Rule::table_literal => Ok(Expr::Table(TableLiteral::try_from(pair)?)),
+            Rule::list_literal => Ok(Expr::List(ListLiteral::try_from(pair)?)),
+            Rule::interpolated_string => Ok(Expr::InterpolatedString(InterpolatedString::try_from(pair)?)),
+            Rule::string_literal => Ok(Expr::String(translate_escapes(pair.into_inner().next().unwrap().as_str()))),
+            Rule::number_literal => Ok(Expr::Number(pair.as_str().parse().unwrap())),
             rule => panic!("unexpected rule: {:?}", rule),
         }
     }
 }
 
-impl FromPair for Substitution {
-    fn from_pair(pair: Pair<Rule>) -> Self {
+impl TryFrom<Pair<'_, Rule>> for Substitution {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
         assert_eq!(pair.as_rule(), Rule::substitution);
 
         let pair = pair.into_inner().next().unwrap();
@@ -99,78 +110,90 @@ impl FromPair for Substitution {
         match pair.as_rule() {
             Rule::format_substitution => {
                 let mut pairs = pair.into_inner();
-                let variable = pairs.next().map(VariablePath::from_pair).unwrap();
+                let variable = pairs.next().map(VariablePath::try_from).unwrap()?;
                 let flags = pairs.next().map(|pair| pair.as_str().to_owned());
 
-                Substitution::Format(variable, flags)
+                Ok(Substitution::Format(variable, flags))
             }
             Rule::pipeline_substitution => {
-                Substitution::Pipeline(Pipeline::from_pair(pair.into_inner().next().unwrap()))
+                Ok(Substitution::Pipeline(Pipeline::try_from(pair.into_inner().next().unwrap())?))
             }
             Rule::variable_substitution => {
-                Substitution::Variable(VariablePath::from_pair(pair.into_inner().next().unwrap()))
+                Ok(Substitution::Variable(VariablePath::try_from(pair.into_inner().next().unwrap())?))
             }
             rule => panic!("unexpected rule: {:?}", rule),
         }
     }
 }
 
-impl FromPair for VariablePath {
-    fn from_pair(pair: Pair<Rule>) -> Self {
+impl TryFrom<Pair<'_, Rule>> for VariablePath {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
         assert_eq!(pair.as_rule(), Rule::variable_path);
 
-        VariablePath(
+        Ok(VariablePath(
             pair.into_inner().map(|pair| pair.into_inner().next().unwrap().as_str()).map(translate_escapes).collect(),
-        )
+        ))
     }
 }
 
-impl FromPair for TableLiteral {
-    fn from_pair(pair: Pair<Rule>) -> Self {
+impl TryFrom<Pair<'_, Rule>> for TableLiteral {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
         assert_eq!(pair.as_rule(), Rule::table_literal);
 
-        TableLiteral(pair.into_inner().map(TableEntry::from_pair).collect())
+        Ok(TableLiteral(pair.into_inner().map(TableEntry::try_from).collect::<Result<_, _>>()?))
     }
 }
 
-impl FromPair for TableEntry {
-    fn from_pair(pair: Pair<Rule>) -> Self {
+impl TryFrom<Pair<'_, Rule>> for TableEntry {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
         assert_eq!(pair.as_rule(), Rule::table_literal_entry);
 
         let mut pairs = pair.into_inner();
 
-        Self {
-            key: pairs.next().map(Expr::from_pair).unwrap(),
-            value: pairs.next().map(Expr::from_pair).unwrap(),
-        }
+        Ok(Self {
+            key: pairs.next().map(Expr::try_from).unwrap()?,
+            value: pairs.next().map(Expr::try_from).unwrap()?,
+        })
     }
 }
 
-impl FromPair for ListLiteral {
-    fn from_pair(pair: Pair<Rule>) -> Self {
+impl TryFrom<Pair<'_, Rule>> for ListLiteral {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
         assert_eq!(pair.as_rule(), Rule::list_literal);
 
-        ListLiteral(pair.into_inner().map(Expr::from_pair).collect())
+        Ok(ListLiteral(pair.into_inner().map(Expr::try_from).collect::<Result<_, _>>()?))
     }
 }
 
-impl FromPair for InterpolatedString {
-    fn from_pair(pair: Pair<Rule>) -> Self {
+impl TryFrom<Pair<'_, Rule>> for InterpolatedString {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
         assert_eq!(pair.as_rule(), Rule::interpolated_string);
 
-        InterpolatedString(pair.into_inner().map(InterpolatedStringPart::from_pair).collect())
+        Ok(InterpolatedString(pair.into_inner().map(InterpolatedStringPart::try_from).collect::<Result<_, _>>()?))
     }
 }
 
-impl FromPair for InterpolatedStringPart {
-    fn from_pair(pair: Pair<Rule>) -> Self {
+impl TryFrom<Pair<'_, Rule>> for InterpolatedStringPart {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
         assert_eq!(pair.as_rule(), Rule::interpolated_string_part);
 
         let pair = pair.into_inner().next().unwrap();
 
         match pair.as_rule() {
-            Rule::substitution => InterpolatedStringPart::Substitution(Substitution::from_pair(pair)),
-            Rule::interpolated_string_literal_part => InterpolatedStringPart::String(translate_escapes(pair.as_str())),
+            Rule::substitution => Substitution::try_from(pair).map(InterpolatedStringPart::Substitution),
+            Rule::interpolated_string_literal_part => Ok(InterpolatedStringPart::String(translate_escapes(pair.as_str()))),
             rule => panic!("unexpected rule: {:?}", rule),
         }
     }
