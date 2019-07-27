@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "riptide",
+    "runtime",
     "shell",
     "syntax",
 ]

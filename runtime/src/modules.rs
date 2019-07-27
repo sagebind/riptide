@@ -11,7 +11,7 @@ use std::env;
 use std::path::*;
 
 /// Builtin function that loads modules by name.
-pub fn require(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+pub async fn require(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     if args.is_empty() {
         throw!("module name to require must be given");
     }
@@ -27,7 +27,8 @@ pub fn require(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception
 
     if let Some(loaders) = runtime.globals().get("modules").get("loaders").as_list() {
         for loader in loaders {
-            match runtime.invoke(loader, &[name.clone().into()]) {
+            let args = [Value::from(name.clone())];
+            match runtime.invoke(loader, &args).await {
                 Ok(Value::Nil) => continue,
                 Err(exception) => return Err(exception),
                 Ok(value) => {
@@ -42,12 +43,12 @@ pub fn require(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception
     throw!("module '{}' not found", name)
 }
 
-pub fn relative_loader(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+pub async fn relative_loader(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
 /// A module loader function that loads modules from system-wide paths.
-pub fn system_loader(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+pub async fn system_loader(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     let name = args.first().and_then(Value::as_string).ok_or("module name must be a string")?;
 
     if let Ok(path) = env::var("RIPTIDE_PATH") {
@@ -56,7 +57,7 @@ pub fn system_loader(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exc
             path.push(format!("{}.rip", name));
 
             if path.exists() {
-                return runtime.execute(Some(name.as_utf8().unwrap()), SourceFile::open(path)?);
+                return runtime.execute(Some(name.as_utf8().unwrap()), SourceFile::open(path)?).await;
             }
         }
     }

@@ -2,6 +2,7 @@
 use crate::builtins;
 use crate::closure::Closure;
 use crate::exceptions::Exception;
+use crate::foreign::ForeignFn;
 use crate::modules;
 use crate::stdlib;
 use crate::string::RipString;
@@ -10,12 +11,11 @@ use crate::syntax::ast::*;
 use crate::syntax::source::*;
 use crate::table::Table;
 use crate::value::*;
+use futures::executor::block_on;
+use futures::future::FutureExt;
 use log::*;
 use std::env;
 use std::rc::Rc;
-
-/// A native function that can be called by managed code.
-pub type ForeignFunction = fn(&mut Runtime, &[Value]) -> Result<Value, Exception>;
 
 /// A function evaluation scope.
 ///
@@ -82,7 +82,7 @@ impl Scope {
 
 /// Configure a runtime.
 pub struct RuntimeBuilder {
-    module_loaders: Vec<ForeignFunction>,
+    module_loaders: Vec<ForeignFn>,
 }
 
 impl Default for RuntimeBuilder {
@@ -99,8 +99,8 @@ impl RuntimeBuilder {
     }
 
     /// Register a module loader.
-    pub fn module_loader(mut self, loader: ForeignFunction) -> Self {
-        self.module_loaders.push(loader);
+    pub fn module_loader(mut self, loader: impl Into<ForeignFn>) -> Self {
+        self.module_loaders.push(loader.into());
         self
     }
 
@@ -129,7 +129,7 @@ impl RuntimeBuilder {
         }
 
         // Execute initialization
-        runtime.execute(None, include_str!("init.rip")).expect("error in runtime initialization");
+        block_on(runtime.execute(None, include_str!("init.rip"))).expect("error in runtime initialization");
 
         runtime
     }
@@ -164,9 +164,9 @@ impl Runtime {
     }
 
     /// Register a module loader.
-    pub fn register_module_loader(&self, loader: ForeignFunction) {
+    pub fn register_module_loader(&self, loader: impl Into<ForeignFn>) {
         let modules = self.globals.get("modules").as_table().unwrap();
-        modules.set("loaders", modules.get("loaders").append(loader).unwrap());
+        modules.set("loaders", modules.get("loaders").append(loader.into()).unwrap());
     }
 
     pub fn exit_code(&self) -> i32 {
@@ -273,8 +273,8 @@ impl Runtime {
     /// anonymous module will be created for the file.
     ///
     /// If a compilation error occurs with the given file, an exception will be returned.
-    pub fn execute(&mut self, module: Option<&str>, file: impl Into<SourceFile>) -> Result<Value, Exception> {
-        self.execute_in_scope(module, file, Rc::new(table!()))
+    pub async fn execute(&mut self, module: Option<&str>, file: impl Into<SourceFile>) -> Result<Value, Exception> {
+        self.execute_in_scope(module, file, Rc::new(table!())).await
     }
 
     /// Execute the given script using the given scope.
@@ -283,17 +283,17 @@ impl Runtime {
     /// anonymous module will be created for the file.
     ///
     /// If a compilation error occurs with the given file, an exception will be returned.
-    pub fn execute_in_scope(&mut self, module: Option<&str>, file: impl Into<SourceFile>, scope: Rc<Table>) -> Result<Value, Exception> {
+    pub async fn execute_in_scope(&mut self, module: Option<&str>, file: impl Into<SourceFile>, scope: Rc<Table>) -> Result<Value, Exception> {
         let closure = self.compile(file, Some(scope))?;
 
-        self.invoke_closure(&closure, &[])
+        self.invoke_closure(&closure, &[]).await
     }
 
     /// Invoke the given value as a function with the given arguments.
-    pub fn invoke(&mut self, value: &Value, args: &[Value]) -> Result<Value, Exception> {
+    pub async fn invoke(&mut self, value: &Value, args: &[Value]) -> Result<Value, Exception> {
         match value {
-            Value::Block(closure) => self.invoke_closure(closure, args),
-            Value::ForeignFunction(function) => self.invoke_native(function, args),
+            Value::Block(closure) => self.invoke_closure(closure, args).boxed_local().await,
+            Value::ForeignFn(function) => self.invoke_native(function, args).boxed_local().await,
             value => throw!("cannot invoke '{:?}' as a function", value),
         }
     }
@@ -311,7 +311,7 @@ impl Runtime {
     }
 
     /// Invoke a block with an array of arguments.
-    fn invoke_closure(&mut self, closure: &Closure, args: &[Value]) -> Result<Value, Exception> {
+    async fn invoke_closure(&mut self, closure: &Closure, args: &[Value]) -> Result<Value, Exception> {
         let mut scope = closure.scope.as_ref().unwrap().as_ref().clone();
         scope.args = args.to_vec();
 
@@ -321,7 +321,7 @@ impl Runtime {
 
         // Evaluate each statement in order.
         for statement in closure.block.statements.iter() {
-            match self.evaluate_pipeline(&statement) {
+            match self.evaluate_pipeline(&statement).await {
                 Ok(return_value) => last_return_value = return_value,
                 Err(exception) => {
                     // Exception thrown; abort and unwind stack.
@@ -337,7 +337,7 @@ impl Runtime {
     }
 
     /// Invoke a native function.
-    fn invoke_native(&mut self, function: &ForeignFunction, args: &[Value]) -> Result<Value, Exception> {
+    async fn invoke_native(&mut self, function: &ForeignFn, args: &[Value]) -> Result<Value, Exception> {
         self.stack.push(Rc::new(Scope {
             name: Some(String::from("<native>")),
             args: args.to_vec(),
@@ -346,29 +346,29 @@ impl Runtime {
             parent: None,
         }));
 
-        let result = (function)(self, &args);
+        let result = function.call(self, &args).await;
 
         self.stack.pop();
 
         result
     }
 
-    fn evaluate_pipeline(&mut self, pipeline: &Pipeline) -> Result<Value, Exception> {
+    async fn evaluate_pipeline(&mut self, pipeline: &Pipeline) -> Result<Value, Exception> {
         // If there's only one call in the pipeline, we don't need to fork and can just execute the function by itself.
         if pipeline.0.len() == 1 {
-            self.evaluate_call(pipeline.0[0].clone())
+            self.evaluate_call(pipeline.0[0].clone()).boxed_local().await
         } else {
             warn!("parallel pipelines not implemented!");
             Ok(Value::Nil)
         }
     }
 
-    fn evaluate_call(&mut self, call: Call) -> Result<Value, Exception> {
+    async fn evaluate_call(&mut self, call: Call) -> Result<Value, Exception> {
         let (function, args) = match call {
             Call::Named {function, args} => (self.get_path(&function), args),
             Call::Unnamed {function, args} => (
                 {
-                    let mut function = self.evaluate_expr(*function)?;
+                    let mut function = self.evaluate_expr(*function).await?;
 
                     // If the function is a string, resolve binding names first before we try to eval the item as a function.
                     if let Some(value) = function.as_string().map(|name| self.get(name)) {
@@ -383,26 +383,26 @@ impl Runtime {
 
         let mut arg_values = Vec::with_capacity(args.len());
         for expr in args {
-            arg_values.push(self.evaluate_expr(expr)?);
+            arg_values.push(self.evaluate_expr(expr).await?);
         }
 
-        self.invoke(&function, &arg_values)
+        self.invoke(&function, &arg_values).await
     }
 
-    fn evaluate_expr(&mut self, expr: Expr) -> Result<Value, Exception> {
+    async fn evaluate_expr(&mut self, expr: Expr) -> Result<Value, Exception> {
         match expr {
             Expr::Number(number) => Ok(Value::Number(number)),
             Expr::String(string) => Ok(Value::from(string)),
-            Expr::Substitution(substitution) => self.evaluate_substitution(substitution),
-            Expr::Table(literal) => self.evaluate_table_literal(literal),
-            Expr::List(list) => self.evaluate_list_literal(list),
+            Expr::Substitution(substitution) => self.evaluate_substitution(substitution).boxed_local().await,
+            Expr::Table(literal) => self.evaluate_table_literal(literal).boxed_local().await,
+            Expr::List(list) => self.evaluate_list_literal(list).boxed_local().await,
             // TODO: Handle expands
             Expr::InterpolatedString(_) => {
                 warn!("string interpolation not yet supported");
                 Ok(Value::Nil)
             },
             Expr::Block(block) => self.evaluate_block(block),
-            Expr::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
+            Expr::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline).await,
         }
     }
 
@@ -419,20 +419,20 @@ impl Runtime {
         }))
     }
 
-    fn evaluate_substitution(&mut self, substitution: Substitution) -> Result<Value, Exception> {
+    async fn evaluate_substitution(&mut self, substitution: Substitution) -> Result<Value, Exception> {
         match substitution {
             Substitution::Variable(path) => Ok(self.get_path(&path)),
-            Substitution::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline),
+            Substitution::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline).await,
             _ => unimplemented!(),
         }
     }
 
-    fn evaluate_table_literal(&mut self, literal: TableLiteral) -> Result<Value, Exception> {
+    async fn evaluate_table_literal(&mut self, literal: TableLiteral) -> Result<Value, Exception> {
         let table = Table::default();
 
         for entry in literal.0 {
-            let key = self.evaluate_expr(entry.key)?;
-            let value = self.evaluate_expr(entry.value)?;
+            let key = self.evaluate_expr(entry.key).await?;
+            let value = self.evaluate_expr(entry.value).await?;
 
             table.set(key.to_string(), value);
         }
@@ -440,11 +440,11 @@ impl Runtime {
         Ok(Value::from(table))
     }
 
-    fn evaluate_list_literal(&mut self, list: ListLiteral) -> Result<Value, Exception> {
+    async fn evaluate_list_literal(&mut self, list: ListLiteral) -> Result<Value, Exception> {
         let mut values = Vec::new();
 
         for expr in list.0 {
-            values.push(self.evaluate_expr(expr)?);
+            values.push(self.evaluate_expr(expr).await?);
         }
 
         Ok(Value::List(values))

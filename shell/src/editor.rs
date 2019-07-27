@@ -1,5 +1,5 @@
 use crate::buffer::Buffer;
-use riptide::fd::*;
+use riptide_runtime::fd::*;
 use std::borrow::Cow;
 use std::io::Write;
 use std::os::unix::io::*;

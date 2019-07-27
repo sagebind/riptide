@@ -1,5 +1,5 @@
 [package]
-name = "riptide"
+name = "riptide-runtime"
 version = "0.2.0"
 authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "The Riptide language interpreter"
@@ -7,6 +7,7 @@ edition = "2018"
 
 [dependencies]
 bytes = "0.4"
+futures-preview = "0.3.0-alpha.17"
 itertools = "0.8"
 log = "0.4"
 nix = "0.14"

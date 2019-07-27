@@ -1,7 +1,7 @@
 use log::*;
-use riptide::fd;
-use riptide::prelude::*;
-use riptide::syntax::source::SourceFile;
+use riptide_runtime::fd;
+use riptide_runtime::prelude::*;
+use riptide_runtime::syntax::source::SourceFile;
 use std::io::Read;
 use std::path::PathBuf;
 use std::process;
@@ -43,19 +43,22 @@ fn run() -> Result<i32, Exception> {
     let mut stdin = fd::stdin();
     let mut runtime = Runtime::default();
 
+    // An executor for running the asynchronous runtime.
+    let mut executor = futures::executor::LocalPool::default();
+
     // We want successive commands to act like they are being executed in the
     // same file, so set up a shared scope to execute them in.
-    let scope = Rc::new(riptide::table!());
+    let scope = Rc::new(riptide_runtime::table!());
 
     // If at least one command is given, execute those in order and exit.
     if !options.commands.is_empty() {
         for command in options.commands {
-            runtime.execute(None, command)?;
+            executor.run_until(runtime.execute(None, command))?;
         }
     }
     // If a file is given, execute it and exit.
     else if let Some(file) = options.file.as_ref() {
-        runtime.execute(None, SourceFile::open(file)?)?;
+        executor.run_until(runtime.execute(None, SourceFile::open(file)?))?;
     }
     // Interactive mode.
     else if stdin.is_tty() {
@@ -65,7 +68,7 @@ fn run() -> Result<i32, Exception> {
             let line = editor.read_line();
 
             if !line.is_empty() {
-                match runtime.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()) {
+                match executor.run_until(runtime.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone())) {
                     Ok(Value::Nil) => {}
                     Ok(value) => println!("{}", value),
                     Err(e) => eprintln!("error: {}", e),
@@ -77,7 +80,7 @@ fn run() -> Result<i32, Exception> {
     else {
         let mut source = String::new();
         stdin.read_to_string(&mut source)?;
-        runtime.execute(None, SourceFile::named("<stdin>", source))?;
+        executor.run_until(runtime.execute(None, SourceFile::named("<stdin>", source)))?;
     }
 
     Ok(runtime.exit_code())

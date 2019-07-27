@@ -5,30 +5,30 @@ use std::io::{stdout, Write};
 pub fn load() -> Result<Value, Exception> {
     Ok(table! {
         "VERSION" => Value::from(env!("CARGO_PKG_VERSION")),
-        "assert" => Value::ForeignFunction(assert),
-        "panic" => Value::ForeignFunction(panic),
-        "print" => Value::ForeignFunction(print),
-        "println" => Value::ForeignFunction(println),
-        "dump" => Value::ForeignFunction(dump),
-        "exit" => Value::ForeignFunction(exit),
-        "eq" => Value::ForeignFunction(|_, args| {
-            Ok(args.iter().all_equal().into())
-        }),
+        "assert" => Value::foreign_fn(assert),
+        "panic" => Value::foreign_fn(panic),
+        "print" => Value::foreign_fn(print),
+        "println" => Value::foreign_fn(println),
+        "dump" => Value::foreign_fn(dump),
+        "exit" => Value::foreign_fn(exit),
+        // "eq" => Value::foreign_fn(|_, args: &[Value]| async {
+        //     Ok(args.iter().all_equal().into())
+        // }),
     }
     .into())
 }
 
-fn assert(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+async fn assert(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     unimplemented!();
 }
 
 /// Terminates the current process immediately.
-fn panic(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+async fn panic(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
     panic!();
 }
 
 /// Print the given values to standard output.
-fn print(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn print(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     for arg in args.iter() {
         print!("{}", arg.to_string());
     }
@@ -38,7 +38,7 @@ fn print(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Print the given values to standard output, followed by a newline.
-fn println(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn println(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     for arg in args.iter() {
         println!("{}", arg.to_string());
     }
@@ -46,7 +46,7 @@ fn println(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
-fn dump(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn dump(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     fn dump(value: &Value, indent: usize, depth: usize) {
         match value {
             Value::List(items) => {
@@ -84,7 +84,7 @@ fn dump(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Terminate the current process.
-fn exit(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn exit(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     let code = match args.first() {
         Some(&Value::Number(number)) => number as i32,
         _ => 0,

@@ -1,3 +1,5 @@
+#![feature(async_await)]
+
 /// Convenience macro for creating a table.
 #[macro_export]
 macro_rules! table {
@@ -32,6 +34,7 @@ mod builtins;
 pub mod closure;
 pub mod exceptions;
 pub mod fd;
+mod foreign;
 pub mod modules;
 pub mod process;
 pub mod runtime;
@@ -51,3 +54,5 @@ pub mod prelude {
     pub use crate::table::Table;
     pub use crate::value::Value;
 }
+
+pub use crate::runtime::Runtime;

@@ -1,6 +1,6 @@
 //! Structures and implementations of the built-in data types.
 use crate::closure::Closure;
-use crate::runtime::*;
+use crate::foreign::ForeignFn;
 use crate::string::RipString;
 use crate::table::Table;
 use std::fmt;
@@ -41,7 +41,7 @@ pub enum Value {
     Block(Rc<Closure>),
 
     /// Reference to a foreign (native) function.
-    ForeignFunction(ForeignFunction),
+    ForeignFn(ForeignFn),
 }
 
 impl Default for Value {
@@ -110,9 +110,9 @@ impl From<Closure> for Value {
     }
 }
 
-impl From<ForeignFunction> for Value {
-    fn from(f: ForeignFunction) -> Self {
-        Value::ForeignFunction(f)
+impl From<ForeignFn> for Value {
+    fn from(f: ForeignFn) -> Self {
+        Value::ForeignFn(f)
     }
 }
 
@@ -126,6 +126,10 @@ impl Value {
     pub const TRUE: Self = Value::Boolean(true);
     pub const FALSE: Self = Value::Boolean(false);
 
+    pub fn foreign_fn(function: impl Into<ForeignFn>) -> Self {
+        Value::ForeignFn(function.into())
+    }
+
     /// Get the type of value, rendered as a string.
     pub fn type_name(&self) -> &'static str {
         match self {
@@ -136,7 +140,7 @@ impl Value {
             Value::List(_) => "list",
             Value::Table(_) => "table",
             Value::Block(_) => "block",
-            Value::ForeignFunction(_) => "native",
+            Value::ForeignFn(_) => "native",
         }
     }
 

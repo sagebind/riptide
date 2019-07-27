@@ -4,7 +4,7 @@ workflow "build" {
 }
 
 action "test" {
-  uses = "docker://rust"
+  uses = "docker://rustlang/rust:nightly"
   args = "cargo test"
 }
 

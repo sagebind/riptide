@@ -7,9 +7,10 @@ edition = "2018"
 
 [dependencies]
 clogger = "0.1"
+futures-preview = "0.3.0-alpha.17"
 log = "0.4"
 structopt = "0.2"
 termion = "1.5"
 
-[dependencies.riptide]
-path = "../riptide"
+[dependencies.riptide-runtime]
+path = "../runtime"
