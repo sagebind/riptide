@@ -112,8 +112,7 @@ impl RuntimeBuilder {
         let mut runtime = Runtime {
             globals: Rc::new(Table::new()),
             stack: Vec::new(),
-            is_exiting: false,
-            exit_code: 0,
+            exit_code: None,
         };
 
         // Set up globals
@@ -142,14 +141,13 @@ pub struct Runtime {
 
     /// Current call stack.
     ///
-    /// This is exposed to the rest of the crate to support the `backtrace` function.
+    /// This is exposed to the rest of the crate to support the `backtrace`
+    /// function.
     pub(crate) stack: Vec<Rc<Scope>>,
 
-    /// If application code inside the runtime requests the runtime to exit, this is set to true.
-    is_exiting: bool,
-
-    /// The runtime exit code to return after it shuts down.
-    exit_code: i32,
+    /// If the runtime has been requested to exit, this will be filled with the
+    /// exit code to return after it shuts down.
+    exit_code: Option<i32>,
 }
 
 impl Default for Runtime {
@@ -169,12 +167,10 @@ impl Runtime {
         modules.set("loaders", modules.get("loaders").append(loader.into()).unwrap());
     }
 
-    pub fn exit_code(&self) -> i32 {
+    /// Get the current exit code for the runtime. If no exit has been
+    /// requested, then `None` will be returned.
+    pub fn exit_code(&self) -> Option<i32> {
         self.exit_code
-    }
-
-    pub fn exit_requested(&self) -> bool {
-        self.is_exiting
     }
 
     /// Request the runtime to exit with the given exit code.
@@ -182,8 +178,14 @@ impl Runtime {
     /// The runtime will exit gracefully.
     pub fn exit(&mut self, code: i32) {
         debug!("runtime exit requested with exit code {}", code);
-        self.exit_code = code;
-        self.is_exiting = true;
+
+        match self.exit_code.take() {
+            None => self.exit_code = Some(code),
+            // Upgrade a zero exit code to a nonzero one.
+            Some(0) => self.exit_code = Some(code),
+            // Do not change an existing nonzero code if already exiting.
+            Some(_) => {},
+        }
     }
 
     /// Get the table that holds all global variables.
