@@ -11,6 +11,7 @@ use structopt::StructOpt;
 
 mod buffer;
 mod editor;
+mod logger;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -26,20 +27,28 @@ struct Options {
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     verbosity: usize,
 
+    /// Silence all output
+    #[structopt(short = "q", long = "quiet")]
+    quiet: bool,
+
     /// File to execute
     #[structopt(parse(from_os_str))]
     file: Option<PathBuf>,
 }
 
 fn main() {
-    // Set up logger.
-    clogger::init();
+    log_panics::init();
+    logger::init();
 
     // Parse command line args.
     let options = Options::from_args();
 
-    // Increase log level by the number of -v flags given.
-    clogger::set_verbosity(options.verbosity);
+    // Adjust logging settings based on args.
+    if options.quiet {
+        logger::quiet();
+    } else {
+        logger::verbose(options.verbosity);
+    }
 
     let stdin = fd::stdin();
     let mut runtime = Runtime::default();
@@ -70,11 +79,13 @@ fn main() {
     }
     // Execute stdin
     else {
+        log::trace!("stdin is not a tty");
         executor.run_until(execute_stdin(&mut runtime, stdin));
     }
 
     // End this process with a particular exit code if specified.
     if let Some(exit_code) = runtime.exit_code() {
+        log::trace!("exit({})", exit_code);
         process::exit(exit_code);
     }
 }
@@ -85,7 +96,7 @@ async fn execute_file(runtime: &mut Runtime, path: impl AsRef<Path>) {
         Ok(s) => s,
         Err(e) => {
             log::error!("opening file {:?}: {}", path, e);
-            runtime.exit(1);
+            runtime.exit(exitcode::NOINPUT);
             return;
         }
     };

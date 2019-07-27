@@ -13,9 +13,9 @@ use crate::table::Table;
 use crate::value::*;
 use futures::executor::block_on;
 use futures::future::FutureExt;
-use log::*;
 use std::env;
 use std::rc::Rc;
+use std::time::Instant;
 
 /// A function evaluation scope.
 ///
@@ -109,6 +109,8 @@ impl RuntimeBuilder {
     }
 
     pub fn build(self) -> Runtime {
+        let start_time = Instant::now();
+
         let mut runtime = Runtime {
             globals: Rc::new(Table::new()),
             stack: Vec::new(),
@@ -129,6 +131,8 @@ impl RuntimeBuilder {
 
         // Execute initialization
         block_on(runtime.execute(None, include_str!("init.rip"))).expect("error in runtime initialization");
+
+        log::debug!("runtime took {:?} to initialize", start_time.elapsed());
 
         runtime
     }
@@ -177,7 +181,7 @@ impl Runtime {
     ///
     /// The runtime will exit gracefully.
     pub fn exit(&mut self, code: i32) {
-        debug!("runtime exit requested with exit code {}", code);
+        log::debug!("runtime exit requested with exit code {}", code);
 
         match self.exit_code.take() {
             None => self.exit_code = Some(code),
@@ -360,7 +364,7 @@ impl Runtime {
         if pipeline.0.len() == 1 {
             self.evaluate_call(pipeline.0[0].clone()).boxed_local().await
         } else {
-            warn!("parallel pipelines not implemented!");
+            log::warn!("parallel pipelines not implemented!");
             Ok(Value::Nil)
         }
     }
@@ -400,7 +404,7 @@ impl Runtime {
             Expr::List(list) => self.evaluate_list_literal(list).boxed_local().await,
             // TODO: Handle expands
             Expr::InterpolatedString(_) => {
-                warn!("string interpolation not yet supported");
+                log::warn!("string interpolation not yet supported");
                 Ok(Value::Nil)
             },
             Expr::Block(block) => self.evaluate_block(block),

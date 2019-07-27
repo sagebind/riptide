@@ -6,11 +6,21 @@ description = "RipShell"
 edition = "2018"
 
 [dependencies]
-clogger = "0.1"
+atty = "0.2"
+directories = "2.0"
+exitcode = "1.1"
 futures-preview = "0.3.0-alpha.17"
-log = "0.4"
 structopt = "0.2"
+termcolor = "1"
 termion = "1.5"
+
+[dependencies.log]
+version = "0.4"
+features = ["std"]
+
+[dependencies.log-panics]
+version = "2.0"
+features = ["with-backtrace"]
 
 [dependencies.riptide-runtime]
 path = "../runtime"
