@@ -10,8 +10,10 @@ bytes = "0.4"
 futures-preview = "0.3.0-alpha.17"
 itertools = "0.8"
 log = "0.4"
+mio = "0.6"
 nix = "0.14"
 os_pipe = "0.8"
+signal-hook = "0.1"
 utf-8 = "0.7"
 
 [dependencies.riptide-syntax]

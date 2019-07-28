@@ -132,7 +132,7 @@ async fn interactive_main(runtime: &mut Runtime) {
     // same file, so set up a shared scope to execute them in.
     let scope = Rc::new(riptide_runtime::table!());
 
-    let mut editor = editor::Editor::new();
+    let mut editor = editor::Editor::default();
 
     while runtime.exit_code().is_none() {
         let line = editor.read_line();

@@ -25,17 +25,23 @@ pub struct Editor<I: Read, O: Write> {
     buffer: Buffer,
 }
 
-impl Editor<io::Stdin, io::Stdout> {
-    pub fn new() -> Self {
-        Self {
-            stdin: io::stdin().keys(),
-            stdout: io::stdout().into_raw_mode().unwrap(),
-            buffer: Buffer::new(),
-        }
+impl Default for Editor<io::Stdin, io::Stdout> {
+    fn default() -> Self {
+        Self::new(io::stdin(), io::stdout())
     }
 }
 
 impl<I: Read, O: Write> Editor<I, O> {
+    pub fn new(stdin: I, stdout: O) -> Self {
+        Self {
+            stdin: stdin.keys(),
+            stdout: stdout.into_raw_mode().unwrap(),
+            buffer: Buffer::new(),
+        }
+    }
+
+    /// Show a command prompt to the user and await for the user to input a
+    /// command. The typed command is returned once submitted.
     pub fn read_line(&mut self) -> String {
         let prompt = self.get_prompt_str();
         write!(self.stdout, "{}", prompt).unwrap();
