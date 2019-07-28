@@ -5,18 +5,12 @@ use log::{
     Metadata,
     Record,
 };
-use std::io::Write;
-use termcolor::{
-    Color,
-    ColorChoice,
-    ColorSpec,
-    StandardStream,
-    WriteColor,
-};
+use std::io::{self, Stderr, Write};
+use termion::{color, style};
 
 pub fn init() {
     struct Logger {
-        out: StandardStream,
+        stream: Stderr,
         pretty: bool,
     }
 
@@ -26,38 +20,42 @@ pub fn init() {
         }
 
         fn log(&self, record: &Record) {
-            let (name, color) = match record.metadata().level() {
-                Level::Error => ("error", Color::Red),
-                Level::Warn => ("warn", Color::Magenta),
-                Level::Info => ("info", Color::Yellow),
-                Level::Debug => ("debug", Color::Cyan),
-                Level::Trace => ("trace", Color::Blue),
-            };
-
-            let mut out = self.out.lock();
+            let mut stream = self.stream.lock();
 
             if self.pretty {
-                let mut color_spec = ColorSpec::new();
-                color_spec.set_bold(true);
-                color_spec.set_fg(Some(color));
-                out.set_color(&color_spec).ok();
+                write!(stream, "{}", style::Bold).ok();
+
+                match record.level() {
+                    Level::Error => write!(stream, "{}", color::Fg(color::Red)),
+                    Level::Warn => write!(stream, "{}", color::Fg(color::Magenta)),
+                    Level::Info => write!(stream, "{}", color::Fg(color::Yellow)),
+                    Level::Debug => write!(stream, "{}", color::Fg(color::Cyan)),
+                    Level::Trace => write!(stream, "{}", color::Fg(color::Blue)),
+                }.ok();
             }
 
-            write!(out, "{}", name).unwrap();
+            write!(stream, "{}", match record.level() {
+                Level::Error => "error",
+                Level::Warn => "warn",
+                Level::Info => "info",
+                Level::Debug => "debug",
+                Level::Trace => "trace",
+            }).unwrap();
 
             if self.pretty {
-                out.reset().ok();
+                write!(stream, "{}", style::Reset).ok();
             }
 
-            writeln!(out, ": {}", record.args()).unwrap();
+            writeln!(stream, ": {}", record.args()).unwrap();
         }
 
         fn flush(&self) {}
     }
 
-    let pretty = atty::is(atty::Stream::Stderr);
+    let stderr = io::stderr();
+    let pretty = termion::is_tty(&stderr);
     let logger = Logger {
-        out: StandardStream::stderr(ColorChoice::Auto),
+        stream: stderr,
         pretty,
     };
 

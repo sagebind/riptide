@@ -6,12 +6,10 @@ description = "RipShell"
 edition = "2018"
 
 [dependencies]
-atty = "0.2"
 directories = "2.0"
 exitcode = "1.1"
 futures-preview = "0.3.0-alpha.17"
 structopt = "0.2"
-termcolor = "1"
 termion = "1.5"
 
 [dependencies.log]

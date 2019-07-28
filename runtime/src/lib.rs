@@ -33,9 +33,9 @@ macro_rules! throw {
 mod builtins;
 pub mod closure;
 pub mod exceptions;
-pub mod fd;
 mod foreign;
 pub mod modules;
+mod pipeline;
 pub mod process;
 pub mod runtime;
 pub mod stdlib;

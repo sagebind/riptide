@@ -1,9 +1,8 @@
 #![feature(async_await)]
 
-use riptide_runtime::fd::{self, ReadPipe};
 use riptide_runtime::prelude::*;
 use riptide_runtime::syntax::source::SourceFile;
-use std::io::Read;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::process;
 use std::rc::Rc;
@@ -50,7 +49,8 @@ fn main() {
         logger::verbose(options.verbosity);
     }
 
-    let stdin = fd::stdin();
+    let stdin = io::stdin();
+
     let mut runtime = Runtime::default();
 
     // An executor for running the asynchronous runtime.
@@ -74,7 +74,7 @@ fn main() {
         executor.run_until(execute_file(&mut runtime, file));
     }
     // Interactive mode.
-    else if stdin.is_tty() {
+    else if termion::is_tty(&stdin) {
         executor.run_until(interactive_main(&mut runtime));
     }
     // Execute stdin
@@ -107,7 +107,7 @@ async fn execute_file(runtime: &mut Runtime, path: impl AsRef<Path>) {
     }
 }
 
-async fn execute_stdin(runtime: &mut Runtime, mut stdin: ReadPipe) {
+async fn execute_stdin(runtime: &mut Runtime, mut stdin: impl Read) {
     let mut source = String::new();
 
     if let Err(e) = stdin.read_to_string(&mut source) {
@@ -141,7 +141,7 @@ async fn interactive_main(runtime: &mut Runtime) {
             match runtime.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()).await {
                 Ok(Value::Nil) => {}
                 Ok(value) => println!("{}", value),
-                Err(e) => eprintln!("error: {}", e),
+                Err(e) => log::error!("{}", e),
             }
         }
     }

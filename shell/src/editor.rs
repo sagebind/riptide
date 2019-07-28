@@ -1,49 +1,51 @@
 use crate::buffer::Buffer;
-use riptide_runtime::fd::*;
 use std::borrow::Cow;
-use std::io::Write;
-use std::os::unix::io::*;
-use termion::clear;
-use termion::cursor;
-use termion::event::Key;
-use termion::input::TermRead;
-use termion::raw::*;
+use std::io::{self, Read, Write};
+use termion::{
+    clear,
+    cursor,
+    event::Key,
+    input::{
+        Keys,
+        TermRead,
+    },
+    raw::{
+        IntoRawMode,
+        RawTerminal,
+    },
+};
 
 /// The default prompt string if none is defined.
 const DEFAULT_PROMPT: &str = "$ ";
 
 /// Controls the interactive command line editor.
-pub struct Editor {
-    stdin: ReadPipe,
-    stdout: WritePipe,
-    _stderr: WritePipe,
+pub struct Editor<I: Read, O: Write> {
+    stdin: Keys<I>,
+    stdout: RawTerminal<O>,
     buffer: Buffer,
 }
 
-impl Editor {
+impl Editor<io::Stdin, io::Stdout> {
     pub fn new() -> Self {
         Self {
-            stdin: unsafe { ReadPipe::from_raw_fd(0) },
-            stdout: unsafe { WritePipe::from_raw_fd(1) },
-            _stderr: unsafe { WritePipe::from_raw_fd(2) },
+            stdin: io::stdin().keys(),
+            stdout: io::stdout().into_raw_mode().unwrap(),
             buffer: Buffer::new(),
         }
     }
+}
 
+impl<I: Read, O: Write> Editor<I, O> {
     pub fn read_line(&mut self) -> String {
         let prompt = self.get_prompt_str();
         write!(self.stdout, "{}", prompt).unwrap();
         self.stdout.flush().unwrap();
 
-        // Duplicate stdin and stdout handles to workaround Termion's API.
-        let stdin = self.stdin.clone();
-        let stdout = self.stdout.clone();
-
         // Enter raw mode.
-        let _raw_guard = stdout.into_raw_mode().unwrap();
+        self.stdout.activate_raw_mode().unwrap();
 
         // Handle keyboard events.
-        for key in stdin.keys() {
+        while let Some(key) = self.stdin.next() {
             match key.unwrap() {
                 Key::Char('\n') => {
                     write!(self.stdout, "\r\n").unwrap();
@@ -78,6 +80,8 @@ impl Editor {
 
             self.redraw();
         }
+
+        self.stdout.suspend_raw_mode().unwrap();
 
         // Move the command line out of out buffer and return it.
         self.buffer.take_text()

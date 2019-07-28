@@ -3,6 +3,8 @@ use nix::unistd;
 use std::ffi::CString;
 use std::process;
 
+pub fn command() {}
+
 /// Spawn a new child process and execute the given function in it.
 ///
 /// Returns the PID of the child process.

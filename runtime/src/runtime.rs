@@ -289,7 +289,7 @@ impl Runtime {
     /// anonymous module will be created for the file.
     ///
     /// If a compilation error occurs with the given file, an exception will be returned.
-    pub async fn execute_in_scope(&mut self, module: Option<&str>, file: impl Into<SourceFile>, scope: Rc<Table>) -> Result<Value, Exception> {
+    pub async fn execute_in_scope(&mut self, _module: Option<&str>, file: impl Into<SourceFile>, scope: Rc<Table>) -> Result<Value, Exception> {
         let closure = self.compile(file, Some(scope))?;
 
         self.invoke_closure(&closure, &[]).await
