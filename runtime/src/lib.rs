@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 /// Convenience macro for creating a table.
 #[macro_export]
 macro_rules! table {

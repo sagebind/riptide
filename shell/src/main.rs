@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 use riptide_runtime::prelude::*;
 use riptide_runtime::syntax::source::SourceFile;
 use std::io::{self, Read};
