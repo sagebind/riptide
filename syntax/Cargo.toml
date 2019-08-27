@@ -5,13 +5,17 @@ authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "The Riptide language parser"
 edition = "2018"
 
+[features]
+default = ["serde"]
+
 [dependencies]
 pest = "2.1"
 pest_derive = "2.1"
 
 [dependencies.serde]
-version = "1.0"
+version = "1"
 features = ["derive"]
+optional = true
 
 [dev-dependencies]
 difference = "2.0"
