@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 bytes = "0.4"
-futures-preview = "0.3.0-alpha.17"
+futures-preview = "0.3.0-alpha.18"
 itertools = "0.8"
 log = "0.4"
 mio = "0.6"
