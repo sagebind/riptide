@@ -1,4 +1,4 @@
-use crate::runtime::Scope;
+use crate::scope::Scope;
 use crate::syntax::ast;
 use std::ptr;
 use std::rc::Rc;

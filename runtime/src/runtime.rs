@@ -1,84 +1,26 @@
 //! The Riptide runtime.
-use crate::builtins;
-use crate::closure::Closure;
-use crate::exceptions::Exception;
-use crate::foreign::ForeignFn;
-use crate::modules;
-use crate::stdlib;
-use crate::string::RipString;
-use crate::syntax;
-use crate::syntax::ast::*;
-use crate::syntax::source::*;
-use crate::table::Table;
-use crate::value::*;
+
+use crate::{
+    builtins,
+    closure::Closure,
+    exceptions::Exception,
+    foreign::ForeignFn,
+    modules,
+    reactor::Reactor,
+    scope::Scope,
+    stdlib,
+    string::RipString,
+    syntax,
+    syntax::ast::*,
+    syntax::source::*,
+    table::Table,
+    value::*,
+};
 use futures::executor::block_on;
 use futures::future::FutureExt;
 use std::env;
 use std::rc::Rc;
 use std::time::Instant;
-
-/// A function evaluation scope.
-///
-/// A scope encompasses the _environment_ in which functions are evaluated. Scopes are hierarchial, and contain a
-/// reference to the enclosing, or parent, scope.
-#[derive(Clone, Debug, Default)]
-pub struct Scope {
-    /// The scope name, for debugging purposes.
-    name: Option<String>,
-
-    /// Arguments that were passed into this scope.
-    args: Vec<Value>,
-
-    /// Local scope bindings. May shadow bindings in the parent scope.
-    pub(crate) bindings: Rc<Table>,
-
-    /// A reference to the module this scope is executed in.
-    pub(crate) module: Rc<Table>,
-
-    /// The parent scope to this one.
-    pub(crate) parent: Option<Rc<Scope>>,
-}
-
-impl Scope {
-    /// Get the name of this scope, if available.
-    pub fn name(&self) -> &str {
-        self.name.as_ref().map(|s| &s as &str).unwrap_or("<unknown>")
-    }
-
-    /// Get the arguments passed in to the current scope.
-    pub fn args(&self) -> &[Value] {
-        &self.args
-    }
-
-    /// Lookup a variable name in the current scope.
-    pub fn get(&self, name: impl AsRef<[u8]>) -> Value {
-        let name = name.as_ref();
-
-        if name == b"args" {
-            return self.args.iter().cloned().collect();
-        }
-
-        if name == b"exports" {
-            return self.module.clone().into();
-        }
-
-        match self.bindings.get(name) {
-            Value::Nil => {},
-            value => return value,
-        };
-
-        if let Some(parent) = self.parent.as_ref() {
-            return parent.get(name);
-        }
-
-        Value::Nil
-    }
-
-    /// Set a variable value in the current scope.
-    pub fn set(&self, name: impl Into<RipString>, value: impl Into<Value>) {
-        self.bindings.set(name, value);
-    }
-}
 
 /// Configure a runtime.
 pub struct RuntimeBuilder {
@@ -112,6 +54,7 @@ impl RuntimeBuilder {
         let start_time = Instant::now();
 
         let mut runtime = Runtime {
+            reactor: Reactor::new().unwrap(),
             globals: Rc::new(Table::new()),
             stack: Vec::new(),
             exit_code: None,
@@ -140,14 +83,13 @@ impl RuntimeBuilder {
 
 /// Holds all of the state of a Riptide runtime.
 pub struct Runtime {
+    reactor: Reactor,
+
     /// Table where global values are stored that are not on the stack.
     globals: Rc<Table>,
 
     /// Current call stack.
-    ///
-    /// This is exposed to the rest of the crate to support the `backtrace`
-    /// function.
-    pub(crate) stack: Vec<Rc<Scope>>,
+    stack: Vec<Rc<Scope>>,
 
     /// If the runtime has been requested to exit, this will be filled with the
     /// exit code to return after it shuts down.
@@ -205,6 +147,11 @@ impl Runtime {
     /// Get the table that holds all global variables.
     pub(crate) fn module_scope(&self) -> &Table {
         &self.scope().module
+    }
+
+    /// Get a backtrace-like view of the stack.
+    pub(crate) fn backtrace(&self) -> impl Iterator<Item = &Rc<Scope>> {
+        self.stack.iter().rev()
     }
 
     /// Lookup a variable name in the current scope.

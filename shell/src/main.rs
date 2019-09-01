@@ -9,6 +9,7 @@ use structopt::StructOpt;
 mod buffer;
 mod editor;
 mod logger;
+mod raw;
 
 #[derive(Debug, StructOpt)]
 struct Options {

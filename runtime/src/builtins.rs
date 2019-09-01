@@ -2,7 +2,7 @@
 
 use crate::modules;
 use crate::prelude::*;
-use crate::runtime::Scope;
+use crate::scope::Scope;
 
 pub fn init(runtime: &mut Runtime) {
     runtime.globals().set("require", Value::ForeignFn(modules::require.into()));
@@ -186,9 +186,7 @@ async fn backtrace(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exceptio
         })
     }
 
-    Ok(runtime.stack
-        .iter()
-        .rev()
+    Ok(runtime.backtrace()
         .map(scope_to_value)
         .collect())
 }

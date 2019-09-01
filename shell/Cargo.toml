@@ -12,6 +12,7 @@ exitcode = "1.1"
 futures-preview = "0.3.0-alpha.18"
 structopt = "0.3"
 termion = "1.5"
+termios = "0.3"
 # For parsing user input
 vte = "0.3"
 

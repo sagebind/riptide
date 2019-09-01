@@ -2,7 +2,7 @@
 #[macro_export]
 macro_rules! table {
     () => {
-        $crate::table::Table::default()
+        $crate::Table::default()
     };
 
     (
@@ -13,7 +13,7 @@ macro_rules! table {
         {
             let table = table!();
             $(
-                table.set($key, $crate::value::Value::from($value));
+                table.set($key, $crate::Value::from($value));
             )*
             table
         }
@@ -24,22 +24,24 @@ macro_rules! table {
 #[macro_export]
 macro_rules! throw {
     ($($arg:tt)*) => {
-        return Err($crate::exceptions::Exception::from(format!($($arg)*)))
+        return Err($crate::Exception::from(format!($($arg)*)))
     };
 }
 
 mod builtins;
-pub mod closure;
-pub mod exceptions;
+mod closure;
+mod exceptions;
 mod foreign;
-pub mod modules;
-mod pipeline;
-pub mod process;
-pub mod runtime;
-pub mod stdlib;
-pub mod string;
-pub mod table;
-pub mod value;
+mod modules;
+mod pipes;
+mod process;
+mod reactor;
+mod runtime;
+mod scope;
+mod stdlib;
+mod string;
+mod table;
+mod value;
 
 // Re-export syntax crate.
 pub mod syntax {
@@ -53,4 +55,7 @@ pub mod prelude {
     pub use crate::value::Value;
 }
 
+pub use crate::exceptions::Exception;
 pub use crate::runtime::Runtime;
+pub use crate::table::Table;
+pub use crate::value::Value;
