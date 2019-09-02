@@ -1,5 +1,5 @@
-use crate::scope::Scope;
-use crate::syntax::ast;
+use super::scope::Scope;
+use super::syntax::ast;
 use std::ptr;
 use std::rc::Rc;
 

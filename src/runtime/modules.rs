@@ -4,8 +4,8 @@
 //! by a series of _loaders_. Each loader is a function that converts the module name into the module contents if found,
 //! or Nil if not found.
 
-use crate::prelude::*;
-use crate::syntax::source::SourceFile;
+use super::prelude::*;
+use super::syntax::source::SourceFile;
 use log::*;
 use std::env;
 use std::path::*;

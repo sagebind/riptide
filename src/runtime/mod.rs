@@ -32,6 +32,7 @@ mod builtins;
 mod closure;
 mod exceptions;
 mod foreign;
+mod io;
 mod modules;
 mod pipes;
 mod process;
@@ -49,13 +50,14 @@ pub mod syntax {
 }
 
 pub mod prelude {
-    pub use crate::exceptions::Exception;
-    pub use crate::runtime::Runtime;
-    pub use crate::table::Table;
-    pub use crate::value::Value;
+    pub use crate::runtime::exceptions::Exception;
+    pub use crate::runtime::runtime::Runtime;
+    pub use crate::runtime::table::Table;
+    pub use crate::runtime::value::Value;
 }
 
-pub use crate::exceptions::Exception;
-pub use crate::runtime::Runtime;
-pub use crate::table::Table;
-pub use crate::value::Value;
+pub use self::exceptions::Exception;
+pub use self::foreign::ForeignFn;
+pub use self::runtime::Runtime;
+pub use self::table::Table;
+pub use self::value::Value;

@@ -1,5 +1,5 @@
-use crate::string::RipString;
-use crate::value::Value;
+use super::string::RipString;
+use super::value::Value;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt;

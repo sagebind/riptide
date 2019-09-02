@@ -1,4 +1,4 @@
-use crate::{string::RipString, table::Table, value::Value};
+use super::{string::RipString, table::Table, value::Value};
 use std::rc::Rc;
 
 /// A function evaluation scope.

@@ -1,5 +1,5 @@
-use riptide_runtime::prelude::*;
-use riptide_runtime::syntax::source::SourceFile;
+use crate::runtime::prelude::*;
+use crate::runtime::syntax::source::SourceFile;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::process;
@@ -10,6 +10,7 @@ mod buffer;
 mod editor;
 mod logger;
 mod raw;
+mod runtime;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -129,7 +130,7 @@ async fn execute_stdin(runtime: &mut Runtime, mut stdin: impl Read) {
 async fn interactive_main(runtime: &mut Runtime) {
     // We want successive commands to act like they are being executed in the
     // same file, so set up a shared scope to execute them in.
-    let scope = Rc::new(riptide_runtime::table!());
+    let scope = Rc::new(table!());
 
     let mut editor = editor::Editor::default();
 

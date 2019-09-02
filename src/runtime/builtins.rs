@@ -1,8 +1,8 @@
 //! Implementations of built-in global functions that are always available.
 
-use crate::modules;
-use crate::prelude::*;
-use crate::scope::Scope;
+use super::modules;
+use super::prelude::*;
+use super::scope::Scope;
 
 pub fn init(runtime: &mut Runtime) {
     runtime.globals().set("require", Value::ForeignFn(modules::require.into()));

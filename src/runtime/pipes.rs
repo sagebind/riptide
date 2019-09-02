@@ -1,7 +1,7 @@
 //! File descriptor and pipe utilities.
 
+use super::io::{ReadHandle, RegisterRead, RegisterWrite, WriteHandle};
 use futures::io::{AsyncRead, AsyncWrite};
-use mio::{unix::EventedFd, Ready, Token};
 use nix::{fcntl::OFlag, unistd::pipe2};
 use std::{
     fmt,
@@ -10,10 +10,8 @@ use std::{
     io::Write,
     os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd},
     pin::Pin,
-    task::{Context, Poll},
+    task::{Context, Poll, Waker},
 };
-
-pub(crate) struct PipeController {}
 
 /// Open a new pipe and return a reader/writer pair.
 pub fn pipe() -> io::Result<(PipeReader, PipeWriter)> {
@@ -34,23 +32,41 @@ pub fn pipe() -> io::Result<(PipeReader, PipeWriter)> {
 }
 
 /// Reading end of an asynchronous pipe.
-pub struct PipeReader(File);
+pub struct PipeReader {
+    handle: Option<ReadHandle>,
+    file: File,
+}
+
+impl PipeReader {
+    pub fn stdin() -> Self {
+        unsafe { Self::from_raw_fd(0) }
+    }
+}
 
 impl FromRawFd for PipeReader {
     unsafe fn from_raw_fd(fd: RawFd) -> Self {
-        Self(File::from_raw_fd(fd))
+        Self {
+            handle: None,
+            file: File::from_raw_fd(fd),
+        }
     }
 }
 
 impl AsRawFd for PipeReader {
     fn as_raw_fd(&self) -> RawFd {
-        self.0.as_raw_fd()
+        self.file.as_raw_fd()
     }
 }
 
 impl IntoRawFd for PipeReader {
     fn into_raw_fd(self) -> RawFd {
-        self.0.into_raw_fd()
+        self.file.into_raw_fd()
+    }
+}
+
+impl RegisterRead for PipeReader {
+    fn init_read_handle(&mut self, handle: ReadHandle) {
+        self.handle = Some(handle);
     }
 }
 
@@ -74,6 +90,16 @@ impl fmt::Debug for PipeReader {
 
 /// Writing end of an asynchronous pipe.
 pub struct PipeWriter(File);
+
+impl PipeWriter {
+    pub fn stdout() -> Self {
+        unsafe { Self::from_raw_fd(1) }
+    }
+
+    pub fn stderr() -> Self {
+        unsafe { Self::from_raw_fd(2) }
+    }
+}
 
 impl PipeWriter {
     unsafe fn enter<F, R>(self: Pin<&mut Self>, f: F) -> Poll<io::Result<R>>
@@ -108,32 +134,6 @@ impl AsRawFd for PipeWriter {
 impl IntoRawFd for PipeWriter {
     fn into_raw_fd(self) -> RawFd {
         self.0.into_raw_fd()
-    }
-}
-
-impl mio::Evented for PipeWriter {
-    fn register(
-        &self,
-        poll: &mio::Poll,
-        token: Token,
-        interest: Ready,
-        opts: mio::PollOpt,
-    ) -> io::Result<()> {
-        EventedFd(&self.as_raw_fd()).register(poll, token, interest, opts)
-    }
-
-    fn reregister(
-        &self,
-        poll: &mio::Poll,
-        token: Token,
-        interest: Ready,
-        opts: mio::PollOpt,
-    ) -> io::Result<()> {
-        EventedFd(&self.as_raw_fd()).reregister(poll, token, interest, opts)
-    }
-
-    fn deregister(&self, poll: &mio::Poll) -> io::Result<()> {
-        EventedFd(&self.as_raw_fd()).deregister(poll)
     }
 }
 

@@ -1,8 +1,8 @@
 //! Structures and implementations of the built-in data types.
-use crate::closure::Closure;
-use crate::foreign::ForeignFn;
-use crate::string::RipString;
-use crate::table::Table;
+use super::closure::Closure;
+use super::foreign::ForeignFn;
+use super::string::RipString;
+use super::table::Table;
 use std::fmt;
 use std::iter::FromIterator;
 use std::rc::Rc;

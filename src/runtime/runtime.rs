@@ -1,11 +1,12 @@
 //! The Riptide runtime.
 
-use crate::{
+use super::{
     builtins,
     closure::Closure,
     exceptions::Exception,
     foreign::ForeignFn,
     modules,
+    pipes::{PipeReader, PipeWriter},
     reactor::Reactor,
     scope::Scope,
     stdlib,
@@ -18,13 +19,20 @@ use crate::{
 };
 use futures::executor::block_on;
 use futures::future::FutureExt;
-use std::env;
-use std::rc::Rc;
-use std::time::Instant;
+use std::{
+    cell::RefCell,
+    env,
+    future::Future,
+    rc::Rc,
+    time::Instant,
+};
 
 /// Configure a runtime.
 pub struct RuntimeBuilder {
     module_loaders: Vec<ForeignFn>,
+    stdin: Option<PipeReader>,
+    stdout: Option<PipeWriter>,
+    stderr: Option<PipeWriter>,
 }
 
 impl Default for RuntimeBuilder {
@@ -37,6 +45,9 @@ impl RuntimeBuilder {
     pub fn new() -> Self {
         Self {
             module_loaders: Vec::new(),
+            stdin: None,
+            stdout: None,
+            stderr: None,
         }
     }
 
@@ -54,7 +65,7 @@ impl RuntimeBuilder {
         let start_time = Instant::now();
 
         let mut runtime = Runtime {
-            reactor: Reactor::new().unwrap(),
+            reactor: Rc::new(RefCell::new(Reactor::new().unwrap())),
             globals: Rc::new(Table::new()),
             stack: Vec::new(),
             exit_code: None,
@@ -83,7 +94,7 @@ impl RuntimeBuilder {
 
 /// Holds all of the state of a Riptide runtime.
 pub struct Runtime {
-    reactor: Reactor,
+    reactor: Rc<RefCell<Reactor>>,
 
     /// Table where global values are stored that are not on the stack.
     globals: Rc<Table>,
@@ -194,6 +205,20 @@ impl Runtime {
         if self.stack.len() >= 2 {
             self.stack[self.stack.len() - 2].set(name, value);
         }
+    }
+
+    pub fn run<F, Fut>(&mut self, f: F) -> <Fut as Future>::Output
+    where F: for<'r> FnOnce(&'r mut Runtime) -> Fut,
+            Fut: Future
+    {
+        let reactor = self.reactor.clone();
+        let mut reactor_mut = reactor.borrow_mut();
+        let future = f(self);
+        reactor_mut.run_until(future)
+    }
+
+    pub fn run_until<F: Future>(&self, future: F) -> <F as Future>::Output {
+        self.reactor.clone().borrow_mut().run_until(future)
     }
 
     /// Compile the given source code as a closure.

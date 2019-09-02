@@ -1,6 +1,41 @@
+[package]
+name = "riptide"
+version = "0.2.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+description = "The Riptide programming language interpreter"
+edition = "2018"
+
+[dependencies]
+bytes = "0.4"
+clipboard = "0.5"
+directories = "2.0"
+exitcode = "1.1"
+futures-preview = "0.3.0-alpha.18"
+itertools = "0.8"
+mio = "0.6" # async I/O
+nix = "0.15"
+rusqlite = "0.20" # history db
+slab = "0.4"
+structopt = "0.3" # arg parsing
+termion = "1.5"
+termios = "0.3"
+utf-8 = "0.7"
+vte = "0.3" # parsing user input
+
+[dependencies.log]
+version = "0.4"
+features = ["std"]
+
+[dependencies.log-panics]
+version = "2.0"
+features = ["with-backtrace"]
+
+[dependencies.riptide-syntax]
+path = "syntax"
+
+[dependencies.signal-hook]
+version = "0.1"
+features = ["mio-support"]
+
 [workspace]
-members = [
-    "runtime",
-    "shell",
-    "syntax",
-]
+members = ["syntax"]
