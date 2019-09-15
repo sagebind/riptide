@@ -10,6 +10,8 @@ pub mod pipes;
 pub mod process;
 pub mod reactor;
 
+pub use self::reactor::Reactor;
+
 #[derive(Default)]
 pub(crate) struct ReadHandle {
     pub(crate) waker: AtomicWaker,

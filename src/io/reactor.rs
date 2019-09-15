@@ -24,13 +24,13 @@ use std::{
 const WAKER_TOKEN: Token = Token(usize::max_value() - 1);
 const SIGNAL_TOKEN: Token = Token(usize::max_value() - 2);
 
-pub(crate) struct IoRegistration {
+pub struct IoRegistration {
     read_waker: AtomicWaker,
     write_waker: AtomicWaker,
 }
 
 /// Single-threaded, I/O based executor. Only understands pipes.
-pub(crate) struct Reactor {
+pub struct Reactor {
     poll: mio::Poll,
     events: Events,
     signals: Signals,

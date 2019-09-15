@@ -1,6 +1,7 @@
-#![allow(unused)]
+//! The Riptide programming language interpreter.
 
 use crate::{
+    io::Reactor,
     runtime::prelude::*,
     runtime::syntax::source::SourceFile,
     shell::editor::Editor,
@@ -61,15 +62,15 @@ fn main() {
 
     let stdin = std::io::stdin();
 
-    let mut runtime = Runtime::default();
-
     // An executor for running the asynchronous runtime.
-    let mut executor = futures::executor::LocalPool::default();
+    let mut reactor = Reactor::new().unwrap();
+
+    let mut runtime = Runtime::default();
 
     // If at least one command is given, execute those in order and exit.
     if !options.commands.is_empty() {
         for command in options.commands {
-            match executor.run_until(runtime.execute(None, command)) {
+            match reactor.run_until(runtime.execute(None, command)) {
                 Ok(_) => {}
                 Err(e) => {
                     log::error!("{}", e);
@@ -81,16 +82,16 @@ fn main() {
     }
     // If a file is given, execute it and exit.
     else if let Some(file) = options.file.as_ref() {
-        executor.run_until(execute_file(&mut runtime, file));
+        reactor.run_until(execute_file(&mut runtime, file));
     }
     // Interactive mode.
     else if termion::is_tty(&stdin) {
-        executor.run_until(interactive_main(&mut runtime));
+        reactor.run_until(interactive_main(&mut runtime));
     }
     // Execute stdin
     else {
         log::trace!("stdin is not a tty");
-        executor.run_until(execute_stdin(&mut runtime, stdin));
+        reactor.run_until(execute_stdin(&mut runtime, stdin));
     }
 
     // End this process with a particular exit code if specified.
