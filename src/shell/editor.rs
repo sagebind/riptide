@@ -1,4 +1,4 @@
-use crate::buffer::Buffer;
+use super::buffer::Buffer;
 use std::borrow::Cow;
 use std::io::{self, Read, Write};
 use termion::{

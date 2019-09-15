@@ -1,5 +1,5 @@
 use super::scope::Scope;
-use super::syntax::ast;
+use riptide_syntax::ast;
 use std::ptr;
 use std::rc::Rc;
 

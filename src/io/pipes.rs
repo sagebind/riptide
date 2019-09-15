@@ -1,6 +1,6 @@
 //! File descriptor and pipe utilities.
 
-use super::io::{ReadHandle, RegisterRead, RegisterWrite, WriteHandle};
+use super::{ReadHandle, RegisterRead, RegisterWrite, WriteHandle};
 use futures::io::{AsyncRead, AsyncWrite};
 use nix::{fcntl::OFlag, unistd::pipe2};
 use std::{

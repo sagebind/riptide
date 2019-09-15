@@ -1,16 +1,26 @@
-use crate::runtime::prelude::*;
-use crate::runtime::syntax::source::SourceFile;
-use std::io::{self, Read};
-use std::path::{Path, PathBuf};
-use std::process;
-use std::rc::Rc;
+#![allow(unused)]
+
+use crate::{
+    runtime::prelude::*,
+    runtime::syntax::source::SourceFile,
+    shell::editor::Editor,
+};
+use std::{
+    io::Read,
+    path::{Path, PathBuf},
+    process::exit,
+    rc::Rc,
+};
 use structopt::StructOpt;
 
-mod buffer;
-mod editor;
+#[macro_use]
+mod macros;
+
+mod io;
 mod logger;
-mod raw;
 mod runtime;
+mod shell;
+mod stdlib;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -49,7 +59,7 @@ fn main() {
         logger::verbose(options.verbosity);
     }
 
-    let stdin = io::stdin();
+    let stdin = std::io::stdin();
 
     let mut runtime = Runtime::default();
 
@@ -86,7 +96,7 @@ fn main() {
     // End this process with a particular exit code if specified.
     if let Some(exit_code) = runtime.exit_code() {
         log::trace!("exit({})", exit_code);
-        process::exit(exit_code);
+        exit(exit_code);
     }
 }
 
@@ -132,7 +142,7 @@ async fn interactive_main(runtime: &mut Runtime) {
     // same file, so set up a shared scope to execute them in.
     let scope = Rc::new(table!());
 
-    let mut editor = editor::Editor::default();
+    let mut editor = Editor::default();
 
     while runtime.exit_code().is_none() {
         let line = editor.read_line();

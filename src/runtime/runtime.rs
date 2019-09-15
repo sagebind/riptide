@@ -1,15 +1,19 @@
 //! The Riptide runtime.
 
+use crate::{
+    io::{
+        pipes::{PipeReader, PipeWriter},
+        reactor::Reactor,
+    },
+    stdlib,
+};
 use super::{
     builtins,
     closure::Closure,
     exceptions::Exception,
     foreign::ForeignFn,
     modules,
-    pipes::{PipeReader, PipeWriter},
-    reactor::Reactor,
     scope::Scope,
-    stdlib,
     string::RipString,
     syntax,
     syntax::ast::*,

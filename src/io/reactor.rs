@@ -1,7 +1,7 @@
 //! The reactor functions as the runtime's core event loop, and is responsible
 //! for keeping track of all I/O operations and signals.
 
-use super::io::{ReadHandle, RegisterRead, RegisterWrite, WriteHandle};
+use super::{ReadHandle, RegisterRead, RegisterWrite, WriteHandle};
 use futures::{
     pin_mut,
     task::{ArcWake, AtomicWaker},

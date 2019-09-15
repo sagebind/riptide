@@ -6,6 +6,10 @@
 use futures::task::AtomicWaker;
 use std::os::unix::io::AsRawFd;
 
+pub mod pipes;
+pub mod process;
+pub mod reactor;
+
 #[derive(Default)]
 pub(crate) struct ReadHandle {
     pub(crate) waker: AtomicWaker,
