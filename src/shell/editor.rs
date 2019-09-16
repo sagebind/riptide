@@ -1,4 +1,8 @@
 use super::buffer::Buffer;
+use crate::shell::{
+    event::Event,
+    raw::TerminalInput,
+};
 use std::borrow::Cow;
 use std::io::{self, Read, Write};
 use termion::{
@@ -20,7 +24,8 @@ const DEFAULT_PROMPT: &str = "$ ";
 
 /// Controls the interactive command line editor.
 pub struct Editor<I: Read, O: Write> {
-    stdin: Keys<I>,
+    // stdin: Keys<I>,
+    stdin: TerminalInput<I>,
     stdout: RawTerminal<O>,
     buffer: Buffer,
 }
@@ -34,7 +39,7 @@ impl Default for Editor<io::Stdin, io::Stdout> {
 impl<I: Read, O: Write> Editor<I, O> {
     pub fn new(stdin: I, stdout: O) -> Self {
         Self {
-            stdin: stdin.keys(),
+            stdin: TerminalInput::new(stdin),
             stdout: stdout.into_raw_mode().unwrap(),
             buffer: Buffer::new(),
         }
@@ -51,34 +56,34 @@ impl<I: Read, O: Write> Editor<I, O> {
         self.stdout.activate_raw_mode().unwrap();
 
         // Handle keyboard events.
-        while let Some(key) = self.stdin.next() {
-            match key.unwrap() {
-                Key::Char('\n') => {
+        while let Ok(event) = self.stdin.next_event_blocking() {
+            match event {
+                Event::Char('\n') => {
                     write!(self.stdout, "\r\n").unwrap();
                     break;
                 }
-                Key::Left => {
+                Event::Left => {
                     self.buffer.move_cursor_relative(-1);
                 }
-                Key::Right => {
+                Event::Right => {
                     self.buffer.move_cursor_relative(1);
                 }
-                Key::Home => {
+                Event::Home => {
                     self.buffer.move_to_start_of_line();
                 }
-                Key::End => {
+                Event::End => {
                     self.buffer.move_to_end_of_line();
                 }
-                Key::Char(c) => {
+                Event::Char(c) => {
                     self.buffer.insert_char(c);
                 }
-                Key::Backspace => {
+                Event::Backspace => {
                     self.buffer.delete_before_cursor();
                 }
-                Key::Delete => {
+                Event::Delete => {
                     self.buffer.delete_after_cursor();
                 }
-                Key::Ctrl('c') => {
+                Event::Ctrl('c') => {
                     self.buffer.clear();
                 }
                 _ => {}

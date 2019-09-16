@@ -1,3 +1,6 @@
 pub mod buffer;
 pub mod editor;
-pub mod raw;
+mod event;
+mod raw;
+
+pub use self::editor::Editor;

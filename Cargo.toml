@@ -18,9 +18,7 @@ rusqlite = "0.20" # history db
 slab = "0.4"
 structopt = "0.3" # arg parsing
 termion = "1.5"
-termios = "0.3"
 utf-8 = "0.7"
-vte = "0.3" # parsing user input
 
 [dependencies.log]
 version = "0.4"
@@ -36,6 +34,10 @@ path = "syntax"
 [dependencies.signal-hook]
 version = "0.1"
 features = ["mio-support"]
+
+[target.'cfg(unix)'.dependencies]
+termios = "0.3"
+vte = "0.3" # parsing user input
 
 [workspace]
 members = ["syntax"]

@@ -4,7 +4,7 @@ use crate::{
     io::Reactor,
     runtime::prelude::*,
     runtime::syntax::source::SourceFile,
-    shell::editor::Editor,
+    shell::Editor,
 };
 use std::{
     io::Read,
