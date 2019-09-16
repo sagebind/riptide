@@ -46,6 +46,21 @@ struct Options {
     file: Option<PathBuf>,
 }
 
+impl Options {
+    fn log_level_filter(&self) -> log::LevelFilter {
+        if self.quiet {
+            log::LevelFilter::Off
+        } else {
+            match self.verbosity {
+                0 => log::LevelFilter::Warn,
+                1 => log::LevelFilter::Info,
+                2 => log::LevelFilter::Debug,
+                _ => log::LevelFilter::Trace,
+            }
+        }
+    }
+}
+
 fn main() {
     log_panics::init();
     logger::init();
@@ -54,11 +69,7 @@ fn main() {
     let options = Options::from_args();
 
     // Adjust logging settings based on args.
-    if options.quiet {
-        logger::quiet();
-    } else {
-        logger::verbose(options.verbosity);
-    }
+    log::set_max_level(options.log_level_filter());
 
     let stdin = std::io::stdin();
 
@@ -85,7 +96,7 @@ fn main() {
         reactor.run_until(execute_file(&mut runtime, file));
     }
     // Interactive mode.
-    else if termion::is_tty(&stdin) {
+    else if atty::is(atty::Stream::Stdin) {
         reactor.run_until(interactive_main(&mut runtime));
     }
     // Execute stdin

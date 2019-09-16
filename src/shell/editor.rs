@@ -1,32 +1,20 @@
 use super::buffer::Buffer;
 use crate::shell::{
+    command::Command,
     event::Event,
-    raw::TerminalInput,
+    os::{TerminalInput, TerminalOutput},
 };
 use std::borrow::Cow;
 use std::io::{self, Read, Write};
-use termion::{
-    clear,
-    cursor,
-    event::Key,
-    input::{
-        Keys,
-        TermRead,
-    },
-    raw::{
-        IntoRawMode,
-        RawTerminal,
-    },
-};
+use std::os::unix::io::AsRawFd;
 
 /// The default prompt string if none is defined.
 const DEFAULT_PROMPT: &str = "$ ";
 
 /// Controls the interactive command line editor.
-pub struct Editor<I: Read, O: Write> {
-    // stdin: Keys<I>,
+pub struct Editor<I: Read, O: Write + AsRawFd> {
     stdin: TerminalInput<I>,
-    stdout: RawTerminal<O>,
+    stdout: TerminalOutput<O>,
     buffer: Buffer,
 }
 
@@ -36,11 +24,11 @@ impl Default for Editor<io::Stdin, io::Stdout> {
     }
 }
 
-impl<I: Read, O: Write> Editor<I, O> {
+impl<I: Read, O: Write + AsRawFd> Editor<I, O> {
     pub fn new(stdin: I, stdout: O) -> Self {
         Self {
             stdin: TerminalInput::new(stdin),
-            stdout: stdout.into_raw_mode().unwrap(),
+            stdout: TerminalOutput::new(stdout).unwrap(),
             buffer: Buffer::new(),
         }
     }
@@ -53,7 +41,7 @@ impl<I: Read, O: Write> Editor<I, O> {
         self.stdout.flush().unwrap();
 
         // Enter raw mode.
-        self.stdout.activate_raw_mode().unwrap();
+        self.stdout.set_raw_mode(true).unwrap();
 
         // Handle keyboard events.
         while let Ok(event) = self.stdin.next_event_blocking() {
@@ -92,7 +80,7 @@ impl<I: Read, O: Write> Editor<I, O> {
             self.redraw();
         }
 
-        self.stdout.suspend_raw_mode().unwrap();
+        self.stdout.set_raw_mode(false).unwrap();
 
         // Move the command line out of out buffer and return it.
         self.buffer.take_text()
@@ -101,12 +89,14 @@ impl<I: Read, O: Write> Editor<I, O> {
     /// Redraw the buffer.
     pub fn redraw(&mut self) {
         let prompt = self.get_prompt_str();
-        write!(self.stdout, "\r{}{}{}", clear::AfterCursor, prompt, self.buffer.text()).unwrap();
+        write!(self.stdout, "\r").unwrap();
+        self.stdout.command_blocking(Command::ClearAfterCursor).unwrap();
+        write!(self.stdout, "{}{}", prompt, self.buffer.text()).unwrap();
 
         // Update the cursor position.
         let diff = self.buffer.text().len() - self.buffer.cursor();
         if diff > 0 {
-            write!(self.stdout, "{}", cursor::Left(diff as u16)).unwrap();
+            self.stdout.command_blocking(Command::MoveCursorLeft(diff)).unwrap();
         }
 
         // Flush all changes from the IO buffer.

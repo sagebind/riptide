@@ -1,11 +1,10 @@
 use crate::shell::event::Event;
-use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use futures::io::{AsyncRead, AsyncReadExt};
 use std::{
     collections::VecDeque,
-    io::{self, Read, Stdin, Stdout, Write},
-    os::unix::io::{AsRawFd, RawFd},
+    io,
+    io::{Read, Stdin},
 };
-use termios::Termios;
 
 pub struct TerminalInput<I> {
     stdin: I,
@@ -151,56 +150,5 @@ impl<I: Read> TerminalInput<I> {
                 self.parse_input(buf[i]);
             }
         }
-    }
-}
-
-pub struct TerminalOutput<O: AsRawFd> {
-    stdout: O,
-    normal_termios: Termios,
-    raw_termios: Termios,
-}
-
-impl TerminalOutput<Stdout> {
-    pub fn stdout() -> io::Result<Self> {
-        Self::new(io::stdout())
-    }
-}
-
-impl<O: AsRawFd> TerminalOutput<O> {
-    pub fn new(stdout: O) -> io::Result<Self> {
-        let normal_termios = Termios::from_fd(stdout.as_raw_fd())?;
-        let mut raw_termios = normal_termios;
-        termios::cfmakeraw(&mut raw_termios);
-
-        Ok(Self {
-            stdout,
-            normal_termios,
-            raw_termios,
-        })
-    }
-
-    pub fn set_raw_mode(&mut self, raw: bool) -> io::Result<()> {
-        if raw {
-            termios::tcsetattr(self.stdout.as_raw_fd(), 0, &self.raw_termios)
-        } else {
-            termios::tcsetattr(self.stdout.as_raw_fd(), 0, &self.normal_termios)
-        }
-    }
-
-}
-
-impl<O: AsRawFd + Write> Write for TerminalOutput<O> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.stdout.write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.stdout.flush()
-    }
-}
-
-impl<O: AsRawFd> Drop for TerminalOutput<O> {
-    fn drop(&mut self) {
-        self.set_raw_mode(false).ok();
     }
 }
