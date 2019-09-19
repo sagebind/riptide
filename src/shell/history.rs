@@ -43,7 +43,7 @@ impl History {
         Self::from_connection(Connection::open(path)?)
     }
 
-    fn temporary() -> Result<Self> {
+    fn in_memory() -> Result<Self> {
         Self::from_connection(Connection::open_in_memory()?)
     }
 
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn add_and_get() {
-        let history = History::temporary().unwrap();
+        let history = History::in_memory().unwrap();
 
         for i in 0..9 {
             history.add(format!("echo {}", i));

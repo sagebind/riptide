@@ -46,6 +46,14 @@ struct Options {
     /// File to execute
     #[structopt(parse(from_os_str))]
     file: Option<PathBuf>,
+
+    /// Open a session in private mode.
+    ///
+    /// In private mode, session history is kept independent from other sessions
+    /// and is stored only in memory. All history generated during a private
+    /// session will be forgotten when the session terminates.
+    #[structopt(long = "private")]
+    private: bool,
 }
 
 impl Options {
