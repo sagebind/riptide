@@ -23,27 +23,45 @@
 //!
 //! ## Directory history
 
-use rusqlite::{params, Connection, Row, Rows, Statement};
+use rusqlite::{params, Connection, Statement, Rows, Row};
 use std::env;
 use std::error::Error;
-use std::path::Path;
+use std::mem;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::rc::Rc;
-use std::time::{Duration, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-type Result<T> = std::result::Result<T, Box<Error>>;
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 /// A connection to a history database.
 pub struct History {
     db: Rc<Connection>,
 }
 
+/// A single entry in the history.
+#[derive(Clone)]
+pub struct CommandEntry {
+    command: String,
+    cwd: Option<String>,
+    timestamp: SystemTime,
+}
+
+/// Aggregated information about a particular command string.
+#[derive(Clone)]
+pub struct CommandSummary {
+    command: String,
+    count: u32,
+}
+
 impl History {
+    /// Open a history file.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         Self::from_connection(Connection::open(path)?)
     }
 
-    fn in_memory() -> Result<Self> {
+    /// Create a temporary in-memory history database.
+    pub fn in_memory() -> Result<Self> {
         Self::from_connection(Connection::open_in_memory()?)
     }
 
@@ -80,14 +98,47 @@ impl History {
         Ok(())
     }
 
-    // SELECT command, count(*) FROM command_history
-    // GROUP BY command
-    // ORDER BY count(*) DESC
+    pub fn command_history(&self) -> Cursor<CommandEntry> {
+        let mut statement = self.db.prepare("
+            SELECT command, cwd, timestamp FROM command_history
+            ORDER BY timestamp DESC
+        ").unwrap();
+        let rows = statement.query(params![]).unwrap();
 
-    pub fn command_history(&self, sort: Sort) -> Cursor {
-        Cursor::new(self.db.clone(), "")
+        Cursor::new(&self.db, statement, rows)
     }
 
+    /// Query for frequent commands.
+    pub fn frequent_commands(&self) -> Cursor<CommandSummary> {
+        let mut statement = self.db.prepare("
+            SELECT command, count(*) AS count FROM command_history
+            GROUP BY command
+            ORDER BY count DESC
+        ").unwrap();
+        let rows = statement.query(params![]).unwrap();
+
+        Cursor::new(&self.db, statement, rows)
+    }
+
+    /// Query for frequent commands with a prefix.
+    pub fn frequent_commands_starting_with(&self, prefix: impl Into<String>) -> Cursor<CommandSummary> {
+        let pattern = prefix.into()
+            .replace("%", "\\%")
+            .replace("\\", "\\\\") + "%";
+
+        let mut statement = self.db.prepare(r#"
+            SELECT command, count(*) AS count FROM command_history
+            WHERE command LIKE ? ESCAPE "\"
+            GROUP BY command
+            ORDER BY count DESC
+        "#).unwrap();
+
+        let rows = statement.query(params![pattern]).unwrap();
+
+        Cursor::new(&self.db, statement, rows)
+    }
+
+    /// Record a command and add it to the history.
     pub fn add(&self, command: impl Into<String>) {
         let cwd = env::current_dir().ok()
             .and_then(|path| path.to_str()
@@ -107,133 +158,86 @@ impl History {
     }
 }
 
-pub struct CursorBuilder {
-    db: Rc<Connection>,
+pub trait FromRow: Sized {
+    fn from_row(row: &Row) -> std::result::Result<Self, rusqlite::Error>;
 }
 
-impl CursorBuilder {
-    /// Only return results belonging to the given session.
-    pub fn only_in_session(self, pid: u32) -> Self {
-        self
-    }
-
-    /// Return results for the given session first before any other results.
-    pub fn session_first(self, pid: u32) -> Self {
-        self
-    }
-
-    pub fn build(self) -> Cursor {
-        unimplemented!()
+impl FromRow for CommandEntry {
+    fn from_row(row: &Row) -> std::result::Result<Self, rusqlite::Error> {
+        Ok(Self {
+            command: row.get("command")?,
+            cwd: row.get("cwd")?,
+            timestamp: UNIX_EPOCH + Duration::from_secs(row.get::<_, i64>("timestamp")? as u64),
+        })
     }
 }
 
-pub enum SessionFilter {
-    SessionOnly(u32),
-    SessionFirst(u32),
-}
-
-pub enum Sort {
-    Chronological,
-    Frequency,
+impl FromRow for CommandSummary {
+    fn from_row(row: &Row) -> std::result::Result<Self, rusqlite::Error> {
+        Ok(Self {
+            command: row.get("command")?,
+            count: row.get("count")?,
+        })
+    }
 }
 
 /// A mutable, movable cursor into a sequence of search results for command
 /// history.
-pub struct Cursor {
-    db: Rc<Connection>,
-    pattern: String,
-    last_rowid: Option<i64>,
+pub struct Cursor<T> {
+    rows: Rows<'static>,
+    buffer: Vec<T>,
+    index: usize,
+    _statement: Statement<'static>,
+    _db: Rc<Connection>,
 }
 
-impl Cursor {
-    fn new(db: Rc<Connection>, prefix: impl AsRef<str>) -> Self {
+impl<T> Cursor<T> {
+    fn new<'a>(db: &'a Rc<Connection>, statement: Statement<'a>, rows: Rows<'a>) -> Self {
         Self {
-            db,
-            pattern: prefix.as_ref().replace("%", "\\%") + "%",
-            last_rowid: None,
+            rows: unsafe {
+                mem::transmute(rows)
+            },
+            buffer: Vec::new(),
+            index: 0,
+            _statement: unsafe {
+                mem::transmute(statement)
+            },
+            _db: db.clone(),
         }
     }
 }
 
-impl Iterator for Cursor {
-    type Item = Item;
+impl<T: Clone + FromRow> Iterator for Cursor<T> {
+    type Item = T;
 
-    fn next(&mut self) -> Option<Item> {
-        if let Some(last_rowid) = self.last_rowid.take() {
-            match self.db.query_row(
-                "
-                    SELECT rowid, command FROM command_history
-                    WHERE rowid < ? AND command LIKE ? ESCAPE '\\'
-                    ORDER BY rowid DESC
-                ",
-                params![last_rowid, self.pattern],
-                Item::from_row,
-            ) {
-                Ok(item) => {
-                    self.last_rowid = Some(item.id);
-                    Some(item)
-                },
-                Err(rusqlite::Error::QueryReturnedNoRows) => None,
-                Err(_) => unimplemented!(),
-            }
+    fn next(&mut self) -> Option<T> {
+        if let Some(item) = self.buffer.get(self.index) {
+            self.index += 1;
+            Some(item.clone())
         } else {
-            match self.db.query_row(
-                "
-                    SELECT rowid, command FROM command_history
-                    WHERE command LIKE ? ESCAPE '\\'
-                    ORDER BY rowid DESC
-                ",
-                params![self.pattern],
-                Item::from_row,
-            ) {
-                Ok(item) => {
-                    self.last_rowid = Some(item.id);
+            // Pull new items from the db.
+            match self.rows.next() {
+                Ok(Some(row)) => {
+                    let item = T::from_row(row).unwrap();
+                    self.buffer.push(item.clone());
+                    self.index += 1;
                     Some(item)
-                },
-                Err(rusqlite::Error::QueryReturnedNoRows) => None,
+                }
+                Ok(None) => None,
                 Err(_) => unimplemented!(),
             }
         }
     }
 }
 
-impl DoubleEndedIterator for Cursor {
-    fn next_back(&mut self) -> Option<Item> {
-        if let Some(last_rowid) = self.last_rowid.take() {
-            match self.db.query_row(
-                "
-                    SELECT rowid, command FROM command_history
-                    WHERE rowid > ? AND command LIKE ? ESCAPE '\\'
-                    ORDER BY rowid DESC
-                ",
-                params![last_rowid, self.pattern],
-                Item::from_row,
-            ) {
-                Ok(item) => {
-                    self.last_rowid = Some(item.id);
-                    Some(item)
-                },
-                Err(rusqlite::Error::QueryReturnedNoRows) => None,
-                Err(_) => unimplemented!(),
-            }
+impl<T: Clone + FromRow> Cursor<T> {
+    fn prev(&mut self) -> Option<T> {
+        if self.index > 0 {
+            self.index -= 1;
+            self.buffer.get(self.index).cloned()
         } else {
-            // Already at the start.
             None
         }
-    }
-}
-
-pub struct Item {
-    id: i64,
-    command: String,
-}
-
-impl Item {
-    fn from_row(row: &Row) -> std::result::Result<Self, rusqlite::Error> {
-        Ok(Self {
-            id: row.get("rowid")?,
-            command: row.get("command")?,
-        })
     }
 }
 
@@ -249,7 +253,7 @@ mod tests {
             history.add(format!("echo {}", i));
         }
 
-        let mut cursor = history.command_history(Sort::Chronological);
+        let mut cursor = history.command_history();
 
         for i in 0..9 {
             assert_eq!(cursor.next().unwrap().command, format!("echo {}", 8 - i));
