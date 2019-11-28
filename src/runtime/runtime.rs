@@ -21,7 +21,7 @@ use super::{
     value::*,
 };
 use futures::executor::block_on;
-use futures::future::FutureExt;
+use futures::future::{FutureExt, LocalBoxFuture};
 use std::{
     cell::RefCell,
     env,
@@ -256,8 +256,8 @@ impl Runtime {
     /// Invoke the given value as a function with the given arguments.
     pub async fn invoke(&mut self, value: &Value, args: &[Value]) -> Result<Value, Exception> {
         match value {
-            Value::Block(closure) => self.invoke_closure(closure, args).boxed_local().await,
-            Value::ForeignFn(function) => self.invoke_native(function, args).boxed_local().await,
+            Value::Block(closure) => self.invoke_closure(closure, args).await,
+            Value::ForeignFn(function) => self.invoke_native(function, args).await,
             value => throw!("cannot invoke '{:?}' as a function", value),
         }
     }
@@ -320,54 +320,58 @@ impl Runtime {
     async fn evaluate_pipeline(&mut self, pipeline: &Pipeline) -> Result<Value, Exception> {
         // If there's only one call in the pipeline, we don't need to fork and can just execute the function by itself.
         if pipeline.0.len() == 1 {
-            self.evaluate_call(pipeline.0[0].clone()).boxed_local().await
+            self.evaluate_call(pipeline.0[0].clone()).await
         } else {
             log::warn!("parallel pipelines not implemented!");
             Ok(Value::Nil)
         }
     }
 
-    async fn evaluate_call(&mut self, call: Call) -> Result<Value, Exception> {
-        let (function, args) = match call {
-            Call::Named {function, args} => (self.get_path(&function), args),
-            Call::Unnamed {function, args} => (
-                {
-                    let mut function = self.evaluate_expr(*function).await?;
+    fn evaluate_call(&mut self, call: Call) -> LocalBoxFuture<Result<Value, Exception>> {
+        async move {
+            let (function, args) = match call {
+                Call::Named {function, args} => (self.get_path(&function), args),
+                Call::Unnamed {function, args} => (
+                    {
+                        let mut function = self.evaluate_expr(*function).await?;
 
-                    // If the function is a string, resolve binding names first before we try to eval the item as a function.
-                    if let Some(value) = function.as_string().map(|name| self.get(name)) {
-                        function = value;
-                    }
+                        // If the function is a string, resolve binding names first before we try to eval the item as a function.
+                        if let Some(value) = function.as_string().map(|name| self.get(name)) {
+                            function = value;
+                        }
 
-                    function
-                },
-                args,
-            ),
-        };
+                        function
+                    },
+                    args,
+                ),
+            };
 
-        let mut arg_values = Vec::with_capacity(args.len());
-        for expr in args {
-            arg_values.push(self.evaluate_expr(expr).await?);
-        }
+            let mut arg_values = Vec::with_capacity(args.len());
+            for expr in args {
+                arg_values.push(self.evaluate_expr(expr).await?);
+            }
 
-        self.invoke(&function, &arg_values).await
+            self.invoke(&function, &arg_values).await
+        }.boxed_local()
     }
 
-    async fn evaluate_expr(&mut self, expr: Expr) -> Result<Value, Exception> {
-        match expr {
-            Expr::Number(number) => Ok(Value::Number(number)),
-            Expr::String(string) => Ok(Value::from(string)),
-            Expr::Substitution(substitution) => self.evaluate_substitution(substitution).boxed_local().await,
-            Expr::Table(literal) => self.evaluate_table_literal(literal).boxed_local().await,
-            Expr::List(list) => self.evaluate_list_literal(list).boxed_local().await,
-            // TODO: Handle expands
-            Expr::InterpolatedString(_) => {
-                log::warn!("string interpolation not yet supported");
-                Ok(Value::Nil)
-            },
-            Expr::Block(block) => self.evaluate_block(block),
-            Expr::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline).await,
-        }
+    fn evaluate_expr(&mut self, expr: Expr) -> LocalBoxFuture<Result<Value, Exception>> {
+        async move {
+            match expr {
+                Expr::Number(number) => Ok(Value::Number(number)),
+                Expr::String(string) => Ok(Value::from(string)),
+                Expr::Substitution(substitution) => self.evaluate_substitution(substitution).await,
+                Expr::Table(literal) => self.evaluate_table_literal(literal).await,
+                Expr::List(list) => self.evaluate_list_literal(list).await,
+                // TODO: Handle expands
+                Expr::InterpolatedString(_) => {
+                    log::warn!("string interpolation not yet supported");
+                    Ok(Value::Nil)
+                },
+                Expr::Block(block) => self.evaluate_block(block),
+                Expr::Pipeline(ref pipeline) => self.evaluate_pipeline(pipeline).await,
+            }
+        }.boxed_local()
     }
 
     fn evaluate_block(&mut self, block: Block) -> Result<Value, Exception> {

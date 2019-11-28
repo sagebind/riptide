@@ -1,7 +1,5 @@
 //! The Riptide programming language interpreter.
 
-#![feature(inner_deref)]
-
 use crate::{
     io::Reactor,
     runtime::prelude::*,
