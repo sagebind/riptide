@@ -5,26 +5,24 @@ use crate::shell::{
     os::{TerminalInput, TerminalOutput},
 };
 use std::borrow::Cow;
-use std::io::{self, Read, Write};
 use std::os::unix::io::AsRawFd;
+use tokio::io::{
+    AsyncRead,
+    AsyncWrite,
+    AsyncWriteExt,
+};
 
 /// The default prompt string if none is defined.
 const DEFAULT_PROMPT: &str = "$ ";
 
 /// Controls the interactive command line editor.
-pub struct Editor<I: Read, O: Write + AsRawFd> {
+pub struct Editor<I, O: AsRawFd> {
     stdin: TerminalInput<I>,
     stdout: TerminalOutput<O>,
     buffer: Buffer,
 }
 
-impl Default for Editor<io::Stdin, io::Stdout> {
-    fn default() -> Self {
-        Self::new(io::stdin(), io::stdout())
-    }
-}
-
-impl<I: Read, O: Write + AsRawFd> Editor<I, O> {
+impl<I, O: AsRawFd> Editor<I, O> {
     pub fn new(stdin: I, stdout: O) -> Self {
         Self {
             stdin: TerminalInput::new(stdin),
@@ -33,21 +31,32 @@ impl<I: Read, O: Write + AsRawFd> Editor<I, O> {
         }
     }
 
+    fn get_prompt_str(&self) -> Cow<'static, str> {
+        // match interpreter::function_call(PROMPT_FUNCTION, &[], &mut Streams::null()) {
+        //     Ok(Expression::Atom(s)) => s,
+        //     _ => Cow::Borrowed(DEFAULT_PROMPT),
+        // }
+
+        Cow::Borrowed(DEFAULT_PROMPT)
+    }
+}
+
+impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
     /// Show a command prompt to the user and await for the user to input a
     /// command. The typed command is returned once submitted.
-    pub fn read_line(&mut self) -> String {
+    pub async fn read_line(&mut self) -> String {
         let prompt = self.get_prompt_str();
-        write!(self.stdout, "{}", prompt).unwrap();
-        self.stdout.flush().unwrap();
+        self.stdout.write_all(prompt.as_bytes()).await.unwrap();
+        self.stdout.flush().await.unwrap();
 
         // Enter raw mode.
         self.stdout.set_raw_mode(true).unwrap();
 
         // Handle keyboard events.
-        while let Ok(event) = self.stdin.next_event_blocking() {
+        while let Ok(event) = self.stdin.next_event().await {
             match event {
                 Event::Char('\n') => {
-                    write!(self.stdout, "\r\n").unwrap();
+                    self.stdout.write_all(b"\r\n").await.unwrap();
                     break;
                 }
                 Event::Left => {
@@ -77,7 +86,7 @@ impl<I: Read, O: Write + AsRawFd> Editor<I, O> {
                 _ => {}
             }
 
-            self.redraw();
+            self.redraw().await;
         }
 
         self.stdout.set_raw_mode(false).unwrap();
@@ -87,28 +96,19 @@ impl<I: Read, O: Write + AsRawFd> Editor<I, O> {
     }
 
     /// Redraw the buffer.
-    pub fn redraw(&mut self) {
+    pub async fn redraw(&mut self) {
         let prompt = self.get_prompt_str();
-        write!(self.stdout, "\r").unwrap();
-        self.stdout.command_blocking(Command::ClearAfterCursor).unwrap();
-        write!(self.stdout, "{}{}", prompt, self.buffer.text()).unwrap();
+        self.stdout.write_all(b"\r").await.unwrap();
+        self.stdout.command(Command::ClearAfterCursor).await.unwrap();
+        self.stdout.write_all(format!("{}{}", prompt, self.buffer.text()).as_bytes()).await.unwrap();
 
         // Update the cursor position.
         let diff = self.buffer.text().len() - self.buffer.cursor();
         if diff > 0 {
-            self.stdout.command_blocking(Command::MoveCursorLeft(diff)).unwrap();
+            self.stdout.command(Command::MoveCursorLeft(diff)).await.unwrap();
         }
 
         // Flush all changes from the IO buffer.
-        self.stdout.flush().unwrap();
-    }
-
-    fn get_prompt_str(&self) -> Cow<'static, str> {
-        // match interpreter::function_call(PROMPT_FUNCTION, &[], &mut Streams::null()) {
-        //     Ok(Expression::Atom(s)) => s,
-        //     _ => Cow::Borrowed(DEFAULT_PROMPT),
-        // }
-
-        Cow::Borrowed(DEFAULT_PROMPT)
+        self.stdout.flush().await.unwrap();
     }
 }

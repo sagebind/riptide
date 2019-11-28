@@ -1,21 +1,14 @@
 use crate::shell::event::Event;
-use futures::io::{AsyncRead, AsyncReadExt};
 use std::{
     collections::VecDeque,
     io,
-    io::{Read, Stdin},
 };
+use tokio::io::{AsyncRead, AsyncReadExt};
 
 pub struct TerminalInput<I> {
     stdin: I,
     events: VecDeque<Event>,
     parser: vte::Parser,
-}
-
-impl TerminalInput<Stdin> {
-    pub fn stdin() -> Self {
-        Self::new(io::stdin())
-    }
 }
 
 impl<I> TerminalInput<I> {
@@ -112,7 +105,7 @@ impl<I> TerminalInput<I> {
 }
 
 impl<I: AsyncRead + Unpin> TerminalInput<I> {
-    pub async fn next_event_async(&mut self) -> io::Result<Event> {
+    pub async fn next_event(&mut self) -> io::Result<Event> {
         let mut buf = [0; 1024];
 
         loop {
@@ -123,27 +116,6 @@ impl<I: AsyncRead + Unpin> TerminalInput<I> {
 
             // Grab some more input.
             let count = self.stdin.read(&mut buf).await?;
-
-            // Parse any events from the input if any.
-            for i in 0..count {
-                self.parse_input(buf[i]);
-            }
-        }
-    }
-}
-
-impl<I: Read> TerminalInput<I> {
-    pub fn next_event_blocking(&mut self) -> io::Result<Event> {
-        let mut buf = [0; 1024];
-
-        loop {
-            // If there's at least 1 pending event, return it.
-            if let Some(event) = self.events.pop_front() {
-                return Ok(event);
-            }
-
-            // Grab some more input.
-            let count = self.stdin.read(&mut buf)?;
 
             // Parse any events from the input if any.
             for i in 0..count {

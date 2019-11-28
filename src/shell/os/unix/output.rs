@@ -1,22 +1,17 @@
 use crate::shell::command::Command;
-use futures::io::{AsyncWrite, AsyncWriteExt};
 use std::{
     io,
-    io::{Stdout, Write},
+    pin::Pin,
     os::unix::io::{AsRawFd, RawFd},
+    task::{Context, Poll},
 };
 use termios::Termios;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 pub struct TerminalOutput<O: AsRawFd> {
     stdout: O,
     normal_termios: Termios,
     raw_termios: Termios,
-}
-
-impl TerminalOutput<Stdout> {
-    pub fn stdout() -> io::Result<Self> {
-        Self::new(io::stdout())
-    }
 }
 
 impl<O: AsRawFd> TerminalOutput<O> {
@@ -41,22 +36,39 @@ impl<O: AsRawFd> TerminalOutput<O> {
     }
 }
 
-impl<O: Write + AsRawFd> TerminalOutput<O> {
-    pub fn command_blocking(&mut self, command: Command) -> io::Result<()> {
+impl<O: AsyncWrite + AsRawFd + Unpin> TerminalOutput<O> {
+    pub async fn command(&mut self, command: Command) -> io::Result<()> {
         self.write_all(match command {
             Command::ClearAfterCursor => String::from("\x1b[J"),
             Command::MoveCursorLeft(n) => format!("\x1b[{}D", n),
-        }.as_bytes())
+        }.as_bytes()).await
     }
 }
 
-impl<O: Write + AsRawFd> Write for TerminalOutput<O> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.stdout.write(buf)
+impl<O: AsyncWrite + AsRawFd + Unpin> AsyncWrite for TerminalOutput<O> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context,
+        buf: &[u8]
+    ) -> Poll<Result<usize, io::Error>> {
+        unsafe {
+            Pin::new_unchecked(&mut self.stdout).poll_write(cx, buf)
+        }
     }
 
-    fn flush(&mut self) -> io::Result<()> {
-        self.stdout.flush()
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), io::Error>> {
+        unsafe {
+            Pin::new_unchecked(&mut self.stdout).poll_flush(cx)
+        }
+    }
+
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context
+    ) -> Poll<Result<(), io::Error>> {
+        unsafe {
+            Pin::new_unchecked(&mut self.stdout).poll_shutdown(cx)
+        }
     }
 }
 

@@ -1,5 +1,4 @@
 use crate::runtime::prelude::*;
-use itertools::Itertools;
 use std::io::{stdout, Write};
 
 pub fn load() -> Result<Value, Exception> {

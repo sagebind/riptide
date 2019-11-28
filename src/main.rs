@@ -1,7 +1,8 @@
 //! The Riptide programming language interpreter.
 
+#![allow(dead_code)]
+
 use crate::{
-    io::Reactor,
     runtime::prelude::*,
     runtime::syntax::source::SourceFile,
     shell::Editor,
@@ -19,6 +20,7 @@ mod macros;
 
 mod io;
 mod logger;
+mod pipes;
 mod runtime;
 mod shell;
 mod stdlib;
@@ -69,7 +71,8 @@ impl Options {
     }
 }
 
-fn main() {
+#[tokio::main(basic_scheduler)]
+async fn main() {
     log_panics::init();
     logger::init();
 
@@ -81,15 +84,12 @@ fn main() {
 
     let stdin = std::io::stdin();
 
-    // An executor for running the asynchronous runtime.
-    let mut reactor = Reactor::new().unwrap();
-
     let mut runtime = Runtime::default();
 
     // If at least one command is given, execute those in order and exit.
     if !options.commands.is_empty() {
         for command in options.commands {
-            match reactor.run_until(runtime.execute(None, command)) {
+            match runtime.execute(None, command).await {
                 Ok(_) => {}
                 Err(e) => {
                     log::error!("{}", e);
@@ -101,16 +101,16 @@ fn main() {
     }
     // If a file is given, execute it and exit.
     else if let Some(file) = options.file.as_ref() {
-        reactor.run_until(execute_file(&mut runtime, file));
+        execute_file(&mut runtime, file).await;
     }
     // Interactive mode.
     else if atty::is(atty::Stream::Stdin) {
-        reactor.run_until(interactive_main(&mut runtime));
+        interactive_main(&mut runtime).await;
     }
     // Execute stdin
     else {
         log::trace!("stdin is not a tty");
-        reactor.run_until(execute_stdin(&mut runtime, stdin));
+        execute_stdin(&mut runtime, stdin).await;
     }
 
     // End this process with a particular exit code if specified.
@@ -162,10 +162,10 @@ async fn interactive_main(runtime: &mut Runtime) {
     // same file, so set up a shared scope to execute them in.
     let scope = Rc::new(table!());
 
-    let mut editor = Editor::default();
+    let mut editor = Editor::new(pipes::stdin(), pipes::stdout());
 
     while runtime.exit_code().is_none() {
-        let line = editor.read_line();
+        let line = editor.read_line().await;
 
         if !line.is_empty() {
             match runtime.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()).await {

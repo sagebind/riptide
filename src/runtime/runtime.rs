@@ -1,9 +1,7 @@
 //! The Riptide runtime.
 
 use crate::{
-    io::{
-        pipes::{PipeReader, PipeWriter},
-    },
+    pipes::{PipeReader, PipeWriter},
     stdlib,
 };
 use super::{
@@ -23,9 +21,7 @@ use super::{
 use futures::executor::block_on;
 use futures::future::{FutureExt, LocalBoxFuture};
 use std::{
-    cell::RefCell,
     env,
-    future::Future,
     rc::Rc,
     time::Instant,
 };

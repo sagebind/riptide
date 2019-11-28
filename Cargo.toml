@@ -11,9 +11,8 @@ bytes = "0.4"
 clipboard = "0.5"
 directories = "2.0"
 exitcode = "1.1"
-futures-preview = "0.3.0-alpha.18"
-itertools = "0.8"
-mio = "0.6" # async I/O
+futures = "0.3"
+mio = "0.6"
 nix = "0.15"
 slab = "0.4"
 structopt = "0.3" # arg parsing
@@ -34,9 +33,16 @@ path = "syntax"
 version = "0.20"
 features = ["bundled"]
 
-[dependencies.signal-hook]
-version = "0.1"
-features = ["mio-support"]
+[dependencies.tokio]
+version = "0.2"
+features = [
+    "io-driver",
+    "io-util",
+    "macros",
+    "process",
+    "rt-core",
+    "signal",
+]
 
 [target.'cfg(unix)'.dependencies]
 termios = "0.3"
