@@ -11,28 +11,28 @@ use std::env;
 use std::path::*;
 
 /// Builtin function that loads modules by name.
-pub async fn require(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+pub async fn require(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     if args.is_empty() {
         throw!("module name to require must be given");
     }
 
     let name = args[0].as_string().ok_or("module name must be a string")?;
 
-    match runtime.globals().get("modules").get("loaded").get(name) {
+    match fiber.globals().get("modules").get("loaded").get(name) {
         Value::Nil => {}
         value => return Ok(value),
     }
 
     debug!("module '{}' not defined, calling loader chain", name);
 
-    if let Some(loaders) = runtime.globals().get("modules").get("loaders").as_list() {
+    if let Some(loaders) = fiber.globals().get("modules").get("loaders").as_list() {
         for loader in loaders {
             let args = [Value::from(name.clone())];
-            match runtime.invoke(loader, &args).await {
+            match fiber.invoke(loader, &args).await {
                 Ok(Value::Nil) => continue,
                 Err(exception) => return Err(exception),
                 Ok(value) => {
-                    runtime.globals().get("modules").get("loaded").as_table().unwrap().set(name.clone(), value.clone());
+                    fiber.globals().get("modules").get("loaded").as_table().unwrap().set(name.clone(), value.clone());
 
                     return Ok(value);
                 }
@@ -43,13 +43,14 @@ pub async fn require(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exc
     throw!("module '{}' not found", name)
 }
 
-pub async fn relative_loader(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+pub async fn relative_loader(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
 /// A module loader function that loads modules from system-wide paths.
-pub async fn system_loader(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+pub async fn system_loader(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     let name = args.first().and_then(Value::as_string).ok_or("module name must be a string")?;
+    log::debug!("loading module '{}' using system loader", name);
 
     if let Ok(path) = env::var("RIPTIDE_PATH") {
         for path in path.split(':') {
@@ -57,7 +58,7 @@ pub async fn system_loader(runtime: &mut Runtime, args: &[Value]) -> Result<Valu
             path.push(format!("{}.rip", name));
 
             if path.exists() {
-                return runtime.execute(Some(name.as_utf8().unwrap()), SourceFile::open(path)?).await;
+                return fiber.execute(Some(name.as_utf8().unwrap()), SourceFile::open(path)?).await;
             }
         }
     }

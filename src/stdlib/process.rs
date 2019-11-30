@@ -17,7 +17,7 @@ pub fn load() -> Result<Value, Exception> {
 /// Spawns a new child process and executes a given block in it.
 ///
 /// Returns the child process PID.
-async fn spawn(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+async fn spawn(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
     let pid = process::spawn(|| {
         // let child_interpreter = Runtime::new();
         // child_interpreter.execute(Exp)
@@ -30,7 +30,7 @@ async fn spawn(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
 /// Executes a shell command in the foreground, waiting for it to complete.
 ///
 /// Returns the process exit code.
-async fn command(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn command(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     if let Some(command) = args.first() {
         let command =
             command.as_string().and_then(|s| s.as_utf8()).ok_or_else(|| Exception::from("invalid command name"))?;
@@ -60,12 +60,12 @@ async fn command(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 /// Executes a shell command, replacing the current process with the new process.
 ///
 /// Does not return.
-async fn exec(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+async fn exec(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
     unimplemented!();
 }
 
 /// Puts the current process to sleep for a given number of seconds.
-async fn sleep(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn sleep(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     if let Some(Value::Number(seconds)) = args.first() {
         let seconds = *seconds;
 

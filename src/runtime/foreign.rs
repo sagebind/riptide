@@ -1,6 +1,6 @@
 use super::{
     exceptions::Exception,
-    runtime::Runtime,
+    fiber::Fiber,
     value::Value,
 };
 use futures::future::FutureExt;
@@ -11,19 +11,19 @@ use std::rc::Rc;
 /// A native function that can be invoked by scripts through a runtime as well
 /// as in native code.
 #[derive(Clone)]
-pub struct ForeignFn(Rc<dyn for<'a> Fn(&'a mut Runtime, &'a [Value]) -> LocalBoxFuture<'a, Result<Value, Exception>>>);
+pub struct ForeignFn(Rc<dyn for<'a> Fn(&'a mut Fiber, &'a [Value]) -> LocalBoxFuture<'a, Result<Value, Exception>>>);
 
 type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
 impl ForeignFn {
-    pub async fn call(&self, runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+    pub async fn call(&self, runtime: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
         (&self.0)(runtime, args).await
     }
 }
 
 impl<F> From<F> for ForeignFn
 where
-    F: 'static + for<'a, 'b> AsyncFn2<&'a mut Runtime, &'b [Value], Output = Result<Value, Exception>>
+    F: 'static + for<'a, 'b> AsyncFn2<&'a mut Fiber, &'b [Value], Output = Result<Value, Exception>>
 {
     fn from(f: F) -> Self {
         ForeignFn(Rc::new(move |runtime, args| {

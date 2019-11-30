@@ -58,6 +58,11 @@ impl Scope {
             return parent.get(name);
         }
 
+        match self.module.get(name) {
+            Value::Nil => {}
+            value => return value,
+        };
+
         Value::Nil
     }
 

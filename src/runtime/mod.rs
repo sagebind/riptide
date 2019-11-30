@@ -1,5 +1,6 @@
+mod eval;
+mod fiber;
 mod modules;
-mod runtime;
 pub mod builtins;
 pub mod closure;
 pub mod exceptions;
@@ -15,10 +16,12 @@ pub mod syntax {
 }
 
 pub mod prelude {
-    pub use crate::runtime::exceptions::Exception;
-    pub use crate::runtime::table::Table;
-    pub use crate::runtime::value::Value;
-    pub use crate::runtime::runtime::Runtime;
+    pub use super::exceptions::Exception;
+    pub use super::fiber::Fiber;
+    pub use super::table::Table;
+    pub use super::value::Value;
 }
 
-pub use self::runtime::Runtime;
+pub use self::{
+    fiber::Fiber,
+};

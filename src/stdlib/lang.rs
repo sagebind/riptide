@@ -1,5 +1,5 @@
 use crate::runtime::prelude::*;
-use std::io::{stdout, Write};
+use tokio::io::AsyncWriteExt;
 
 pub fn load() -> Result<Value, Exception> {
     Ok(table! {
@@ -17,35 +17,40 @@ pub fn load() -> Result<Value, Exception> {
     .into())
 }
 
-async fn assert(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+async fn assert(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
     unimplemented!();
 }
 
 /// Terminates the current process immediately.
-async fn panic(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+async fn panic(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
     panic!();
 }
 
 /// Print the given values to standard output.
-async fn print(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
-    for arg in args.iter() {
-        print!("{}", arg.to_string());
+async fn print(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+    if let Some(stdout) = fiber.stdout() {
+        for arg in args.iter() {
+            stdout.write_all(arg.to_string().as_bytes()).await?;
+        }
+        stdout.flush().await?;
     }
-    stdout().flush().unwrap();
 
     Ok(Value::Nil)
 }
 
 /// Print the given values to standard output, followed by a newline.
-async fn println(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
-    for arg in args.iter() {
-        println!("{}", arg.to_string());
+async fn println(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+    if let Some(stdout) = fiber.stdout() {
+        for arg in args.iter() {
+            stdout.write_all(arg.to_string().as_bytes()).await?;
+            stdout.write_all(b"\n").await?;
+        }
     }
 
     Ok(Value::Nil)
 }
 
-async fn dump(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn dump(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     fn dump(value: &Value, indent: usize, depth: usize) {
         match value {
             Value::List(items) => {
@@ -83,13 +88,13 @@ async fn dump(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Terminate the current process.
-async fn exit(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn exit(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     let code = match args.first() {
         Some(&Value::Number(number)) => number as i32,
         _ => 0,
     };
 
-    runtime.exit(code);
+    crate::exit::set(code);
 
     Ok(Value::Nil)
 }

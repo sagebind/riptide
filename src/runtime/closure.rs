@@ -9,7 +9,7 @@ pub struct Closure {
     pub(crate) block: ast::Block,
 
     /// The local scope the closure is defined in.
-    pub(crate) scope: Option<Rc<Scope>>,
+    pub(crate) scope: Rc<Scope>,
 }
 
 impl PartialEq for Closure {

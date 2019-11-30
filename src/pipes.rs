@@ -49,6 +49,15 @@ pub fn pipe() -> io::Result<(PipeReader, PipeWriter)> {
 #[derive(Debug)]
 pub struct PipeReader(PollEvented<EventedFd>);
 
+impl PipeReader {
+    pub fn try_clone(&self) -> io::Result<Self> {
+        self.0.get_ref()
+            .try_clone()
+            .and_then(PollEvented::new)
+            .map(PipeReader)
+    }
+}
+
 impl FromRawFd for PipeReader {
     unsafe fn from_raw_fd(fd: RawFd) -> Self {
         Self(PollEvented::new(EventedFd::from_raw_fd(fd)).unwrap())
@@ -76,6 +85,15 @@ impl AsyncRead for PipeReader {
 /// Writing end of an asynchronous pipe.
 #[derive(Debug)]
 pub struct PipeWriter(PollEvented<EventedFd>);
+
+impl PipeWriter {
+    pub fn try_clone(&self) -> io::Result<Self> {
+        self.0.get_ref()
+            .try_clone()
+            .and_then(PollEvented::new)
+            .map(PipeWriter)
+    }
+}
 
 impl FromRawFd for PipeWriter {
     unsafe fn from_raw_fd(fd: RawFd) -> Self {
@@ -114,6 +132,12 @@ impl AsyncWrite for PipeWriter {
 }
 
 struct EventedFd(File);
+
+impl EventedFd {
+    fn try_clone(&self) -> io::Result<Self> {
+        self.0.try_clone().map(EventedFd)
+    }
+}
 
 impl FromRawFd for EventedFd {
     unsafe fn from_raw_fd(fd: RawFd) -> Self {

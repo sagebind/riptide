@@ -18,6 +18,7 @@ use structopt::StructOpt;
 #[macro_use]
 mod macros;
 
+mod exit;
 mod io;
 mod logger;
 mod pipes;
@@ -82,18 +83,16 @@ async fn main() {
     // Adjust logging settings based on args.
     log::set_max_level(options.log_level_filter());
 
-    let stdin = std::io::stdin();
-
-    let mut runtime = Runtime::default();
+    let mut fiber = Fiber::default();
 
     // If at least one command is given, execute those in order and exit.
     if !options.commands.is_empty() {
         for command in options.commands {
-            match runtime.execute(None, command).await {
+            match fiber.execute(None, command).await {
                 Ok(_) => {}
                 Err(e) => {
                     log::error!("{}", e);
-                    runtime.exit(1);
+                    exit::set(1);
                     break;
                 }
             }
@@ -101,54 +100,55 @@ async fn main() {
     }
     // If a file is given, execute it and exit.
     else if let Some(file) = options.file.as_ref() {
-        execute_file(&mut runtime, file).await;
+        execute_file(&mut fiber, file).await;
     }
     // Interactive mode.
     else if atty::is(atty::Stream::Stdin) {
-        interactive_main(&mut runtime).await;
+        interactive_main(&mut fiber).await;
     }
     // Execute stdin
     else {
         log::trace!("stdin is not a tty");
-        execute_stdin(&mut runtime, stdin).await;
+        execute_stdin(&mut fiber).await;
     }
 
     // End this process with a particular exit code if specified.
-    if let Some(exit_code) = runtime.exit_code() {
+    if let Some(exit_code) = exit::get() {
         log::trace!("exit({})", exit_code);
         exit(exit_code);
     }
 }
 
-async fn execute_file(runtime: &mut Runtime, path: impl AsRef<Path>) {
+async fn execute_file(fiber: &mut Fiber, path: impl AsRef<Path>) {
     let path = path.as_ref();
     let source = match SourceFile::open(path) {
         Ok(s) => s,
         Err(e) => {
             log::error!("opening file {:?}: {}", path, e);
-            runtime.exit(exitcode::NOINPUT);
+            exit::set(exitcode::NOINPUT);
             return;
         }
     };
 
-    if let Err(e) = runtime.execute(None, source).await {
+    if let Err(e) = fiber.execute(None, source).await {
         log::error!("{}", e);
-        runtime.exit(1);
+        exit::set(1);
     }
 }
 
-async fn execute_stdin(runtime: &mut Runtime, mut stdin: impl Read) {
+async fn execute_stdin(fiber: &mut Fiber) {
+    let mut stdin = std::io::stdin();
     let mut source = String::new();
 
     if let Err(e) = stdin.read_to_string(&mut source) {
         log::error!("{}", e);
-        runtime.exit(1);
+        exit::set(1);
         return;
     }
 
-    if let Err(e) = runtime.execute(None, SourceFile::named("<stdin>", source)).await {
+    if let Err(e) = fiber.execute(None, SourceFile::named("<stdin>", source)).await {
         log::error!("{}", e);
-        runtime.exit(1);
+        exit::set(1);
     }
 }
 
@@ -157,18 +157,21 @@ async fn execute_stdin(runtime: &mut Runtime, mut stdin: impl Read) {
 /// It is also worth noting that this function is infallible. Once set up, the
 /// shell ensures that it stays alive until the user actually requests it to
 /// exit.
-async fn interactive_main(runtime: &mut Runtime) {
+async fn interactive_main(fiber: &mut Fiber) {
     // We want successive commands to act like they are being executed in the
     // same file, so set up a shared scope to execute them in.
     let scope = Rc::new(table!());
 
-    let mut editor = Editor::new(pipes::stdin(), pipes::stdout());
+    let mut editor = Editor::new(
+        fiber.stdin().unwrap().try_clone().unwrap(),
+        fiber.stdout().unwrap().try_clone().unwrap(),
+    );
 
-    while runtime.exit_code().is_none() {
+    while exit::get().is_none() {
         let line = editor.read_line().await;
 
         if !line.is_empty() {
-            match runtime.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()).await {
+            match fiber.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()).await {
                 Ok(Value::Nil) => {}
                 Ok(value) => println!("{}", value),
                 Err(e) => log::error!("{}", e),

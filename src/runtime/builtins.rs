@@ -4,31 +4,32 @@ use super::modules;
 use super::prelude::*;
 use super::scope::Scope;
 
-pub fn init(runtime: &mut Runtime) {
-    runtime.globals().set("require", Value::ForeignFn(modules::require.into()));
-    runtime.globals().set("backtrace", Value::ForeignFn(backtrace.into()));
-    runtime.globals().set("call", Value::ForeignFn(call.into()));
-    runtime.globals().set("catch", Value::ForeignFn(catch.into()));
-    runtime.globals().set("def", Value::ForeignFn(def.into()));
-    runtime.globals().set("export", Value::ForeignFn(export.into()));
-    runtime.globals().set("include", Value::ForeignFn(include.into()));
-    runtime.globals().set("list", Value::ForeignFn(list.into()));
-    runtime.globals().set("nil", Value::ForeignFn(nil.into()));
-    runtime.globals().set("nth", Value::ForeignFn(nth.into()));
-    runtime.globals().set("set", Value::ForeignFn(set.into()));
-    runtime.globals().set("table", Value::ForeignFn(table.into()));
-    runtime.globals().set("table-set", Value::ForeignFn(table_set.into()));
-    runtime.globals().set("throw", Value::ForeignFn(throw.into()));
-    runtime.globals().set("typeof", Value::ForeignFn(type_of.into()));
-
-    runtime.globals().set("modules", Value::from(table! {
-        "loaders" => Value::List(Vec::new()),
-        "loaded" => Value::from(table!()),
-    }));
+pub fn get() -> Table {
+    table! {
+        "require" => Value::ForeignFn(modules::require.into()),
+        "backtrace" => Value::ForeignFn(backtrace.into()),
+        "call" => Value::ForeignFn(call.into()),
+        "catch" => Value::ForeignFn(catch.into()),
+        "def" => Value::ForeignFn(def.into()),
+        "export" => Value::ForeignFn(export.into()),
+        "include" => Value::ForeignFn(include.into()),
+        "list" => Value::ForeignFn(list.into()),
+        "nil" => Value::ForeignFn(nil.into()),
+        "nth" => Value::ForeignFn(nth.into()),
+        "set" => Value::ForeignFn(set.into()),
+        "table" => Value::ForeignFn(table.into()),
+        "table-set" => Value::ForeignFn(table_set.into()),
+        "throw" => Value::ForeignFn(throw.into()),
+        "typeof" => Value::ForeignFn(type_of.into()),
+        "modules" => Value::from(table! {
+            "loaders" => Value::List(Vec::new()),
+            "loaded" => Value::from(table!()),
+        }),
+    }
 }
 
 /// Binds a value to a new variable.
-async fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn def(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
         None => throw!("variable name required"),
@@ -36,12 +37,12 @@ async fn def(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> 
 
     let value = args.get(1).cloned().unwrap_or(Value::Nil);
 
-    runtime.set_parent(name, value);
+    fiber.set_parent(name, value);
 
     Ok(Value::Nil)
 }
 
-async fn set(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn set(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
         None => throw!("variable name required"),
@@ -49,36 +50,36 @@ async fn set(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> 
 
     let value = args.get(1).cloned().unwrap_or(Value::Nil);
 
-    runtime.set_parent(name, value);
+    fiber.set_parent(name, value);
 
     Ok(Value::Nil)
 }
 
-async fn export(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn export(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
         None => throw!("variable name to export required"),
     };
 
     let value = args.get(1).cloned()
-        .unwrap_or(runtime.get(&name));
+        .unwrap_or(fiber.get(&name));
 
-    runtime.module_scope().set(name, value);
+    fiber.current_scope().unwrap().module.set(name, value);
 
     Ok(Value::Nil)
 }
 
 /// Returns the name of the primitive type of the given arguments.
-async fn type_of(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn type_of(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     Ok(args.first().map(Value::type_name).map(Value::from).unwrap_or(Value::Nil))
 }
 
 /// Constructs a list from the given arguments.
-async fn list(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn list(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::List(args.to_vec()))
 }
 
-async fn nth(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn nth(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     let list = match args.get(0).and_then(Value::as_list) {
         Some(s) => s.to_vec(),
         None => throw!("first argument must be a list"),
@@ -93,7 +94,7 @@ async fn nth(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Constructs a table from the given arguments.
-async fn table(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn table(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     if args.len() & 1 == 1 {
         throw!("an even number of arguments is required");
     }
@@ -114,7 +115,7 @@ async fn table(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
     Ok(table.into())
 }
 
-async fn table_set(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn table_set(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     let table = match args.get(0).and_then(Value::as_table) {
         Some(s) => s.clone(),
         None => throw!("first argument must be a table"),
@@ -133,35 +134,35 @@ async fn table_set(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> 
 }
 
 /// Function that always returns Nil.
-async fn nil(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+async fn nil(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
 /// Throw an exception.
-async fn throw(_: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn throw(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     match args.first() {
         Some(value) => Err(Exception::from(value.clone())),
         None => Err(Exception::from(Value::Nil)),
     }
 }
 
-async fn call(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn call(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     if let Some(function) = args.first() {
         let args = match args.get(1) {
             Some(Value::List(args)) => &args[..],
             _ => &[],
         };
 
-        runtime.invoke(function, args).await
+        fiber.invoke(function, args).await
     } else {
         throw!("block to invoke required")
     }
 }
 
 /// Invoke a block. If the block throws an exception, catch it and return it.
-async fn catch(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception> {
+async fn catch(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     if let Some(function) = args.first() {
-        match runtime.invoke(function, &[]).await {
+        match fiber.invoke(function, &[]).await {
             Ok(_) => Ok(Value::Nil),
             Err(exception) => Ok(exception.into()),
         }
@@ -170,12 +171,12 @@ async fn catch(runtime: &mut Runtime, args: &[Value]) -> Result<Value, Exception
     }
 }
 
-async fn include(_: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+async fn include(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
     throw!("not implemented");
 }
 
 /// Returns a backtrace of the call stack as a list of strings.
-async fn backtrace(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exception> {
+async fn backtrace(fiber: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
     fn scope_to_value(scope: impl AsRef<Scope>) -> Value {
         let scope = scope.as_ref();
         Value::from(table! {
@@ -186,7 +187,7 @@ async fn backtrace(runtime: &mut Runtime, _: &[Value]) -> Result<Value, Exceptio
         })
     }
 
-    Ok(runtime.backtrace()
+    Ok(fiber.backtrace()
         .map(scope_to_value)
         .collect())
 }
