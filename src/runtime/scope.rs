@@ -10,9 +10,6 @@ pub(crate) struct Scope {
     /// The scope name, for debugging purposes.
     pub(crate) name: Option<String>,
 
-    /// Arguments that were passed into this scope.
-    pub(crate) args: Vec<Value>,
-
     /// Local scope bindings. May shadow bindings in the parent scope.
     pub(crate) bindings: Rc<Table>,
 
@@ -32,18 +29,9 @@ impl Scope {
             .unwrap_or("<unknown>")
     }
 
-    /// Get the arguments passed in to the current scope.
-    pub fn args(&self) -> &[Value] {
-        &self.args
-    }
-
     /// Lookup a variable name in the current scope.
     pub fn get(&self, name: impl AsRef<[u8]>) -> Value {
         let name = name.as_ref();
-
-        if name == b"args" {
-            return self.args.iter().cloned().collect();
-        }
 
         if name == b"exports" {
             return self.module.clone().into();

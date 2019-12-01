@@ -1,24 +1,11 @@
 //! This module contains the core logic of the interpreter.
 
-use crate::{
-    pipes::{
-        PipeReader,
-        PipeWriter,
-        stdin,
-        stdout,
-        stderr,
-    },
-    stdlib,
-};
 use super::{
-    builtins,
     closure::Closure,
     exceptions::Exception,
     fiber::Fiber,
     foreign::ForeignFn,
-    modules,
     scope::Scope,
-    string::RipString,
     syntax,
     syntax::ast::*,
     syntax::source::*,
@@ -26,18 +13,13 @@ use super::{
     value::*,
 };
 use futures::{
-    executor::block_on,
     future::{
         FutureExt,
         LocalBoxFuture,
         try_join_all,
     },
 };
-use std::{
-    env,
-    rc::Rc,
-    time::Instant,
-};
+use std::rc::Rc;
 
 /// Compile the given source code as a closure.
 pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>, scope: Option<Rc<Table>>) -> Result<Closure, Exception> {
@@ -55,7 +37,6 @@ pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>, scope: Opt
         block: block,
         scope: Rc::new(Scope {
             name: Some(format!("{}:<closure>", file_name)),
-            args: Vec::new(),
             bindings: scope.unwrap_or_default(),
             module: module_scope,
             parent: None,
@@ -76,8 +57,9 @@ pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: &[Value]) -> 
 pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: &[Value]) -> Result<Value, Exception> {
     fiber.stack.push(Rc::new(Scope {
         name: Some(String::from("<closure>")),
-        args: args.to_vec(),
-        bindings: Default::default(),
+        bindings: Rc::new(table! {
+            "args" => args.to_vec(),
+        }),
         module: closure.scope.module.clone(),
         parent: Some(closure.scope.clone()),
     }));
@@ -105,7 +87,6 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: &
 async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: &[Value]) -> Result<Value, Exception> {
     fiber.stack.push(Rc::new(Scope {
         name: Some(String::from("<native>")),
-        args: args.to_vec(),
         bindings: Default::default(),
         module: Default::default(),
         parent: None,
@@ -192,7 +173,6 @@ fn evaluate_block(fiber: &mut Fiber, block: Block) -> Result<Value, Exception> {
         block: block,
         scope: Rc::new(Scope {
             name: Some(String::from("<closure>")),
-            args: Vec::new(),
             bindings: Default::default(),
             module: fiber.current_scope().unwrap().module.clone(),
             parent: fiber.stack.last().cloned(),

@@ -181,7 +181,6 @@ async fn backtrace(fiber: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
         let scope = scope.as_ref();
         Value::from(table! {
             "name" => scope.name(),
-            "args" => scope.args(),
             "bindings" => scope.bindings.clone(),
             "parent" => scope.parent.as_ref().map(scope_to_value).unwrap_or(Value::Nil),
         })

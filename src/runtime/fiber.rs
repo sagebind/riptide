@@ -17,10 +17,7 @@ use super::{
     table::Table,
     value::Value,
 };
-use futures::{
-    executor::block_on,
-    future::FutureExt,
-};
+use futures::executor::block_on;
 use std::{
     env,
     rc::Rc,
