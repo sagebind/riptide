@@ -104,20 +104,18 @@ async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: &Pipeline) -> Result<Val
     if pipeline.0.len() == 1 {
         evaluate_call(fiber, pipeline.0[0].clone()).await
     } else {
-        // let calls = pipeline.0
-        //     .iter()
-        //     .cloned();
+        let mut futures = Vec::new();
 
+        for call in pipeline.0.iter() {
+            let mut fiber = fiber.fork();
+            futures.push(async move {
+                evaluate_call(&mut fiber, call.clone()).await
+            });
+        }
 
-        // let mut futures = Vec::new();
-
-        // for call in calls.into_iter() {
-        //     futures.push(self.evaluate_call(call));
-        // }
-        //     try_join_all(
-        // ).await;
-
-        Ok(Value::Nil)
+        try_join_all(futures)
+            .await
+            .map(Value::List)
     }
 }
 
