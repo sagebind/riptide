@@ -82,7 +82,8 @@ single_quote_inner = ${ ("\\'" | !"'" ~ ANY)* }
 number_literal = ${ "-"? ~ ("." ~ ASCII_DIGIT+ | ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)?) }
 
 // A symbol is an unquoted string, usually used for identifying variable names.
-symbol = ${ ASCII_ALPHANUMERIC ~ (!member_operator ~ (ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/"))* }
+symbol_char = _{ ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/" }
+symbol = ${ symbol_char ~ (!member_operator ~ symbol_char)* }
 
 // Operator to access namespaces and table members.
 member_operator = _{ "->" }

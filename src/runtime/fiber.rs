@@ -198,11 +198,6 @@ impl Fiber {
                 Value::Nil => {},
                 value => return value,
             }
-
-            match scope.module.get(name) {
-                Value::Nil => {},
-                value => return value,
-            }
         }
 
         self.globals.get(name)
