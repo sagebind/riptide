@@ -55,14 +55,22 @@ pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: &[Value]) -> 
 
 /// Invoke a block with an array of arguments.
 pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: &[Value]) -> Result<Value, Exception> {
-    fiber.stack.push(Rc::new(Scope {
+    let scope = Scope {
         name: Some(String::from("<closure>")),
         bindings: Rc::new(table! {
             "args" => args.to_vec(),
         }),
         module: closure.scope.module.clone(),
         parent: Some(closure.scope.clone()),
-    }));
+    };
+
+    if let Some(named_params) = closure.block.named_params.as_ref() {
+        for (i, param_name) in named_params.iter().enumerate() {
+            scope.set(param_name.as_bytes(), args.get(i).cloned().unwrap_or(Value::Nil));
+        }
+    }
+
+    fiber.stack.push(Rc::new(scope));
 
     let mut last_return_value = Value::Nil;
 
