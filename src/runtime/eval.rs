@@ -163,11 +163,7 @@ fn evaluate_expr(fiber: &mut Fiber, expr: Expr) -> LocalBoxFuture<Result<Value, 
             Expr::Substitution(substitution) => evaluate_substitution(fiber, substitution).await,
             Expr::Table(literal) => evaluate_table_literal(fiber, literal).await,
             Expr::List(list) => evaluate_list_literal(fiber, list).await,
-            // TODO: Handle expands
-            Expr::InterpolatedString(_) => {
-                log::warn!("string interpolation not yet supported");
-                Ok(Value::Nil)
-            },
+            Expr::InterpolatedString(string) => evaluate_interpolated_string(fiber, string).await,
             Expr::MemberAccess(MemberAccess(lhs, rhs)) => evaluate_member_access(fiber, *lhs, rhs).await,
             Expr::Block(block) => evaluate_block(fiber, block),
             Expr::Pipeline(ref pipeline) => evaluate_pipeline(fiber, pipeline).await,
@@ -220,4 +216,17 @@ async fn evaluate_list_literal(fiber: &mut Fiber, list: ListLiteral) -> Result<V
     }
 
     Ok(Value::List(values))
+}
+
+async fn evaluate_interpolated_string(fiber: &mut Fiber, string: InterpolatedString) -> Result<Value, Exception> {
+    let mut rendered = String::new();
+
+    for part in string.0.into_iter() {
+        rendered.push_str(match part {
+            InterpolatedStringPart::String(part) => part,
+            InterpolatedStringPart::Substitution(sub) => evaluate_substitution(fiber, sub).await?.to_string(),
+        }.as_str());
+    }
+
+    Ok(Value::from(rendered))
 }
