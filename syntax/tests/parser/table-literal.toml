@@ -12,9 +12,7 @@ Block(
     statements: [
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "println",
-                ]),
+                function: "println",
                 args: [
                     TableLiteral([]),
                 ],
@@ -22,9 +20,7 @@ Block(
         ]),
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "println",
-                ]),
+                function: "println",
                 args: [
                     TableLiteral([
                         TableEntry(

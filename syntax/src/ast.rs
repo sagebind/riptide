@@ -25,7 +25,7 @@ pub enum Call {
     /// A function call for a named function.
     #[cfg_attr(feature = "serde", serde(rename = "NamedCall"))]
     Named {
-        function: VariablePath,
+        function: String,
         args: Vec<Expr>,
     },
 
@@ -49,6 +49,7 @@ pub enum Call {
 pub enum Expr {
     Block(Block),
     Pipeline(Pipeline),
+    MemberAccess(MemberAccess),
     Substitution(Substitution),
     Table(TableLiteral),
     List(ListLiteral),
@@ -57,6 +58,10 @@ pub enum Expr {
     String(String),
 }
 
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MemberAccess(pub Box<Expr>, pub String);
+
 /// Value substitution.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -64,7 +69,7 @@ pub enum Substitution {
     /// A format substitution with a variable and parameters, such as `${foo:.2}`.
     ///
     /// This always evaluates to a string, unless the referenced variable is not defined.
-    Format(VariablePath, Option<String>),
+    Format(String, Option<String>),
 
     /// A pipeline substitution, such as `$(add 1 2 3)`.
     ///
@@ -74,17 +79,7 @@ pub enum Substitution {
     /// A simple variable substitution, such as `$foo`.
     ///
     /// This gets evaluated to the current value of the variable identified.
-    Variable(VariablePath),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct VariablePath(pub Vec<String>);
-
-impl fmt::Display for VariablePath {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.join("->"))
-    }
+    Variable(String),
 }
 
 #[derive(Clone, Debug, PartialEq)]

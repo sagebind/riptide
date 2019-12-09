@@ -28,9 +28,7 @@ Block(
                                                     statements: [
                                                         Pipeline([
                                                             NamedCall(
-                                                                function: VariablePath([
-                                                                    "println",
-                                                                ]),
+                                                                function: "println",
                                                                 args: [],
                                                             ),
                                                         ]),

@@ -20,6 +20,10 @@ statement = _{ pipeline }
 
 // Expression is the main syntax building block.
 expr = {
+    member_access_expr
+    | expr_term
+}
+expr_term = _{
     block
     | "(" ~ pipeline ~ ")"
     | substitution
@@ -39,8 +43,10 @@ pipeline = !{ call ~ ("|" ~ call)* }
 // A function call is a reference to a function followed by a series of argument
 // expressions.
 call = { named_call | unnamed_call }
-named_call = { variable_path ~ expr* }
+named_call = { string_literal ~ expr* }
 unnamed_call = { expr+ }
+
+member_access_expr = { expr_term ~ (member_operator ~ string_literal)+ }
 
 // Dollar sign indicates the start of some form of substitution.
 substitution = ${ &"$" ~ (
@@ -48,13 +54,10 @@ substitution = ${ &"$" ~ (
     | pipeline_substitution
     | variable_substitution
 ) }
-format_substitution = ${ "${" ~ variable_path ~ (format_flags_separator ~ format_substitution_flags)? ~ "}" }
+format_substitution = ${ "${" ~ string_literal ~ (format_flags_separator ~ format_substitution_flags)? ~ "}" }
 format_substitution_flags = ${ (ASCII_ALPHANUMERIC | "_" | ".")+ }
 pipeline_substitution = ${ "$(" ~ pipeline ~ ")" }
-variable_substitution = ${ "$" ~ variable_path }
-
-// A variable path is a nested series of identifiers for accessing variables.
-variable_path = ${ string_literal ~ (member_operator ~ string_literal)* }
+variable_substitution = ${ "$" ~ string_literal }
 
 // A table literal expression is used to create tables declaratively.
 table_literal = { "[" ~ NEWLINE* ~ ((table_literal_entry ~ NEWLINE*)+ | ":") ~ NEWLINE* ~ "]" }

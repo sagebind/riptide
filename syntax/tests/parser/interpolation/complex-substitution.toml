@@ -9,9 +9,7 @@ Block(
     statements: [
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "println",
-                ]),
+                function: "println",
                 args: [
                     InterpolatedString([
                         "hello ",
@@ -22,9 +20,7 @@ Block(
                                     statements: [
                                         Pipeline([
                                             NamedCall(
-                                                function: VariablePath([
-                                                    "whoami",
-                                                ]),
+                                                function: "whoami",
                                                 args: [],
                                             ),
                                         ]),

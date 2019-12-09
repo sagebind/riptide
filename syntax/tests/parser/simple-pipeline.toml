@@ -7,15 +7,11 @@ Block(
     statements: [
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "hello",
-                ]),
+                function: "hello",
                 args: [],
             ),
             NamedCall(
-                function: VariablePath([
-                    "world",
-                ]),
+                function: "world",
                 args: [],
             ),
         ]),

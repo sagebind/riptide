@@ -9,9 +9,7 @@ Block(
     statements: [
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "call",
-                ]),
+                function: "call",
                 args: [
                     Block(
                         named_params: Some([
@@ -21,9 +19,7 @@ Block(
                         statements: [
                             Pipeline([
                                 NamedCall(
-                                    function: VariablePath([
-                                        "println",
-                                    ]),
+                                    function: "println",
                                     args: [],
                                 ),
                             ]),

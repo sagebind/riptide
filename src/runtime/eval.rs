@@ -130,7 +130,7 @@ async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: &Pipeline) -> Result<Val
 fn evaluate_call(fiber: &mut Fiber, call: Call) -> LocalBoxFuture<Result<Value, Exception>> {
     async move {
         let (function, args) = match call {
-            Call::Named {function, args} => (get_path(fiber, &function), args),
+            Call::Named {function, args} => (fiber.get(function), args),
             Call::Unnamed {function, args} => (
                 {
                     let mut function = evaluate_expr(fiber, *function).await?;
@@ -168,6 +168,7 @@ fn evaluate_expr(fiber: &mut Fiber, expr: Expr) -> LocalBoxFuture<Result<Value, 
                 log::warn!("string interpolation not yet supported");
                 Ok(Value::Nil)
             },
+            Expr::MemberAccess(MemberAccess(lhs, rhs)) => evaluate_member_access(fiber, *lhs, rhs).await,
             Expr::Block(block) => evaluate_block(fiber, block),
             Expr::Pipeline(ref pipeline) => evaluate_pipeline(fiber, pipeline).await,
         }
@@ -186,9 +187,13 @@ fn evaluate_block(fiber: &mut Fiber, block: Block) -> Result<Value, Exception> {
     }))
 }
 
+async fn evaluate_member_access(fiber: &mut Fiber, lhs: Expr, rhs: String) -> Result<Value, Exception> {
+    Ok(evaluate_expr(fiber, lhs).await?.get(rhs))
+}
+
 async fn evaluate_substitution(fiber: &mut Fiber, substitution: Substitution) -> Result<Value, Exception> {
     match substitution {
-        Substitution::Variable(path) => Ok(get_path(fiber, &path)),
+        Substitution::Variable(name) => Ok(fiber.get(name)),
         Substitution::Pipeline(ref pipeline) => evaluate_pipeline(fiber, pipeline).await,
         _ => unimplemented!(),
     }
@@ -215,16 +220,4 @@ async fn evaluate_list_literal(fiber: &mut Fiber, list: ListLiteral) -> Result<V
     }
 
     Ok(Value::List(values))
-}
-
-fn get_path(fiber: &Fiber, path: &VariablePath) -> Value {
-    let mut result = fiber.get(&path.0[0]);
-
-    if path.0.len() > 1 {
-        for part in &path.0[1..] {
-            result = result.get(part);
-        }
-    }
-
-    result
 }

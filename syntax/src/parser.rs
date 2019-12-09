@@ -60,7 +60,7 @@ impl TryFrom<Pair<'_, Rule>> for Call {
                 let mut pairs = pair.into_inner();
 
                 Ok(Call::Named {
-                    function: VariablePath::try_from(pairs.next().unwrap())?,
+                    function: string_literal(pairs.next().unwrap()),
                     args: pairs.map(Expr::try_from).collect::<Result<_, _>>()?,
                 })
             }
@@ -81,21 +81,32 @@ impl TryFrom<Pair<'_, Rule>> for Expr {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
-        assert_eq!(pair.as_rule(), Rule::expr);
+        fn from_inner(pair: Pair<'_, Rule>) -> Result<Expr, Error<Rule>> {
+            Ok(match pair.as_rule() {
+                Rule::block => Expr::Block(Block::try_from(pair)?),
+                Rule::pipeline => Expr::Pipeline(Pipeline::try_from(pair)?),
+                Rule::member_access_expr => {
+                    let mut pairs = pair.into_inner();
+                    let mut expr = from_inner(pairs.next().unwrap())?;
 
-        let pair = pair.into_inner().next().unwrap();
+                    for member_name in pairs {
+                        expr = Expr::MemberAccess(MemberAccess(Box::new(expr), string_literal(member_name)));
+                    }
 
-        match pair.as_rule() {
-            Rule::block => Ok(Expr::Block(Block::try_from(pair)?)),
-            Rule::pipeline => Ok(Expr::Pipeline(Pipeline::try_from(pair)?)),
-            Rule::substitution => Ok(Expr::Substitution(Substitution::try_from(pair)?)),
-            Rule::table_literal => Ok(Expr::Table(TableLiteral::try_from(pair)?)),
-            Rule::list_literal => Ok(Expr::List(ListLiteral::try_from(pair)?)),
-            Rule::interpolated_string => Ok(Expr::InterpolatedString(InterpolatedString::try_from(pair)?)),
-            Rule::string_literal => Ok(Expr::String(translate_escapes(pair.into_inner().next().unwrap().as_str()))),
-            Rule::number_literal => Ok(Expr::Number(pair.as_str().parse().unwrap())),
-            rule => panic!("unexpected rule: {:?}", rule),
+                    expr
+                },
+                Rule::substitution => Expr::Substitution(Substitution::try_from(pair)?),
+                Rule::table_literal => Expr::Table(TableLiteral::try_from(pair)?),
+                Rule::list_literal => Expr::List(ListLiteral::try_from(pair)?),
+                Rule::interpolated_string => Expr::InterpolatedString(InterpolatedString::try_from(pair)?),
+                Rule::string_literal => Expr::String(string_literal(pair)),
+                Rule::number_literal => Expr::Number(pair.as_str().parse().unwrap()),
+                rule => panic!("unexpected rule: {:?}", rule),
+            })
         }
+
+        assert_eq!(pair.as_rule(), Rule::expr);
+        from_inner(pair.into_inner().next().unwrap())
     }
 }
 
@@ -110,7 +121,7 @@ impl TryFrom<Pair<'_, Rule>> for Substitution {
         match pair.as_rule() {
             Rule::format_substitution => {
                 let mut pairs = pair.into_inner();
-                let variable = pairs.next().map(VariablePath::try_from).unwrap()?;
+                let variable = pairs.next().map(string_literal).unwrap();
                 let flags = pairs.next().map(|pair| pair.as_str().to_owned());
 
                 Ok(Substitution::Format(variable, flags))
@@ -119,22 +130,10 @@ impl TryFrom<Pair<'_, Rule>> for Substitution {
                 Ok(Substitution::Pipeline(Pipeline::try_from(pair.into_inner().next().unwrap())?))
             }
             Rule::variable_substitution => {
-                Ok(Substitution::Variable(VariablePath::try_from(pair.into_inner().next().unwrap())?))
+                Ok(Substitution::Variable(string_literal(pair.into_inner().next().unwrap())))
             }
             rule => panic!("unexpected rule: {:?}", rule),
         }
-    }
-}
-
-impl TryFrom<Pair<'_, Rule>> for VariablePath {
-    type Error = Error<Rule>;
-
-    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
-        assert_eq!(pair.as_rule(), Rule::variable_path);
-
-        Ok(VariablePath(
-            pair.into_inner().map(|pair| pair.into_inner().next().unwrap().as_str()).map(translate_escapes).collect(),
-        ))
     }
 }
 
@@ -197,6 +196,10 @@ impl TryFrom<Pair<'_, Rule>> for InterpolatedStringPart {
             rule => panic!("unexpected rule: {:?}", rule),
         }
     }
+}
+
+fn string_literal(pair: Pair<'_, Rule>) -> String {
+    translate_escapes(pair.into_inner().next().unwrap().as_str())
 }
 
 fn translate_escapes(source: &str) -> String {

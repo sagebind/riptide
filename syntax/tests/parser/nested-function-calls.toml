@@ -7,9 +7,7 @@ Block(
     statements: [
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "println",
-                ]),
+                function: "println",
                 args: [
                     "hello",
                     Pipeline([
@@ -19,9 +17,7 @@ Block(
                                 statements: [
                                     Pipeline([
                                         NamedCall(
-                                            function: VariablePath([
-                                                "read",
-                                            ]),
+                                            function: "read",
                                             args: [],
                                         ),
                                     ]),
@@ -34,9 +30,7 @@ Block(
                     ]),
                     Pipeline([
                         NamedCall(
-                            function: VariablePath([
-                                "uppercase",
-                            ]),
+                            function: "uppercase",
                             args: [
                                 "World",
                             ],

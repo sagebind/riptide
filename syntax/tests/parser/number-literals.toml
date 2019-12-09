@@ -10,9 +10,7 @@ Block(
     statements: [
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "println",
-                ]),
+                function: "println",
                 args: [
                     100,
                 ],
@@ -20,9 +18,7 @@ Block(
         ]),
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "println",
-                ]),
+                function: "println",
                 args: [
                     102.5,
                 ],
@@ -30,9 +26,7 @@ Block(
         ]),
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "println",
-                ]),
+                function: "println",
                 args: [
                     0.25,
                 ],
@@ -40,9 +34,7 @@ Block(
         ]),
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "println",
-                ]),
+                function: "println",
                 args: [
                     -255,
                 ],

@@ -16,18 +16,14 @@ Block(
     statements: [
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "call",
-                ]),
+                function: "call",
                 args: [
                     Block(
                         named_params: None,
                         statements: [
                             Pipeline([
                                 NamedCall(
-                                    function: VariablePath([
-                                        "println",
-                                    ]),
+                                    function: "println",
                                     args: [],
                                 ),
                             ]),
@@ -38,18 +34,14 @@ Block(
         ]),
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "call",
-                ]),
+                function: "call",
                 args: [
                     Block(
                         named_params: None,
                         statements: [
                             Pipeline([
                                 NamedCall(
-                                    function: VariablePath([
-                                        "println",
-                                    ]),
+                                    function: "println",
                                     args: [],
                                 ),
                             ]),
@@ -60,18 +52,14 @@ Block(
         ]),
         Pipeline([
             NamedCall(
-                function: VariablePath([
-                    "call",
-                ]),
+                function: "call",
                 args: [
                     Block(
                         named_params: None,
                         statements: [
                             Pipeline([
                                 NamedCall(
-                                    function: VariablePath([
-                                        "println",
-                                    ]),
+                                    function: "println",
                                     args: [],
                                 ),
                             ]),
