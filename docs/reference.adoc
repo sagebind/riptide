@@ -569,9 +569,9 @@ WARNING: This replaces the current _process_, which includes all fibers in the c
 Throw an exception.
 
 
-==== `catch`
+==== `try`
 
-Execute a block, and if the block throws an exception, return the thrown exception.
+Execute a block, and if the block throws an exception, invoke a continuation with the error as its first argument.
 
 
 [appendix]

@@ -359,10 +359,9 @@ println "PI = ${a-float:.3}" # Prints "PI = 3.142"
 
 [source,riptide]
 ----
-def exception (try {
-    raise "an exception"
-})
-if $exception {
+try {
+    throw "an exception"
+} <exception> {
     println "exception caught: $exception"
 }
 ----

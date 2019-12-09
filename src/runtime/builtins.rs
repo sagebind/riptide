@@ -9,7 +9,6 @@ pub fn get() -> Table {
         "require" => Value::ForeignFn(modules::require.into()),
         "backtrace" => Value::ForeignFn(backtrace.into()),
         "call" => Value::ForeignFn(call.into()),
-        "catch" => Value::ForeignFn(catch.into()),
         "def" => Value::ForeignFn(def.into()),
         "export" => Value::ForeignFn(export.into()),
         "include" => Value::ForeignFn(include.into()),
@@ -20,6 +19,7 @@ pub fn get() -> Table {
         "table" => Value::ForeignFn(table.into()),
         "table-set" => Value::ForeignFn(table_set.into()),
         "throw" => Value::ForeignFn(throw.into()),
+        "try" => Value::ForeignFn(try_fn.into()),
         "typeof" => Value::ForeignFn(type_of.into()),
         "modules" => Value::from(table! {
             "loaders" => Value::List(Vec::new()),
@@ -146,6 +146,24 @@ async fn throw(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     }
 }
 
+/// Handle exceptions.
+async fn try_fn(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+    let try_block = match args.first() {
+        Some(value) => value,
+        None => throw!("block to invoke required"),
+    };
+
+    let error_continuation = match args.get(1) {
+        Some(value) => value,
+        None => throw!("error block required"),
+    };
+
+    match fiber.invoke(try_block, &[]).await {
+        Ok(value) => Ok(value),
+        Err(exception) => fiber.invoke(error_continuation, &[exception.into()]).await,
+    }
+}
+
 async fn call(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     if let Some(function) = args.first() {
         let args = match args.get(1) {
@@ -154,18 +172,6 @@ async fn call(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
         };
 
         fiber.invoke(function, args).await
-    } else {
-        throw!("block to invoke required")
-    }
-}
-
-/// Invoke a block. If the block throws an exception, catch it and return it.
-async fn catch(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
-    if let Some(function) = args.first() {
-        match fiber.invoke(function, &[]).await {
-            Ok(_) => Ok(Value::Nil),
-            Err(exception) => Ok(exception.into()),
-        }
     } else {
         throw!("block to invoke required")
     }
