@@ -22,7 +22,7 @@ use futures::{
 use std::rc::Rc;
 
 /// Compile the given source code as a closure.
-pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>, scope: Option<Rc<Table>>) -> Result<Closure, Exception> {
+pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>, scope: Option<Table>) -> Result<Closure, Exception> {
     let file = file.into();
     let file_name = file.name().to_string();
 
@@ -57,9 +57,9 @@ pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: &[Value]) -> 
 pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: &[Value]) -> Result<Value, Exception> {
     let scope = Scope {
         name: Some(String::from("<closure>")),
-        bindings: Rc::new(table! {
+        bindings: table! {
             "args" => args.to_vec(),
-        }),
+        },
         module: closure.scope.module.clone(),
         parent: Some(closure.scope.clone()),
     };

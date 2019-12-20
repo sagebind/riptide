@@ -11,10 +11,10 @@ pub(crate) struct Scope {
     pub(crate) name: Option<String>,
 
     /// Local scope bindings. May shadow bindings in the parent scope.
-    pub(crate) bindings: Rc<Table>,
+    pub(crate) bindings: Table,
 
     /// A reference to the module this scope is executed in.
-    pub(crate) module: Rc<Table>,
+    pub(crate) module: Table,
 
     /// The parent scope to this one.
     pub(crate) parent: Option<Rc<Scope>>,

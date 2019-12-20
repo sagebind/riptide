@@ -11,7 +11,6 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
     process::exit,
-    rc::Rc,
 };
 use structopt::StructOpt;
 
@@ -160,7 +159,7 @@ async fn execute_stdin(fiber: &mut Fiber) {
 async fn interactive_main(fiber: &mut Fiber) {
     // We want successive commands to act like they are being executed in the
     // same file, so set up a shared scope to execute them in.
-    let scope = Rc::new(table!());
+    let scope = table!();
 
     let mut editor = Editor::new(
         fiber.stdin().unwrap().try_clone().unwrap(),

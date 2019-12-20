@@ -32,7 +32,7 @@ static EXIT_CODE_GLOBAL: &str = "__exit_code";
 /// Fibers are scheduled co-operatively on a single main thread.
 pub struct Fiber {
     /// Table where global values are stored that are not on the stack.
-    globals: Rc<Table>,
+    globals: Table,
 
     /// Call stack of functions being executed by this fiber.
     pub(crate) stack: Vec<Rc<Scope>>,
@@ -151,7 +151,7 @@ impl Fiber {
 
     /// Get a module scope table by the module's name. If the module table does
     /// not already exist, it will be created.
-    pub(crate) fn get_module_by_name(&self, name: &str) -> Rc<Table> {
+    pub(crate) fn get_module_by_name(&self, name: &str) -> Table {
         let loaded = self.globals.get("modules").get("loaded");
 
         if loaded.get(name).is_nil() {
@@ -168,7 +168,7 @@ impl Fiber {
     ///
     /// If a compilation error occurs with the given file, an exception will be returned.
     pub async fn execute(&mut self, module: Option<&str>, file: impl Into<SourceFile>) -> Result<Value, Exception> {
-        self.execute_in_scope(module, file, Rc::new(table!())).await
+        self.execute_in_scope(module, file, table!()).await
     }
 
     /// Execute the given script using the given scope.
@@ -177,7 +177,7 @@ impl Fiber {
     /// anonymous module will be created for the file.
     ///
     /// If a compilation error occurs with the given file, an exception will be returned.
-    pub async fn execute_in_scope(&mut self, _module: Option<&str>, file: impl Into<SourceFile>, scope: Rc<Table>) -> Result<Value, Exception> {
+    pub async fn execute_in_scope(&mut self, _module: Option<&str>, file: impl Into<SourceFile>, scope: Table) -> Result<Value, Exception> {
         let closure = eval::compile(self, file, Some(scope))?;
 
         eval::invoke_closure(self, &closure, &[]).await

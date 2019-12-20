@@ -31,7 +31,7 @@ pub fn exec(command: &str, args: &[&str]) -> Result<(), String> {
         args_c.push(CString::new(*arg).unwrap());
     }
 
-    match unistd::execvp(&command_c, &args_c) {
+    match unistd::execvp(&command_c, &args_c.iter().map(|s| s.as_c_str()).collect::<Vec<_>>()) {
         Ok(_) => Ok(()),
         Err(e) => Err(e.to_string()),
     }

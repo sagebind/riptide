@@ -35,7 +35,7 @@ pub enum Value {
     List(Vec<Value>),
 
     /// A table, stored by reference.
-    Table(Rc<Table>),
+    Table(Table),
 
     /// A block, containing a list of expressions to execute. Stored by reference.
     Block(Rc<Closure>),
@@ -94,12 +94,6 @@ impl<'a> From<&'a [Value]> for Value {
 
 impl From<Table> for Value {
     fn from(table: Table) -> Self {
-        Value::Table(Rc::new(table))
-    }
-}
-
-impl From<Rc<Table>> for Value {
-    fn from(table: Rc<Table>) -> Self {
         Value::Table(table)
     }
 }
@@ -198,7 +192,7 @@ impl Value {
     }
 
     /// If this value is a table, get a reference to it.
-    pub fn as_table(&self) -> Option<Rc<Table>> {
+    pub fn as_table(&self) -> Option<Table> {
         match self {
             Value::Table(table) => Some(table.clone()),
             _ => None,
