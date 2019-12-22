@@ -651,6 +651,10 @@ statement = _{ pipeline }
 
 // Expression is the main syntax building block.
 expr = {
+    member_access_expr
+    | expr_term
+}
+expr_term = _{
     block
     | "(" ~ pipeline ~ ")"
     | substitution
@@ -670,8 +674,10 @@ pipeline = !{ call ~ ("|" ~ call)* }
 // A function call is a reference to a function followed by a series of argument
 // expressions.
 call = { named_call | unnamed_call }
-named_call = { variable_path ~ expr* }
+named_call = { string_literal ~ expr* }
 unnamed_call = { expr+ }
+
+member_access_expr = { expr_term ~ (member_operator ~ string_literal)+ }
 
 // Dollar sign indicates the start of some form of substitution.
 substitution = ${ &amp;"$" ~ (
@@ -679,13 +685,10 @@ substitution = ${ &amp;"$" ~ (
     | pipeline_substitution
     | variable_substitution
 ) }
-format_substitution = ${ "${" ~ variable_path ~ (format_flags_separator ~ format_substitution_flags)? ~ "}" }
+format_substitution = ${ "${" ~ string_literal ~ (format_flags_separator ~ format_substitution_flags)? ~ "}" }
 format_substitution_flags = ${ (ASCII_ALPHANUMERIC | "_" | ".")+ }
 pipeline_substitution = ${ "$(" ~ pipeline ~ ")" }
-variable_substitution = ${ "$" ~ variable_path }
-
-// A variable path is a nested series of identifiers for accessing variables.
-variable_path = ${ string_literal ~ (member_operator ~ string_literal)* }
+variable_substitution = ${ "$" ~ string_literal }
 
 // A table literal expression is used to create tables declaratively.
 table_literal = { "[" ~ NEWLINE* ~ ((table_literal_entry ~ NEWLINE*)+ | ":") ~ NEWLINE* ~ "]" }
@@ -713,7 +716,8 @@ single_quote_inner = ${ ("\\'" | !"'" ~ ANY)* }
 number_literal = ${ "-"? ~ ("." ~ ASCII_DIGIT+ | ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)?) }
 
 // A symbol is an unquoted string, usually used for identifying variable names.
-symbol = ${ ASCII_ALPHANUMERIC ~ (!member_operator ~ (ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/"))* }
+symbol_char = _{ ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/" }
+symbol = ${ symbol_char ~ (!member_operator ~ symbol_char)* }
 
 // Operator to access namespaces and table members.
 member_operator = _{ "-&gt;" }
@@ -1374,9 +1378,9 @@ This replaces the current <em>process</em>, which includes all fibers in the cur
 </div>
 </div>
 <div class="sect3">
-<h4 id="catch"><code>catch</code></h4>
+<h4 id="try"><code>try</code></h4>
 <div class="paragraph">
-<p>Execute a block, and if the block throws an exception, return the thrown exception.</p>
+<p>Execute a block, and if the block throws an exception, invoke a continuation with the error as its first argument.</p>
 </div>
 </div>
 </div>
@@ -1445,7 +1449,7 @@ This replaces the current <em>process</em>, which includes all fibers in the cur
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2019-09-19 13:44:24 UTC
+Last updated 2019-12-22 04:43:23 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.9.1/styles/github.min.css">

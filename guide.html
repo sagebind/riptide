@@ -917,10 +917,9 @@ println "PI = ${a-float:.3}" # Prints "PI = 3.142"</code></pre>
 <div class="sectionbody">
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code class="language-riptide" data-lang="riptide">def exception (try {
-    raise "an exception"
-})
-if $exception {
+<pre class="highlight"><code class="language-riptide" data-lang="riptide">try {
+    throw "an exception"
+} &lt;exception&gt; {
     println "exception caught: $exception"
 }</code></pre>
 </div>
@@ -1048,7 +1047,7 @@ print world | write -a hello.txt</code></pre>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2019-09-19 13:44:24 UTC
+Last updated 2019-12-22 04:43:23 UTC
 </div>
 </div>
 </body>
