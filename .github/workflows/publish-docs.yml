@@ -1,0 +1,20 @@
+name: publish docs
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  publish-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: docker://asciidoctor/docker-asciidoctor
+        run: make docs
+
+      - uses: JamesIves/github-pages-deploy-action@releases/v3
+        with:
+          ACCESS_TOKEN: ${{ secrets.GH_PAT }}
+          BRANCH: gh-pages
+          FOLDER: target/docs
