@@ -46,7 +46,7 @@ features = [
 
 [target.'cfg(unix)'.dependencies]
 termios = "0.3"
-vte = "0.3" # parsing user input
+vte = "0.5" # parsing user input
 
 [workspace]
 members = ["syntax"]
