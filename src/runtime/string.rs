@@ -1,8 +1,9 @@
-use bytes::Bytes;
+use bstr::BString;
 use std::borrow::*;
 use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 use std::str;
 
 /// A string value.
@@ -13,25 +14,15 @@ use std::str;
 /// Since strings are copied and tossed around quite a bit, the string is reference counted to reduce memory and
 /// copying.
 #[derive(Clone, Eq)]
-pub struct RipString(Bytes);
+pub struct RipString(Rc<BString>);
 
 impl Default for RipString {
     fn default() -> Self {
-        Self::from_static("")
+        Self::from("")
     }
 }
 
 impl RipString {
-    /// Allocate a new string and populate it with the given data.
-    pub fn new(string: impl Into<Bytes>) -> Self {
-        RipString(string.into())
-    }
-
-    /// Create a string from a static Rust string.
-    pub fn from_static(string: &'static str) -> Self {
-        RipString(Bytes::from_static(string.as_bytes()))
-    }
-
     /// Get a view of the raw bytes in the string.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
@@ -49,37 +40,25 @@ impl RipString {
 
 impl<'s> From<&'s str> for RipString {
     fn from(value: &str) -> Self {
-        Self::new(value)
+        RipString(Rc::new(value.into()))
     }
 }
 
 impl From<String> for RipString {
     fn from(value: String) -> Self {
-        Self::new(value)
+        RipString(Rc::new(value.into()))
     }
 }
 
 impl<'s> From<&'s [u8]> for RipString {
     fn from(value: &'s [u8]) -> Self {
-        Self::new(value)
+        RipString(Rc::new(value.into()))
     }
 }
 
 impl From<Vec<u8>> for RipString {
     fn from(value: Vec<u8>) -> Self {
-        Self::new(value)
-    }
-}
-
-impl From<Bytes> for RipString {
-    fn from(value: Bytes) -> Self {
-        Self::new(value)
-    }
-}
-
-impl From<RipString> for Bytes {
-    fn from(string: RipString) -> Self {
-        string.0
+        RipString(Rc::new(value.into()))
     }
 }
 
@@ -148,30 +127,7 @@ impl fmt::Debug for RipString {
 
 impl fmt::Display for RipString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut slice = self.as_bytes();
-
-        while slice.len() > 0 {
-            match utf8::decode(slice) {
-                Ok(s) => return write!(f, "{}", s),
-                Err(utf8::DecodeError::Incomplete {
-                    valid_prefix,
-                    ..
-                }) => {
-                    write!(f, "{}", valid_prefix)?;
-                    slice = &slice[valid_prefix.len()..];
-                }
-                Err(utf8::DecodeError::Invalid {
-                    valid_prefix,
-                    remaining_input,
-                    ..
-                }) => {
-                    write!(f, "{}\u{FFFD}", valid_prefix)?;
-                    slice = remaining_input;
-                }
-            }
-        }
-
-        Ok(())
+        fmt::Display::fmt(&*self.0, f)
     }
 }
 
