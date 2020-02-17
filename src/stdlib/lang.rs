@@ -8,6 +8,8 @@ pub fn load() -> Result<Value, Exception> {
         "panic" => Value::foreign_fn(panic),
         "print" => Value::foreign_fn(print),
         "println" => Value::foreign_fn(println),
+        "eprint" => Value::foreign_fn(eprint),
+        "eprintln" => Value::foreign_fn(eprintln),
         "dump" => Value::foreign_fn(dump),
         "exit" => Value::foreign_fn(exit),
         // "eq" => Value::foreign_fn(|_, args: &[Value]| async {
@@ -44,6 +46,30 @@ async fn println(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> 
         for arg in args.iter() {
             stdout.write_all(arg.to_string().as_bytes()).await?;
             stdout.write_all(b"\n").await?;
+        }
+    }
+
+    Ok(Value::Nil)
+}
+
+/// Print the given values to standard error.
+async fn eprint(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+    if let Some(stderr) = fiber.stderr() {
+        for arg in args.iter() {
+            stderr.write_all(arg.to_string().as_bytes()).await?;
+        }
+        stderr.flush().await?;
+    }
+
+    Ok(Value::Nil)
+}
+
+/// Print the given values to standard error, followed by a newline.
+async fn eprintln(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+    if let Some(stderr) = fiber.stderr() {
+        for arg in args.iter() {
+            stderr.write_all(arg.to_string().as_bytes()).await?;
+            stderr.write_all(b"\n").await?;
         }
     }
 
