@@ -1,28 +1,19 @@
-use crate::pipes::{
+use crate::io::{
+    IoContext,
     PipeReader,
     PipeWriter,
-    stdin,
-    stdout,
-    stderr,
 };
 use super::{
-    builtins,
     eval,
     exceptions::Exception,
     foreign::ForeignFn,
-    modules,
     scope::Scope,
     string::RipString,
     syntax::source::SourceFile,
     table::Table,
     value::Value,
 };
-use futures::executor::block_on;
-use std::{
-    env,
-    rc::Rc,
-    time::Instant,
-};
+use std::rc::Rc;
 
 static EXIT_CODE_GLOBAL: &str = "__exit_code";
 
@@ -32,85 +23,49 @@ static EXIT_CODE_GLOBAL: &str = "__exit_code";
 /// Fibers are scheduled co-operatively on a single main thread.
 pub struct Fiber {
     /// Table where global values are stored that are not on the stack.
-    globals: Table,
+    pub(crate) globals: Table,
 
     /// Call stack of functions being executed by this fiber.
     pub(crate) stack: Vec<Rc<Scope>>,
 
-    /// Standard input stream for this fiber.
-    pub(crate) stdin: Option<PipeReader>,
-
-    /// Standard output stream for this fiber.
-    pub(crate) stdout: Option<PipeWriter>,
-
-    /// Standard error stream for this fiber.
-    pub(crate) stderr: Option<PipeWriter>,
-}
-
-impl Default for Fiber {
-    fn default() -> Self {
-        let start_time = Instant::now();
-
-        let mut fiber = Self {
-            globals: Default::default(),
-            stack: Vec::new(),
-            stdin: Some(stdin()),
-            stdout: Some(stdout()),
-            stderr: Some(stderr()),
-        };
-
-        // Set up globals
-        fiber.globals.set("GLOBALS", fiber.globals.clone());
-        fiber.globals.set("env", env::vars().collect::<Table>()); // Isn't that easy?
-
-        // Initialize builtins
-        let builtins_table = builtins::get();
-        for global in builtins_table.keys() {
-            fiber.globals.set(global.clone(), builtins_table.get(global));
-        }
-
-        // Register predefined module loaders
-        fiber.register_module_loader(crate::stdlib::stdlib_loader);
-        fiber.register_module_loader(modules::relative_loader);
-        fiber.register_module_loader(modules::system_loader);
-
-        // Execute initialization
-        block_on(fiber.execute(None, include_str!("init.rip"))).expect("error in runtime initialization");
-
-        log::debug!("runtime took {:?} to initialize", start_time.elapsed());
-
-        fiber
-    }
+    /// Standard I/O streams for this fiber.
+    pub(crate) io: IoContext,
 }
 
 impl Fiber {
+    pub(crate) fn new(io_cx: IoContext) -> Self {
+        Self {
+            globals: Default::default(),
+            stack: Vec::new(),
+            io: io_cx,
+        }
+    }
+
     /// Get the table that holds all global variables.
     pub fn globals(&self) -> &Table {
         &self.globals
     }
 
     /// Get a handle to this fiber's standard input stream.
-    pub fn stdin(&mut self) -> Option<&mut PipeReader> {
-        self.stdin.as_mut()
+    pub fn stdin(&mut self) -> &mut PipeReader {
+        &mut self.io.stdin
     }
 
     /// Get a handle to this fiber's standard output stream.
-    pub fn stdout(&mut self) -> Option<&mut PipeWriter> {
-        self.stdout.as_mut()
+    pub fn stdout(&mut self) -> &mut PipeWriter {
+        &mut self.io.stdout
     }
 
     /// Get a handle to this fiber's standard error stream.
-    pub fn stderr(&mut self) -> Option<&mut PipeWriter> {
-        self.stderr.as_mut()
+    pub fn stderr(&mut self) -> &mut PipeWriter {
+        &mut self.io.stderr
     }
 
     pub fn fork(&self) -> Self {
         Self {
             globals: self.globals.clone(),
             stack: self.stack.clone(),
-            stdin: self.stdin.as_ref().map(|p| p.try_clone().unwrap()),
-            stdout: self.stdout.as_ref().map(|p| p.try_clone().unwrap()),
-            stderr: self.stderr.as_ref().map(|p| p.try_clone().unwrap()),
+            io: self.io.try_clone().unwrap(),
         }
     }
 

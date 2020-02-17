@@ -16,7 +16,6 @@ pub fn get() -> Table {
         "nil" => Value::ForeignFn(nil.into()),
         "nth" => Value::ForeignFn(nth.into()),
         "set" => Value::ForeignFn(set.into()),
-        "table" => Value::ForeignFn(table.into()),
         "table-set" => Value::ForeignFn(table_set.into()),
         "throw" => Value::ForeignFn(throw.into()),
         "try" => Value::ForeignFn(try_fn.into()),
@@ -91,28 +90,6 @@ async fn nth(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     };
 
     Ok(list.get(index as usize).cloned().unwrap_or(Value::Nil))
-}
-
-/// Constructs a table from the given arguments.
-async fn table(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
-    if args.len() & 1 == 1 {
-        throw!("an even number of arguments is required");
-    }
-
-    let table = table!();
-    let mut iter = args.iter();
-
-    while let Some(key) = iter.next() {
-        let value = iter.next().unwrap();
-
-        if let Some(key) = key.as_string() {
-            table.set(key.clone(), value.clone());
-        } else {
-            throw!("table key must be a string");
-        }
-    }
-
-    Ok(table.into())
 }
 
 async fn table_set(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {

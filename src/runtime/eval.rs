@@ -18,6 +18,7 @@ use futures::{
         LocalBoxFuture,
         try_join_all,
     },
+    join,
 };
 use std::rc::Rc;
 
@@ -109,21 +110,46 @@ async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: &[Value]) 
 
 async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: &Pipeline) -> Result<Value, Exception> {
     // If there's only one call in the pipeline, we don't need to fork and can just execute the function by itself.
-    if pipeline.0.len() == 1 {
-        evaluate_call(fiber, pipeline.0[0].clone()).await
-    } else {
-        let mut futures = Vec::new();
+    match pipeline.0.len() {
+        1 => evaluate_call(fiber, pipeline.0[0].clone()).await,
 
-        for call in pipeline.0.iter() {
-            let mut fiber = fiber.fork();
-            futures.push(async move {
-                evaluate_call(&mut fiber, call.clone()).await
-            });
+        2 => {
+            let io = fiber.io.try_clone()?.split()?;
+
+            let mut left = fiber.fork();
+            left.io = io.0;
+
+            let mut right = fiber.fork();
+            right.io = io.1;
+
+            let (a, b) = join!(
+                async move {
+                    evaluate_call(&mut left, pipeline.0[0].clone()).await
+                },
+                async move {
+                    evaluate_call(&mut right, pipeline.0[1].clone()).await
+                },
+            );
+
+            // TODO: Bail from exceptions early.
+            Ok(Value::List(vec![a?, b?]))
         }
 
-        try_join_all(futures)
-            .await
-            .map(Value::List)
+        _ => {
+            let mut futures = Vec::new();
+            let io = fiber.io.try_clone()?;
+
+            for call in pipeline.0.iter() {
+                let mut fiber = fiber.fork();
+                futures.push(async move {
+                    evaluate_call(&mut fiber, call.clone()).await
+                });
+            }
+
+            try_join_all(futures)
+                .await
+                .map(Value::List)
+        }
     }
 }
 

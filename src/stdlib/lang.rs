@@ -30,23 +30,21 @@ async fn panic(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
 
 /// Print the given values to standard output.
 async fn print(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
-    if let Some(stdout) = fiber.stdout() {
-        for arg in args.iter() {
-            stdout.write_all(arg.to_string().as_bytes()).await?;
-        }
-        stdout.flush().await?;
+    let stdout = fiber.stdout();
+    for arg in args.iter() {
+        stdout.write_all(arg.to_string().as_bytes()).await?;
     }
+    stdout.flush().await?;
 
     Ok(Value::Nil)
 }
 
 /// Print the given values to standard output, followed by a newline.
 async fn println(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
-    if let Some(stdout) = fiber.stdout() {
-        for arg in args.iter() {
-            stdout.write_all(arg.to_string().as_bytes()).await?;
-            stdout.write_all(b"\n").await?;
-        }
+    let stdout = fiber.stdout();
+    for arg in args.iter() {
+        stdout.write_all(arg.to_string().as_bytes()).await?;
+        stdout.write_all(b"\n").await?;
     }
 
     Ok(Value::Nil)
@@ -54,23 +52,21 @@ async fn println(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> 
 
 /// Print the given values to standard error.
 async fn eprint(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
-    if let Some(stderr) = fiber.stderr() {
-        for arg in args.iter() {
-            stderr.write_all(arg.to_string().as_bytes()).await?;
-        }
-        stderr.flush().await?;
+    let stderr = fiber.stderr();
+    for arg in args.iter() {
+        stderr.write_all(arg.to_string().as_bytes()).await?;
     }
+    stderr.flush().await?;
 
     Ok(Value::Nil)
 }
 
 /// Print the given values to standard error, followed by a newline.
 async fn eprintln(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
-    if let Some(stderr) = fiber.stderr() {
-        for arg in args.iter() {
-            stderr.write_all(arg.to_string().as_bytes()).await?;
-            stderr.write_all(b"\n").await?;
-        }
+    let stderr = fiber.stderr();
+    for arg in args.iter() {
+        stderr.write_all(arg.to_string().as_bytes()).await?;
+        stderr.write_all(b"\n").await?;
     }
 
     Ok(Value::Nil)

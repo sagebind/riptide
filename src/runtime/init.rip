@@ -28,3 +28,7 @@ def require-x <module> {
         nil? $0
     } | head
 }
+
+table-set $GLOBALS ls {
+    (require process)->command ls -l
+}

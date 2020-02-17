@@ -30,7 +30,7 @@ async fn spawn(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
 /// Executes a shell command in the foreground, waiting for it to complete.
 ///
 /// Returns the process exit code.
-async fn command(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn command(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     if let Some(command) = args.first() {
         let command =
             command.as_string().and_then(|s| s.as_utf8()).ok_or_else(|| Exception::from("invalid command name"))?;
@@ -49,6 +49,9 @@ async fn command(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
 
         Command::new(command)
             .args(string_args)
+            .stdin(fiber.stdin().try_clone()?)
+            .stdout(fiber.stdout().try_clone()?)
+            .stderr(fiber.stderr().try_clone()?)
             .status()
             .map(|status| Value::from(status.code().unwrap_or(0) as f64))
             .map_err(|e| e.to_string().into())

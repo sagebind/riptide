@@ -20,7 +20,6 @@ mod macros;
 mod exit;
 mod io;
 mod logger;
-mod pipes;
 mod runtime;
 mod shell;
 mod stdlib;
@@ -82,7 +81,7 @@ async fn main() {
     // Adjust logging settings based on args.
     log::set_max_level(options.log_level_filter());
 
-    let mut fiber = Fiber::default();
+    let mut fiber = crate::runtime::init().await.expect("error in runtime initialization");
 
     // If at least one command is given, execute those in order and exit.
     if !options.commands.is_empty() {
@@ -162,8 +161,8 @@ async fn interactive_main(fiber: &mut Fiber) {
     let scope = table!();
 
     let mut editor = Editor::new(
-        fiber.stdin().unwrap().try_clone().unwrap(),
-        fiber.stdout().unwrap().try_clone().unwrap(),
+        fiber.stdin().try_clone().unwrap(),
+        fiber.stdout().try_clone().unwrap(),
     );
 
     while exit::get().is_none() {
