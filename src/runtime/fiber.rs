@@ -79,19 +79,10 @@ impl Fiber {
     pub fn exit(&self, code: i32) {
         log::debug!("exit requested with code {}", code);
 
-        match self.exit_code() {
-            // Set exit code.
-            None => {
-                self.globals.set(EXIT_CODE_GLOBAL, code as f64);
-            }
-
-            // Upgrade a zero exit code to a nonzero one.
-            Some(0) => {
-                self.globals.set(EXIT_CODE_GLOBAL, code as f64);
-            }
-
-            // Do not change an existing nonzero code if already exiting.
-            Some(_) => {}
+        // Set exit code if absent, or upgrade a zero exit code to a nonzero
+        // one.
+        if let None | Some(0) = self.exit_code() {
+            self.globals.set(EXIT_CODE_GLOBAL, code as f64);
         }
     }
 

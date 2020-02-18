@@ -171,7 +171,9 @@ async fn interactive_main(fiber: &mut Fiber) {
             match fiber.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()).await {
                 Ok(Value::Nil) => {}
                 Ok(value) => println!("{}", value),
-                Err(e) => log::error!("{}", e),
+                Err(e) => if fiber.exit_code().is_none() {
+                    log::error!("{}", e)
+                }
             }
         }
     }

@@ -118,5 +118,6 @@ async fn exit(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
 
     fiber.exit(code);
 
-    Ok(Value::Nil)
+    // Throw the exit code as an exception so that the stack will unwind.
+    Err(Exception::new(code as f64))
 }
