@@ -95,6 +95,8 @@ impl TryFrom<Pair<'_, Rule>> for Expr {
 
                     expr
                 },
+                Rule::cvar => Expr::CvarReference(CvarReference::try_from(pair)?),
+                Rule::cvar_scope => Expr::CvarScope(CvarScope::try_from(pair)?),
                 Rule::substitution => Expr::Substitution(Substitution::try_from(pair)?),
                 Rule::table_literal => Expr::Table(TableLiteral::try_from(pair)?),
                 Rule::list_literal => Expr::List(ListLiteral::try_from(pair)?),
@@ -107,6 +109,28 @@ impl TryFrom<Pair<'_, Rule>> for Expr {
 
         assert_eq!(pair.as_rule(), Rule::expr);
         from_inner(pair.into_inner().next().unwrap())
+    }
+}
+
+impl TryFrom<Pair<'_, Rule>> for CvarReference {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
+        Ok(CvarReference(string_literal(pair)))
+    }
+}
+
+impl TryFrom<Pair<'_, Rule>> for CvarScope {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error<Rule>> {
+        let mut pairs = pair.into_inner();
+
+        Ok(CvarScope {
+            name: CvarReference::try_from(pairs.next().unwrap())?,
+            value: Box::new(Expr::try_from(pairs.next().unwrap())?),
+            scope: Block::try_from(pairs.next().unwrap())?,
+        })
     }
 }
 

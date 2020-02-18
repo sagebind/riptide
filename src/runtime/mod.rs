@@ -1,11 +1,11 @@
 mod eval;
 mod fiber;
 mod modules;
+mod scope;
 pub mod builtins;
 pub mod closure;
 pub mod exceptions;
 pub mod foreign;
-pub mod scope;
 pub mod string;
 pub mod table;
 pub mod value;
@@ -37,13 +37,13 @@ pub async fn init() -> Result<Fiber, exceptions::Exception> {
     let mut fiber = Fiber::new(IoContext::from_process()?);
 
     // Set up globals
-    fiber.globals.set("GLOBALS", fiber.globals.clone());
-    fiber.globals.set("env", env::vars().collect::<Table>()); // Isn't that easy?
+    fiber.globals().set("GLOBALS", fiber.globals().clone());
+    fiber.globals().set("env", env::vars().collect::<Table>()); // Isn't that easy?
 
     // Initialize builtins
     let builtins_table = builtins::get();
     for global in builtins_table.keys() {
-        fiber.globals.set(global.clone(), builtins_table.get(global));
+        fiber.globals().set(global.clone(), builtins_table.get(global));
     }
 
     // Register predefined module loaders

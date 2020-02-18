@@ -40,7 +40,7 @@ pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>, scope: Opt
             name: Some(format!("{}:<closure>", file_name)),
             bindings: scope.unwrap_or_default(),
             module: module_scope,
-            parent: None,
+            ..Default::default()
         }),
     })
 }
@@ -48,21 +48,23 @@ pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>, scope: Opt
 /// Invoke the given value as a function with the given arguments.
 pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: &[Value]) -> Result<Value, Exception> {
     match value {
-        Value::Block(closure) => invoke_closure(fiber, closure, args).await,
+        Value::Block(closure) => invoke_closure(fiber, closure, args, Table::default()).await,
         Value::ForeignFn(function) => invoke_native(fiber, function, args).await,
         value => throw!("cannot invoke '{:?}' as a function", value),
     }
 }
 
 /// Invoke a block with an array of arguments.
-pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: &[Value]) -> Result<Value, Exception> {
+pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: &[Value], cvars: Table) -> Result<Value, Exception> {
     let scope = Scope {
         name: Some(String::from("<closure>")),
         bindings: table! {
             "args" => args.to_vec(),
         },
+        cvars,
         module: closure.scope.module.clone(),
         parent: Some(closure.scope.clone()),
+        ..Default::default()
     };
 
     if let Some(named_params) = closure.block.named_params.as_ref() {
@@ -76,8 +78,8 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: &
     let mut last_return_value = Value::Nil;
 
     // Evaluate each statement in order.
-    for statement in closure.block.statements.iter() {
-        match evaluate_pipeline(fiber, &statement).await {
+    for statement in closure.block.statements.clone().into_iter() {
+        match evaluate_pipeline(fiber, statement).await {
             Ok(return_value) => last_return_value = return_value,
             Err(exception) => {
                 // Exception thrown; abort and unwind stack.
@@ -96,9 +98,7 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: &
 async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: &[Value]) -> Result<Value, Exception> {
     fiber.stack.push(Rc::new(Scope {
         name: Some(String::from("<native>")),
-        bindings: Default::default(),
-        module: Default::default(),
-        parent: None,
+        ..Default::default()
     }));
 
     let result = function.call(fiber, &args).await;
@@ -108,10 +108,10 @@ async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: &[Value]) 
     result
 }
 
-async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: &Pipeline) -> Result<Value, Exception> {
+async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: Pipeline) -> Result<Value, Exception> {
     // If there's only one call in the pipeline, we don't need to fork and can just execute the function by itself.
     match pipeline.0.len() {
-        1 => evaluate_call(fiber, pipeline.0[0].clone()).await,
+        1 => evaluate_call(fiber, pipeline.0.into_iter().next().unwrap()).await,
 
         2 => {
             let io = fiber.io.try_clone()?.split()?;
@@ -123,10 +123,10 @@ async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: &Pipeline) -> Result<Val
             right.io = io.1;
 
             let (a, b) = join!(
-                async move {
+                async {
                     evaluate_call(&mut left, pipeline.0[0].clone()).await
                 },
-                async move {
+                async {
                     evaluate_call(&mut right, pipeline.0[1].clone()).await
                 },
             );
@@ -137,7 +137,7 @@ async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: &Pipeline) -> Result<Val
 
         _ => {
             let mut futures = Vec::new();
-            let io = fiber.io.try_clone()?;
+            let _ = fiber.io.try_clone()?;
 
             for call in pipeline.0.iter() {
                 let mut fiber = fiber.fork();
@@ -186,13 +186,15 @@ fn evaluate_expr(fiber: &mut Fiber, expr: Expr) -> LocalBoxFuture<Result<Value, 
         match expr {
             Expr::Number(number) => Ok(Value::Number(number)),
             Expr::String(string) => Ok(Value::from(string)),
+            Expr::CvarReference(cvar) => evaluate_cvar(fiber, cvar).await,
+            Expr::CvarScope(cvar_scope) => evaluate_cvar_scope(fiber, cvar_scope).await,
             Expr::Substitution(substitution) => evaluate_substitution(fiber, substitution).await,
             Expr::Table(literal) => evaluate_table_literal(fiber, literal).await,
             Expr::List(list) => evaluate_list_literal(fiber, list).await,
             Expr::InterpolatedString(string) => evaluate_interpolated_string(fiber, string).await,
             Expr::MemberAccess(MemberAccess(lhs, rhs)) => evaluate_member_access(fiber, *lhs, rhs).await,
             Expr::Block(block) => evaluate_block(fiber, block),
-            Expr::Pipeline(ref pipeline) => evaluate_pipeline(fiber, pipeline).await,
+            Expr::Pipeline(pipeline) => evaluate_pipeline(fiber, pipeline).await,
         }
     }.boxed_local()
 }
@@ -202,9 +204,9 @@ fn evaluate_block(fiber: &mut Fiber, block: Block) -> Result<Value, Exception> {
         block: block,
         scope: Rc::new(Scope {
             name: Some(String::from("<closure>")),
-            bindings: Default::default(),
             module: fiber.current_scope().unwrap().module.clone(),
             parent: fiber.stack.last().cloned(),
+            ..Default::default()
         }),
     }))
 }
@@ -213,10 +215,32 @@ async fn evaluate_member_access(fiber: &mut Fiber, lhs: Expr, rhs: String) -> Re
     Ok(evaluate_expr(fiber, lhs).await?.get(rhs))
 }
 
+async fn evaluate_cvar(fiber: &mut Fiber, cvar: CvarReference) -> Result<Value, Exception> {
+    Ok(fiber.get_cvar(cvar.0))
+}
+
+async fn evaluate_cvar_scope(fiber: &mut Fiber, cvar_scope: CvarScope) -> Result<Value, Exception> {
+    let closure = Closure {
+        block: cvar_scope.scope,
+        scope: Rc::new(Scope {
+            name: Some(String::from("<closure>")),
+            module: fiber.current_scope().unwrap().module.clone(),
+            parent: fiber.stack.last().cloned(),
+            ..Default::default()
+        }),
+    };
+
+    let cvars = table! {
+        cvar_scope.name.0 => evaluate_expr(fiber, *cvar_scope.value).await?,
+    };
+
+    invoke_closure(fiber, &closure, &[], cvars).await
+}
+
 async fn evaluate_substitution(fiber: &mut Fiber, substitution: Substitution) -> Result<Value, Exception> {
     match substitution {
         Substitution::Variable(name) => Ok(fiber.get(name)),
-        Substitution::Pipeline(ref pipeline) => evaluate_pipeline(fiber, pipeline).await,
+        Substitution::Pipeline(pipeline) => evaluate_pipeline(fiber, pipeline).await,
         _ => unimplemented!(),
     }
 }

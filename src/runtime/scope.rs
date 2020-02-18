@@ -3,8 +3,9 @@ use std::rc::Rc;
 
 /// A function evaluation scope.
 ///
-/// A scope encompasses the _environment_ in which functions are evaluated. Scopes are hierarchial, and contain a
-/// reference to the enclosing, or parent, scope.
+/// A scope encompasses the _environment_ in which functions are evaluated.
+/// Scopes are hierarchial, and contain a reference to the enclosing, or parent,
+/// scope.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Scope {
     /// The scope name, for debugging purposes.
@@ -13,10 +14,17 @@ pub(crate) struct Scope {
     /// Local scope bindings. May shadow bindings in the parent scope.
     pub(crate) bindings: Table,
 
+    /// Context variables have an entirely separate namespace from normal
+    /// variables, and they are stored here.
+    ///
+    /// This table never changes during the lifetime of the scope; cvars are set
+    /// on creation of the scope.
+    pub(crate) cvars: Table,
+
     /// A reference to the module this scope is executed in.
     pub(crate) module: Table,
 
-    /// The parent scope to this one.
+    /// The lexically parent scope to this one.
     pub(crate) parent: Option<Rc<Scope>>,
 }
 

@@ -24,6 +24,7 @@ pub mod process;
 /// of the current process, which allows more than one I/O context to coexist
 /// inside the same process. This is essential in order to implement I/O aware
 /// fibers.
+#[derive(Debug)]
 pub struct IoContext {
     pub stdin: PipeReader,
     pub stdout: PipeWriter,

@@ -13,9 +13,10 @@ static EXIT_CODE_GLOBAL: &str = "__exit_code";
 /// multiple call stacks to be tracked when executing parallel pipelines.
 ///
 /// Fibers are scheduled co-operatively on a single main thread.
+#[derive(Debug)]
 pub struct Fiber {
     /// Table where global values are stored that are not on the stack.
-    pub(crate) globals: Table,
+    globals: Table,
 
     /// Call stack of functions being executed by this fiber.
     pub(crate) stack: Vec<Rc<Scope>>,
@@ -25,6 +26,7 @@ pub struct Fiber {
 }
 
 impl Fiber {
+    /// Create a new fiber with the given I/O context.
     pub(crate) fn new(io_cx: IoContext) -> Self {
         Self {
             globals: Default::default(),
@@ -145,7 +147,7 @@ impl Fiber {
     ) -> Result<Value, Exception> {
         let closure = eval::compile(self, file, Some(scope))?;
 
-        eval::invoke_closure(self, &closure, &[]).await
+        eval::invoke_closure(self, &closure, &[], Default::default()).await
     }
 
     /// Invoke the given value as a function with the given arguments.
@@ -179,5 +181,21 @@ impl Fiber {
         if self.stack.len() >= 2 {
             self.stack[self.stack.len() - 2].set(name, value);
         }
+    }
+
+    /// Get the current value of a context variable.
+    pub fn get_cvar(&self, name: impl AsRef<[u8]>) -> Value {
+        let name = name.as_ref();
+
+        // Cvars are just implemented as dynamic scoping; backtrack up through
+        // the stack and look for an appropriate cvar.
+        for scope in self.stack.iter().rev() {
+            match scope.cvars.get(name) {
+                Value::Nil => {}
+                value => return value,
+            }
+        }
+
+        Value::Nil
     }
 }

@@ -211,6 +211,19 @@ In contrast with local variables, which are lexically scoped, _context variables
 
 Context variables can be referenced by name using the `@` sigil.
 
+[source,riptide]
+----
+let @cvar = foo {
+    println @cvar # foo
+
+    let @cvar = bar {
+        println @cvar # bar
+    }
+
+    println @cvar # foo
+}
+----
+
 
 === Binding resolution
 

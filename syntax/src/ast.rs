@@ -1,7 +1,5 @@
 //! Abstract syntax tree definitions for the language syntax.
 
-use std::fmt;
-
 /// A function block, containing a list of pipelines to execute.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -50,6 +48,8 @@ pub enum Expr {
     Block(Block),
     Pipeline(Pipeline),
     MemberAccess(MemberAccess),
+    CvarReference(CvarReference),
+    CvarScope(CvarScope),
     Substitution(Substitution),
     Table(TableLiteral),
     List(ListLiteral),
@@ -61,6 +61,18 @@ pub enum Expr {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemberAccess(pub Box<Expr>, pub String);
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CvarReference(pub String);
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CvarScope {
+    pub name: CvarReference,
+    pub value: Box<Expr>,
+    pub scope: Block,
+}
 
 /// Value substitution.
 #[derive(Clone, Debug, PartialEq)]

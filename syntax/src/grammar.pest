@@ -21,11 +21,13 @@ statement = _{ pipeline }
 // Expression is the main syntax building block.
 expr = {
     member_access_expr
-    | expr_term
+    | expr_unary
 }
-expr_term = _{
+expr_unary = _{
     block
     | "(" ~ pipeline ~ ")"
+    | cvar_scope
+    | cvar
     | substitution
     | table_literal
     | list_literal
@@ -33,6 +35,8 @@ expr_term = _{
     | interpolated_string
     | string_literal
 }
+
+member_access_expr = { expr_unary ~ (member_operator ~ string_literal)+ }
 
 // Pipelines are function calls chained together with the pipe "|" operator.
 //
@@ -46,7 +50,11 @@ call = { named_call | unnamed_call }
 named_call = { string_literal ~ expr* }
 unnamed_call = { expr+ }
 
-member_access_expr = { expr_term ~ (member_operator ~ string_literal)+ }
+// Reference a context variable.
+cvar = ${ "@" ~ string_literal }
+
+// Binds a context variable to a value for the duration of a scope.
+cvar_scope = { "let" ~ cvar ~ "=" ~ expr ~ block }
 
 // Dollar sign indicates the start of some form of substitution.
 substitution = ${ &"$" ~ (
@@ -86,7 +94,11 @@ number_literal = ${ "-"? ~ ("." ~ ASCII_DIGIT+ | ASCII_DIGIT+ ~ ("." ~ ASCII_DIG
 
 // A symbol is an unquoted string, usually used for identifying variable names.
 symbol_char = _{ ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/" }
-symbol = ${ symbol_char ~ (!member_operator ~ symbol_char)* }
+symbol = ${ !reserved_words ~ symbol_char ~ (!member_operator ~ symbol_char)* }
+
+// A list of keywords that are not allowed as bare identifiers because they have
+// special meaning.
+reserved_words = _{ "let" }
 
 // Operator to access namespaces and table members.
 member_operator = _{ "->" }
