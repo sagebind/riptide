@@ -3,7 +3,7 @@
 //! This module defines the interface used by pipes and other file descriptors
 //! for communicating with the reactor.
 
-use nix::{fcntl::OFlag, unistd::{dup, pipe2}};
+use nix::{fcntl::OFlag, unistd::pipe2};
 use std::{
     fmt,
     fs::File,
@@ -35,9 +35,9 @@ impl IoContext {
     /// OS process.
     pub fn from_process() -> io::Result<Self> {
         Ok(Self {
-            stdin: unsafe { PipeReader::from_raw_fd(dup(0).map_err(nix_err)?) },
-            stdout: unsafe { PipeWriter::from_raw_fd(dup(1).map_err(nix_err)?) },
-            stderr: unsafe { PipeWriter::from_raw_fd(dup(2).map_err(nix_err)?) },
+            stdin: unsafe { PipeReader::from_raw_fd(dup(io::stdin())?) },
+            stdout: unsafe { PipeWriter::from_raw_fd(dup(io::stdout())?) },
+            stderr: unsafe { PipeWriter::from_raw_fd(dup(io::stderr())?) },
         })
     }
 
@@ -79,6 +79,10 @@ pub fn pipe() -> io::Result<(PipeReader, PipeWriter)> {
                 PipeWriter::from_raw_fd(write_fd),
             )
         })
+}
+
+fn dup(file: impl AsRawFd) -> io::Result<RawFd> {
+    nix::unistd::dup(file.as_raw_fd()).map_err(nix_err)
 }
 
 /// Reading end of an asynchronous pipe.

@@ -17,7 +17,6 @@ use structopt::StructOpt;
 #[macro_use]
 mod macros;
 
-mod exit;
 mod io;
 mod logger;
 mod runtime;
@@ -90,7 +89,7 @@ async fn main() {
                 Ok(_) => {}
                 Err(e) => {
                     log::error!("{}", e);
-                    exit::set(1);
+                    fiber.exit(1);
                     break;
                 }
             }
@@ -111,7 +110,7 @@ async fn main() {
     }
 
     // End this process with a particular exit code if specified.
-    if let Some(exit_code) = exit::get() {
+    if let Some(exit_code) = fiber.exit_code() {
         log::trace!("exit({})", exit_code);
         exit(exit_code);
     }
@@ -123,14 +122,14 @@ async fn execute_file(fiber: &mut Fiber, path: impl AsRef<Path>) {
         Ok(s) => s,
         Err(e) => {
             log::error!("opening file {:?}: {}", path, e);
-            exit::set(exitcode::NOINPUT);
+            fiber.exit(exitcode::NOINPUT);
             return;
         }
     };
 
     if let Err(e) = fiber.execute(None, source).await {
         log::error!("{}", e);
-        exit::set(1);
+        fiber.exit(1);
     }
 }
 
@@ -140,13 +139,13 @@ async fn execute_stdin(fiber: &mut Fiber) {
 
     if let Err(e) = stdin.read_to_string(&mut source) {
         log::error!("{}", e);
-        exit::set(1);
+        fiber.exit(1);
         return;
     }
 
     if let Err(e) = fiber.execute(None, SourceFile::named("<stdin>", source)).await {
         log::error!("{}", e);
-        exit::set(1);
+        fiber.exit(1);
     }
 }
 
@@ -165,7 +164,7 @@ async fn interactive_main(fiber: &mut Fiber) {
         fiber.stdout().try_clone().unwrap(),
     );
 
-    while exit::get().is_none() {
+    while fiber.exit_code().is_none() {
         let line = editor.read_line().await;
 
         if !line.is_empty() {

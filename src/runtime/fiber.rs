@@ -1,20 +1,12 @@
-use crate::io::{
-    IoContext,
-    PipeReader,
-    PipeWriter,
-};
 use super::{
-    eval,
-    exceptions::Exception,
-    foreign::ForeignFn,
-    scope::Scope,
-    string::RipString,
-    syntax::source::SourceFile,
-    table::Table,
-    value::Value,
+    eval, exceptions::Exception, foreign::ForeignFn, scope::Scope, string::RipString,
+    syntax::source::SourceFile, table::Table, value::Value,
 };
+use crate::io::{IoContext, PipeReader, PipeWriter};
 use std::rc::Rc;
 
+/// This is the name of the hidden global variable that exit code requests are
+/// stored in.
 static EXIT_CODE_GLOBAL: &str = "__exit_code";
 
 /// A fiber is an internal concept of a "thread of execution" which allows
@@ -85,13 +77,31 @@ impl Fiber {
     /// Request the runtime to exit with the given exit code. The request is
     /// global and visible by all related fibers.
     pub fn exit(&self, code: i32) {
-        self.globals.set(EXIT_CODE_GLOBAL, code as f64);
+        log::debug!("exit requested with code {}", code);
+
+        match self.exit_code() {
+            // Set exit code.
+            None => {
+                self.globals.set(EXIT_CODE_GLOBAL, code as f64);
+            }
+
+            // Upgrade a zero exit code to a nonzero one.
+            Some(0) => {
+                self.globals.set(EXIT_CODE_GLOBAL, code as f64);
+            }
+
+            // Do not change an existing nonzero code if already exiting.
+            Some(_) => {}
+        }
     }
 
     /// Register a module loader.
     pub(crate) fn register_module_loader(&self, loader: impl Into<ForeignFn>) {
         let modules = self.globals.get("modules").as_table().unwrap();
-        modules.set("loaders", modules.get("loaders").append(loader.into()).unwrap());
+        modules.set(
+            "loaders",
+            modules.get("loaders").append(loader.into()).unwrap(),
+        );
     }
 
     /// Get the current executing scope.
@@ -122,7 +132,11 @@ impl Fiber {
     /// anonymous module will be created for the file.
     ///
     /// If a compilation error occurs with the given file, an exception will be returned.
-    pub async fn execute(&mut self, module: Option<&str>, file: impl Into<SourceFile>) -> Result<Value, Exception> {
+    pub async fn execute(
+        &mut self,
+        module: Option<&str>,
+        file: impl Into<SourceFile>,
+    ) -> Result<Value, Exception> {
         self.execute_in_scope(module, file, table!()).await
     }
 
@@ -132,7 +146,12 @@ impl Fiber {
     /// anonymous module will be created for the file.
     ///
     /// If a compilation error occurs with the given file, an exception will be returned.
-    pub async fn execute_in_scope(&mut self, _module: Option<&str>, file: impl Into<SourceFile>, scope: Table) -> Result<Value, Exception> {
+    pub async fn execute_in_scope(
+        &mut self,
+        _module: Option<&str>,
+        file: impl Into<SourceFile>,
+        scope: Table,
+    ) -> Result<Value, Exception> {
         let closure = eval::compile(self, file, Some(scope))?;
 
         eval::invoke_closure(self, &closure, &[]).await
@@ -150,7 +169,7 @@ impl Fiber {
 
         if let Some(scope) = self.stack.last() {
             match scope.get(name) {
-                Value::Nil => {},
+                Value::Nil => {}
                 value => return value,
             }
         }

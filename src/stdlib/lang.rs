@@ -110,13 +110,13 @@ async fn dump(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Terminate the current process.
-async fn exit(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn exit(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     let code = match args.first() {
         Some(&Value::Number(number)) => number as i32,
         _ => 0,
     };
 
-    crate::exit::set(code);
+    fiber.exit(code);
 
     Ok(Value::Nil)
 }
