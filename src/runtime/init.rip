@@ -13,7 +13,6 @@ def lang (require lang)
 table-set $GLOBALS print $lang->print
 table-set $GLOBALS println $lang->println
 table-set $GLOBALS echo $lang->println
-table-set $GLOBALS exit $lang->exit
 table-set $GLOBALS dump $lang->dump
 table-set $GLOBALS eq $lang->eq
 

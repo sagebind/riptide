@@ -89,15 +89,27 @@ impl PartialEq for RipString {
     }
 }
 
+impl PartialEq<[u8]> for RipString {
+    fn eq(&self, rhs: &[u8]) -> bool {
+        self.as_bytes() == rhs
+    }
+}
+
 impl PartialEq<str> for RipString {
     fn eq(&self, rhs: &str) -> bool {
         self == rhs.as_bytes()
     }
 }
 
-impl PartialEq<[u8]> for RipString {
-    fn eq(&self, rhs: &[u8]) -> bool {
-        self.as_bytes() == rhs
+impl<'a> PartialEq<&'a str> for RipString {
+    fn eq(&self, rhs: &&str) -> bool {
+        self == rhs.as_bytes()
+    }
+}
+
+impl PartialEq<String> for RipString {
+    fn eq(&self, rhs: &String) -> bool {
+        self == rhs.as_bytes()
     }
 }
 

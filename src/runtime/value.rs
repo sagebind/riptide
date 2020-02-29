@@ -232,12 +232,51 @@ impl PartialEq for Value {
     }
 }
 
-impl<S> PartialEq<S> for Value
-where
-    S: AsRef<[u8]>,
-{
-    fn eq(&self, rhs: &S) -> bool {
-        self.as_string().map(|s| s.as_ref()) == Some(rhs.as_ref())
+impl PartialEq<Number> for Value {
+    fn eq(&self, &rhs: &Number) -> bool {
+        self.as_number() == Some(rhs)
+    }
+}
+
+impl PartialEq<Number> for &Value {
+    fn eq(&self, &rhs: &Number) -> bool {
+        **self == rhs
+    }
+}
+
+impl PartialEq<[u8]> for Value {
+    fn eq(&self, rhs: &[u8]) -> bool {
+        match self.as_string() {
+            Some(s) => s == rhs,
+            None => false,
+        }
+    }
+}
+
+impl PartialEq<str> for Value {
+    fn eq(&self, rhs: &str) -> bool {
+        self == rhs.as_bytes()
+    }
+}
+
+impl<'a> PartialEq<&'a str> for Value {
+    fn eq(&self, rhs: &&str) -> bool {
+        self == rhs.as_bytes()
+    }
+}
+
+impl PartialEq<String> for Value {
+    fn eq(&self, rhs: &String) -> bool {
+        self == rhs.as_bytes()
+    }
+}
+
+impl PartialEq<RipString> for Value {
+    fn eq(&self, rhs: &RipString) -> bool {
+        match self.as_string() {
+            Some(s) => s == rhs,
+            None => false,
+        }
     }
 }
 

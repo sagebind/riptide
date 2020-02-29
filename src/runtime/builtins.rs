@@ -10,6 +10,7 @@ pub fn get() -> Table {
         "backtrace" => Value::ForeignFn(backtrace.into()),
         "call" => Value::ForeignFn(call.into()),
         "def" => Value::ForeignFn(def.into()),
+        "exit" => Value::ForeignFn(exit.into()),
         "export" => Value::ForeignFn(export.into()),
         "include" => Value::ForeignFn(include.into()),
         "list" => Value::ForeignFn(list.into()),
@@ -52,6 +53,19 @@ async fn set(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     fiber.set_parent(name, value);
 
     Ok(Value::Nil)
+}
+
+/// Terminate the current process.
+async fn exit(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+    let code = match args.first() {
+        Some(&Value::Number(number)) => number as i32,
+        _ => 0,
+    };
+
+    fiber.exit(code);
+
+    // Throw the exit code as an exception so that the stack will unwind.
+    Err(Exception::unrecoverable(code as f64))
 }
 
 async fn export(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
@@ -137,7 +151,17 @@ async fn try_fn(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
 
     match fiber.invoke(try_block, &[]).await {
         Ok(value) => Ok(value),
-        Err(exception) => fiber.invoke(error_continuation, &[exception.into()]).await,
+        Err(exception) => {
+            // Invoke the catch block.
+            let result = fiber.invoke(error_continuation, &[exception.message().clone()]).await;
+
+            // If the exception is unrecoverable, re-throw it anyway.
+            if exception.is_unrecoverable() {
+                Err(exception)
+            } else {
+                result
+            }
+        },
     }
 }
 

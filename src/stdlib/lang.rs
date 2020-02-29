@@ -11,7 +11,6 @@ pub fn load() -> Result<Value, Exception> {
         "eprint" => Value::foreign_fn(eprint),
         "eprintln" => Value::foreign_fn(eprintln),
         "dump" => Value::foreign_fn(dump),
-        "exit" => Value::foreign_fn(exit),
         // "eq" => Value::foreign_fn(|_, args: &[Value]| async {
         //     Ok(args.iter().all_equal().into())
         // }),
@@ -107,17 +106,4 @@ async fn dump(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     }
 
     Ok(Value::Nil)
-}
-
-/// Terminate the current process.
-async fn exit(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
-    let code = match args.first() {
-        Some(&Value::Number(number)) => number as i32,
-        _ => 0,
-    };
-
-    fiber.exit(code);
-
-    // Throw the exit code as an exception so that the stack will unwind.
-    Err(Exception::new(code as f64))
 }
