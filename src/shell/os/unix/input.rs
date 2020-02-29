@@ -49,8 +49,8 @@ impl<I> TerminalInput<I> {
                 }
             }
 
-            fn hook(&mut self, params: &[i64], intermediates: &[u8], ignore: bool) {
-                log::info!("HOOK {:?} / {:?} / {}", params, intermediates, ignore);
+            fn hook(&mut self, params: &[i64], intermediates: &[u8], ignore: bool, action: char) {
+                log::info!("HOOK {:?} / {:?} / {} / {}", params, intermediates, ignore, action);
             }
 
             fn put(&mut self, byte: u8) {
@@ -59,8 +59,8 @@ impl<I> TerminalInput<I> {
 
             fn unhook(&mut self) {}
 
-            fn osc_dispatch(&mut self, params: &[&[u8]]) {
-                log::debug!("OSC: {:?}", params);
+            fn osc_dispatch(&mut self, params: &[&[u8]], bell_terminated: bool) {
+                log::debug!("OSC: {:?} / {}", params, bell_terminated);
             }
 
             fn csi_dispatch(
@@ -68,9 +68,9 @@ impl<I> TerminalInput<I> {
                 params: &[i64],
                 intermediates: &[u8],
                 ignore: bool,
-                c: char
+                action: char
             ) {
-                match (c, params) {
+                match (action, params) {
                     ('A', _) => self.events.push_back(Event::Up),
                     ('B', _) => self.events.push_back(Event::Down),
                     ('C', _) => self.events.push_back(Event::Right),
@@ -81,18 +81,17 @@ impl<I> TerminalInput<I> {
                     ('~', [3]) => self.events.push_back(Event::Delete),
                     ('~', [5]) => self.events.push_back(Event::PageUp),
                     ('~', [6]) => self.events.push_back(Event::PageDown),
-                    _ => log::info!("CSI {:?} / {:?} / {} / {}", params, intermediates, ignore, c),
+                    _ => log::info!("CSI {:?} / {:?} / {} / {}", params, intermediates, ignore, action),
                 }
             }
 
             fn esc_dispatch(
                 &mut self,
-                params: &[i64],
                 intermediates: &[u8],
                 ignore: bool,
                 byte: u8
             ) {
-                log::info!("ESC {:?} / {:?} / {} / {}", params, intermediates, ignore, byte);
+                log::info!("ESC {:?} / {} / {}", intermediates, ignore, byte);
             }
         }
 
