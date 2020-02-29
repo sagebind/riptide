@@ -1,10 +1,12 @@
 use bstr::BString;
-use std::borrow::*;
-use std::cmp::Ordering;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::rc::Rc;
-use std::str;
+use std::{
+    borrow::*,
+    cmp::Ordering,
+    fmt,
+    hash::{Hash, Hasher},
+    rc::Rc,
+    str,
+};
 
 /// A string value.
 ///

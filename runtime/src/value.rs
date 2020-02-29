@@ -1,11 +1,15 @@
 //! Structures and implementations of the built-in data types.
-use super::closure::Closure;
-use super::foreign::ForeignFn;
-use super::string::RipString;
-use super::table::Table;
-use std::fmt;
-use std::iter::FromIterator;
-use std::rc::Rc;
+use super::{
+    closure::Closure,
+    foreign::ForeignFn,
+    string::RipString,
+    table::Table,
+};
+use std::{
+    fmt,
+    iter::FromIterator,
+    rc::Rc,
+};
 
 type Number = f64;
 

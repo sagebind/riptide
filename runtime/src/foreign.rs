@@ -1,12 +1,10 @@
-use super::{
-    exceptions::Exception,
-    fiber::Fiber,
-    value::Value,
-};
+use crate::prelude::*;
 use futures::future::FutureExt;
-use std::future::Future;
-use std::pin::Pin;
-use std::rc::Rc;
+use std::{
+    future::Future,
+    pin::Pin,
+    rc::Rc,
+};
 
 /// A native function that can be invoked by scripts through a runtime as well
 /// as in native code.

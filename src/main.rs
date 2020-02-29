@@ -10,7 +10,7 @@ use riptide_runtime::{
 use std::{
     io::Read,
     path::{Path, PathBuf},
-    process::exit,
+    process,
 };
 use structopt::StructOpt;
 
@@ -106,7 +106,7 @@ async fn main() {
     // End this process with a particular exit code if specified.
     if let Some(exit_code) = fiber.exit_code() {
         log::trace!("exit({})", exit_code);
-        exit(exit_code);
+        process::exit(exit_code);
     }
 }
 

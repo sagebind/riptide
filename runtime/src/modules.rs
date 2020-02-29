@@ -7,8 +7,7 @@
 use crate::prelude::*;
 use crate::syntax::source::SourceFile;
 use log::*;
-use std::env;
-use std::path::*;
+use std::{env, path::*};
 
 /// Builtin function that loads modules by name.
 pub async fn require(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {

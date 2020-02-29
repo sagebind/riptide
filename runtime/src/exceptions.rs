@@ -1,6 +1,5 @@
 use super::value::Value;
-use std::fmt;
-use std::io;
+use std::{fmt, io};
 
 /// An exception thrown at runtime.
 ///

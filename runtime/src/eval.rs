@@ -12,7 +12,7 @@ use super::{
     foreign::ForeignFn,
     scope::Scope,
     table::Table,
-    value::*,
+    value::Value,
 };
 use futures::{
     future::{
