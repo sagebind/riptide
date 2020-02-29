@@ -1,4 +1,4 @@
-use crate::runtime::prelude::*;
+use crate::prelude::*;
 
 pub fn load() -> Result<Value, Exception> {
     Ok(table! {

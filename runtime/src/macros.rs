@@ -2,7 +2,7 @@
 #[macro_export]
 macro_rules! table {
     () => {
-        $crate::runtime::table::Table::default()
+        $crate::Table::default()
     };
 
     (
@@ -13,7 +13,7 @@ macro_rules! table {
         {
             let table = table!();
             $(
-                table.set($key, $crate::runtime::value::Value::from($value));
+                table.set($key, $crate::Value::from($value));
             )*
             table
         }
@@ -24,6 +24,6 @@ macro_rules! table {
 #[macro_export]
 macro_rules! throw {
     ($($arg:tt)*) => {
-        return Err($crate::runtime::exceptions::Exception::from(format!($($arg)*)))
+        return Err($crate::Exception::from(format!($($arg)*)))
     };
 }

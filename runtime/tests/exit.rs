@@ -1,13 +1,10 @@
-use riptide::runtime;
-
 #[tokio::test]
 async fn exit_throws_unrecoverable_exception() {
-    let mut fiber = runtime::init().await.unwrap();
-
-    let result = fiber.execute(None, r#"
+    let result = riptide_runtime::eval(r#"
         try {
             exit 1
         } {
+            # Attempt to recover
             println "recovered!"
         }
     "#).await;

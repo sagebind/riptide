@@ -1,7 +1,7 @@
 //! Implementations of built-in global functions that are always available.
 
+use crate::prelude::*;
 use super::modules;
-use super::prelude::*;
 use super::scope::Scope;
 
 pub fn get() -> Table {

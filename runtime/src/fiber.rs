@@ -1,8 +1,11 @@
 use super::{
     eval, exceptions::Exception, foreign::ForeignFn, scope::Scope, string::RipString,
-    syntax::source::SourceFile, table::Table, value::Value,
+    table::Table, value::Value,
 };
-use crate::io::{IoContext, PipeReader, PipeWriter};
+use crate::{
+    io::{IoContext, PipeReader, PipeWriter},
+    syntax::source::SourceFile,
+};
 use std::rc::Rc;
 
 /// This is the name of the hidden global variable that exit code requests are

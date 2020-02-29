@@ -1,14 +1,29 @@
+use std::{env, time::Instant};
+
+#[macro_use]
+mod macros;
+
+mod builtins;
 mod eval;
 mod fiber;
 mod modules;
 mod scope;
-pub mod builtins;
+mod string;
+mod table;
+mod value;
+
 pub mod closure;
 pub mod exceptions;
 pub mod foreign;
-pub mod string;
-pub mod table;
-pub mod value;
+pub mod io;
+pub mod stdlib;
+
+pub use crate::{
+    exceptions::Exception,
+    fiber::Fiber,
+    table::Table,
+    value::Value,
+};
 
 // Re-export syntax crate.
 pub mod syntax {
@@ -16,21 +31,21 @@ pub mod syntax {
 }
 
 pub mod prelude {
-    pub use super::exceptions::Exception;
-    pub use super::fiber::Fiber;
-    pub use super::table::Table;
-    pub use super::value::Value;
+    pub use crate::exceptions::Exception;
+    pub use crate::Fiber;
+    pub use crate::table::Table;
+    pub use crate::value::Value;
 }
 
-pub use self::{
-    fiber::Fiber,
-};
+
+pub async fn eval(script: &str) -> Result<Value, Exception> {
+    let mut fiber = init().await.unwrap();
+    fiber.execute(None, script).await
+}
 
 /// Initialize a runtime and return a root fiber.
-pub async fn init() -> Result<Fiber, exceptions::Exception> {
+pub async fn init() -> Result<Fiber, Exception> {
     use crate::io::IoContext;
-    use table::Table;
-    use std::{env, time::Instant};
 
     let start_time = Instant::now();
 

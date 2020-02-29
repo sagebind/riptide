@@ -18,4 +18,4 @@ jobs:
           toolchain: "1.39.0"
           default: true
 
-      - run: cargo test
+      - run: cargo test --workspace

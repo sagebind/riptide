@@ -7,15 +7,11 @@ edition = "2018"
 
 [dependencies]
 atty = "0.2"
-bstr = "0.2"
 clipboard = "0.5"
 directories = "2.0"
 exitcode = "1.1"
 futures = "0.3"
-mio = "0.6"
-nix = "0.17"
-slab = "0.4"
-structopt = "0.3" # arg parsing
+structopt = "0.3"
 
 [dependencies.log]
 version = "0.4"
@@ -25,8 +21,8 @@ features = ["std"]
 version = "2.0"
 features = ["with-backtrace"]
 
-[dependencies.riptide-syntax]
-path = "syntax"
+[dependencies.riptide-runtime]
+path = "runtime"
 
 [dependencies.rusqlite]
 version = "0.20"
@@ -48,4 +44,4 @@ termios = "0.3"
 vte = "0.3" # parsing user input
 
 [workspace]
-members = ["syntax"]
+members = ["runtime", "syntax"]

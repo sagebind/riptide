@@ -2,10 +2,10 @@
 
 #![allow(dead_code)]
 
-use crate::{
-    runtime::prelude::*,
-    runtime::syntax::source::SourceFile,
-    shell::Editor,
+use crate::shell::Editor;
+use riptide_runtime::{
+    prelude::*,
+    syntax::source::SourceFile,
 };
 use std::{
     io::Read,
@@ -14,14 +14,8 @@ use std::{
 };
 use structopt::StructOpt;
 
-#[macro_use]
-mod macros;
-
-mod io;
 mod logger;
-mod runtime;
 mod shell;
-mod stdlib;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -80,7 +74,7 @@ async fn main() {
     // Adjust logging settings based on args.
     log::set_max_level(options.log_level_filter());
 
-    let mut fiber = crate::runtime::init().await.expect("error in runtime initialization");
+    let mut fiber = riptide_runtime::init().await.expect("error in runtime initialization");
 
     // If at least one command is given, execute those in order and exit.
     if !options.commands.is_empty() {
@@ -157,7 +151,7 @@ async fn execute_stdin(fiber: &mut Fiber) {
 async fn interactive_main(fiber: &mut Fiber) {
     // We want successive commands to act like they are being executed in the
     // same file, so set up a shared scope to execute them in.
-    let scope = table!();
+    let scope = riptide_runtime::table!();
 
     let mut editor = Editor::new(
         fiber.stdin().try_clone().unwrap(),

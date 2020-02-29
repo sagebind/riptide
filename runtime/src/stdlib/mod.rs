@@ -1,4 +1,4 @@
-use crate::runtime::prelude::*;
+use crate::prelude::*;
 
 mod lang;
 mod process;

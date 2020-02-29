@@ -1,0 +1,29 @@
+[package]
+name = "riptide-runtime"
+version = "0.2.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+description = "The Riptide programming language interpreter"
+edition = "2018"
+
+[dependencies]
+atty = "0.2"
+bstr = "0.2"
+directories = "2.0"
+futures = "0.3"
+log = "0.4"
+mio = "0.6"
+nix = "0.17"
+
+[dependencies.riptide-syntax]
+path = "../syntax"
+
+[dependencies.tokio]
+version = "0.2"
+features = [
+    "io-driver",
+    "io-util",
+    "macros",
+    "process",
+    "rt-core",
+    "signal",
+]

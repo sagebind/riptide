@@ -1,14 +1,16 @@
 //! This module contains the core logic of the interpreter.
 
+use riptide_syntax::{
+    parse,
+    ast::*,
+    source::*,
+};
 use super::{
     closure::Closure,
     exceptions::Exception,
     fiber::Fiber,
     foreign::ForeignFn,
     scope::Scope,
-    syntax,
-    syntax::ast::*,
-    syntax::source::*,
     table::Table,
     value::*,
 };
@@ -27,7 +29,7 @@ pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>, scope: Opt
     let file = file.into();
     let file_name = file.name().to_string();
 
-    let block = match syntax::parse(file) {
+    let block = match parse(file) {
         Ok(block) => block,
         Err(e) => throw!("error parsing: {}", e),
     };
