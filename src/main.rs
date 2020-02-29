@@ -139,7 +139,7 @@ async fn execute_stdin(fiber: &mut Fiber) {
 
     if let Err(e) = stdin.read_to_string(&mut source) {
         log::error!("{}", e);
-        fiber.exit(1);
+        fiber.exit(exitcode::IOERR);
         return;
     }
 
