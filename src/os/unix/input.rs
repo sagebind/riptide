@@ -1,4 +1,4 @@
-use crate::shell::event::Event;
+use crate::editor::event::Event;
 use std::{
     collections::VecDeque,
     io,

@@ -23,18 +23,21 @@
 //!
 //! ## Directory history
 
-use rusqlite::{params, Connection, Statement, Rows, Row};
-use std::env;
-use std::error::Error;
-use std::mem;
-use std::path::{Path, PathBuf};
-use std::process;
-use std::rc::Rc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use rusqlite::{params, Connection, Row, Rows, Statement};
+use std::{
+    env,
+    error::Error,
+    mem,
+    path::Path,
+    process,
+    rc::Rc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 /// A connection to a history database.
+#[derive(Clone)]
 pub struct History {
     db: Rc<Connection>,
 }
@@ -45,6 +48,12 @@ pub struct CommandEntry {
     command: String,
     cwd: Option<String>,
     timestamp: SystemTime,
+}
+
+impl CommandEntry {
+    pub fn command(&self) -> &str {
+        self.command.as_str()
+    }
 }
 
 /// Aggregated information about a particular command string.
@@ -72,7 +81,7 @@ impl History {
 
         match history.get_version() {
             0 => history.instrument()?,
-            1 => {},
+            1 => {}
             version => return Err(format!("unknown version: {}", version).into()),
         }
 
@@ -80,11 +89,14 @@ impl History {
     }
 
     fn get_version(&self) -> i64 {
-        self.db.query_row("PRAGMA user_version", params![], |row| row.get(0)).unwrap()
+        self.db
+            .query_row("PRAGMA user_version", params![], |row| row.get(0))
+            .unwrap()
     }
 
     fn instrument(&self) -> Result<()> {
-        self.db.execute_batch("
+        self.db.execute_batch(
+            "
             PRAGMA user_version = 1;
 
             CREATE TABLE command_history (
@@ -93,56 +105,60 @@ impl History {
                 pid INTEGER,
                 timestamp INTEGER NOT NULL
             );
-        ")?;
+        ",
+        )?;
 
         Ok(())
     }
 
     pub fn command_history(&self) -> Cursor<CommandEntry> {
-        let mut statement = self.db.prepare("
-            SELECT command, cwd, timestamp FROM command_history
-            ORDER BY timestamp DESC
-        ").unwrap();
-        let rows = statement.query(params![]).unwrap();
-
-        Cursor::new(&self.db, statement, rows)
+        Cursor::query(
+            &self.db,
+            r#"
+                SELECT command, cwd, timestamp FROM command_history
+                ORDER BY timestamp DESC
+            "#,
+            params![],
+        )
     }
 
     /// Query for frequent commands.
     pub fn frequent_commands(&self) -> Cursor<CommandSummary> {
-        let mut statement = self.db.prepare("
-            SELECT command, count(*) AS count FROM command_history
-            GROUP BY command
-            ORDER BY count DESC
-        ").unwrap();
-        let rows = statement.query(params![]).unwrap();
-
-        Cursor::new(&self.db, statement, rows)
+        Cursor::query(
+            &self.db,
+            r#"
+                SELECT command, count(*) AS count FROM command_history
+                GROUP BY command
+                ORDER BY count DESC
+            "#,
+            params![],
+        )
     }
 
     /// Query for frequent commands with a prefix.
-    pub fn frequent_commands_starting_with(&self, prefix: impl Into<String>) -> Cursor<CommandSummary> {
-        let pattern = prefix.into()
-            .replace("%", "\\%")
-            .replace("\\", "\\\\") + "%";
+    pub fn frequent_commands_starting_with(
+        &self,
+        prefix: impl Into<String>,
+    ) -> Cursor<CommandSummary> {
+        let pattern = prefix.into().replace("%", "\\%").replace("\\", "\\\\") + "%";
 
-        let mut statement = self.db.prepare(r#"
-            SELECT command, count(*) AS count FROM command_history
-            WHERE command LIKE ? ESCAPE "\"
-            GROUP BY command
-            ORDER BY count DESC
-        "#).unwrap();
-
-        let rows = statement.query(params![pattern]).unwrap();
-
-        Cursor::new(&self.db, statement, rows)
+        Cursor::query(
+            &self.db,
+            r#"
+                SELECT command, count(*) AS count FROM command_history
+                WHERE command LIKE ? ESCAPE "\"
+                GROUP BY command
+                ORDER BY count DESC
+            "#,
+            params![pattern],
+        )
     }
 
     /// Record a command and add it to the history.
     pub fn add(&self, command: impl Into<String>) {
-        let cwd = env::current_dir().ok()
-            .and_then(|path| path.to_str()
-                .map(String::from));
+        let cwd = env::current_dir()
+            .ok()
+            .and_then(|path| path.to_str().map(String::from));
 
         let pid = process::id();
 
@@ -151,10 +167,12 @@ impl History {
             .unwrap_or(Duration::from_secs(0))
             .as_secs() as i64;
 
-        self.db.execute(
-            "INSERT INTO command_history (command, cwd, pid, timestamp) VALUES (?, ?, ?, ?)",
-            params![command.into(), cwd, pid, timestamp],
-        ).unwrap();
+        self.db
+            .execute(
+                "INSERT INTO command_history (command, cwd, pid, timestamp) VALUES (?, ?, ?, ?)",
+                params![command.into(), cwd, pid, timestamp],
+            )
+            .unwrap();
     }
 }
 
@@ -192,16 +210,22 @@ pub struct Cursor<T> {
 }
 
 impl<T> Cursor<T> {
-    fn new<'a>(db: &'a Rc<Connection>, statement: Statement<'a>, rows: Rows<'a>) -> Self {
+    fn query<P>(db: &Rc<Connection>, query: &str, params: P) -> Self
+    where
+        P: IntoIterator,
+        P::Item: rusqlite::ToSql,
+    {
+        let statement = db.prepare(query).unwrap();
+        let mut statement = unsafe { mem::transmute::<_, Statement<'static>>(statement) };
+
+        let rows = statement.query(params).unwrap();
+        let rows = unsafe { mem::transmute::<_, Rows<'static>>(rows) };
+
         Self {
-            rows: unsafe {
-                mem::transmute(rows)
-            },
+            rows,
             buffer: Vec::new(),
             index: 0,
-            _statement: unsafe {
-                mem::transmute(statement)
-            },
+            _statement: statement,
             _db: db.clone(),
         }
     }
@@ -231,7 +255,7 @@ impl<T: Clone + FromRow> Iterator for Cursor<T> {
 }
 
 impl<T: Clone + FromRow> Cursor<T> {
-    fn prev(&mut self) -> Option<T> {
+    pub fn prev(&mut self) -> Option<T> {
         if self.index > 0 {
             self.index -= 1;
             self.buffer.get(self.index).cloned()

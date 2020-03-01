@@ -1,4 +1,4 @@
-use crate::shell::command::Command;
+use crate::editor::command::Command;
 use std::{
     io,
     pin::Pin,

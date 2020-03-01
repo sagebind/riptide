@@ -2,7 +2,7 @@
 
 #![allow(dead_code)]
 
-use crate::shell::Editor;
+use crate::editor::Editor;
 use riptide_runtime::{
     prelude::*,
     syntax::source::SourceFile,
@@ -14,8 +14,11 @@ use std::{
 };
 use structopt::StructOpt;
 
+mod buffer;
+mod editor;
+mod history;
 mod logger;
-mod shell;
+mod os;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -95,7 +98,7 @@ async fn main() {
     }
     // Interactive mode.
     else if atty::is(atty::Stream::Stdin) {
-        interactive_main(&mut fiber).await;
+        interactive_main(&mut fiber, options).await;
     }
     // Execute stdin
     else {
@@ -148,7 +151,14 @@ async fn execute_stdin(fiber: &mut Fiber) {
 /// It is also worth noting that this function is infallible. Once set up, the
 /// shell ensures that it stays alive until the user actually requests it to
 /// exit.
-async fn interactive_main(fiber: &mut Fiber) {
+async fn interactive_main(fiber: &mut Fiber, options: Options) {
+    let history = if options.private {
+        history::History::in_memory().unwrap()
+    } else {
+        // TODO: Load from disk
+        history::History::in_memory().unwrap()
+    };
+
     // We want successive commands to act like they are being executed in the
     // same file, so set up a shared scope to execute them in.
     let scope = riptide_runtime::table!();
@@ -156,6 +166,7 @@ async fn interactive_main(fiber: &mut Fiber) {
     let mut editor = Editor::new(
         fiber.stdin().try_clone().unwrap(),
         fiber.stdout().try_clone().unwrap(),
+        history,
     );
 
     while fiber.exit_code().is_none() {
