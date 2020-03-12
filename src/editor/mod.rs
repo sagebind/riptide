@@ -2,7 +2,7 @@ use super::buffer::Buffer;
 use crate::{
     editor::command::Command,
     editor::event::Event,
-    history::{CommandEntry, Cursor, History},
+    history::{EntryCursor, History},
     os::{TerminalInput, TerminalOutput},
 };
 use std::borrow::Cow;
@@ -20,7 +20,7 @@ pub struct Editor<I, O: AsRawFd> {
     stdin: TerminalInput<I>,
     stdout: TerminalOutput<O>,
     history: History,
-    history_cursor: Option<Cursor<CommandEntry>>,
+    history_cursor: Option<EntryCursor>,
     buffer: Buffer,
 }
 
@@ -72,7 +72,7 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
                 Event::Up => {
                     let history = self.history.clone();
 
-                    match self.history_cursor.get_or_insert_with(|| history.command_history()).next() {
+                    match self.history_cursor.get_or_insert_with(|| history.entries()).next() {
                         Some(entry) => {
                             // TODO: Save buffer for later if user wants to return to
                             // what they typed.
@@ -86,8 +86,9 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
                 }
                 Event::Down => {
                     if let Some(mut cursor) = self.history_cursor.take() {
+                        self.buffer.clear();
+
                         if let Some(entry) = cursor.prev() {
-                            self.buffer.clear();
                             self.buffer.insert_str(entry.command());
                             self.history_cursor = Some(cursor);
                         }
@@ -118,6 +119,8 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
 
             self.redraw().await;
         }
+
+        self.history_cursor = None;
 
         self.stdout.set_raw_mode(false).unwrap();
 

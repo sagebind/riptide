@@ -155,8 +155,7 @@ async fn interactive_main(fiber: &mut Fiber, options: Options) {
     let history = if options.private {
         history::History::in_memory().unwrap()
     } else {
-        // TODO: Load from disk
-        history::History::in_memory().unwrap()
+        history::History::open_default().unwrap()
     };
 
     // We want successive commands to act like they are being executed in the
