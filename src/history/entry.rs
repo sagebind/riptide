@@ -8,6 +8,7 @@ use std::{
 /// A single entry in the history.
 #[derive(Clone, Debug)]
 pub struct CommandEntry {
+    id: i64,
     command: String,
     cwd: Option<String>,
     timestamp: SystemTime,
@@ -28,6 +29,7 @@ impl TryFrom<&Row<'_>> for CommandEntry {
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         Ok(Self {
+            id: row.get("rowid")?,
             command: row.get("command")?,
             cwd: row.get("cwd")?,
             timestamp: UNIX_EPOCH + Duration::from_secs(row.get::<_, i64>("timestamp")? as u64),
@@ -51,7 +53,7 @@ impl EntryCursor {
 
     pub fn prev(&mut self) -> Option<CommandEntry> {
         if let Some((timestamp, rowid)) = self.key {
-            let (timestamp, rowid, entry) = self.db.query_row(
+            let (timestamp, entry) = self.db.query_row(
                 r#"
                     SELECT rowid, command, cwd, timestamp FROM command_history
                     WHERE (timestamp, rowid) > (?, ?)
@@ -59,10 +61,10 @@ impl EntryCursor {
                     LIMIT 1
                 "#,
                 params![timestamp, rowid],
-                |row| Ok((row.get("timestamp")?, row.get("rowid")?, row.try_into()?)),
+                |row| Ok((row.get("timestamp")?, CommandEntry::try_from(row)?)),
             ).ok()?;
 
-            self.key = Some((timestamp, rowid));
+            self.key = Some((timestamp, entry.id));
 
             Some(entry)
         } else {
@@ -75,7 +77,7 @@ impl Iterator for EntryCursor {
     type Item = CommandEntry;
 
     fn next(&mut self) -> Option<CommandEntry> {
-        let (timestamp, rowid, entry) = if let Some((timestamp, rowid)) = self.key {
+        let (timestamp, entry) = if let Some((timestamp, rowid)) = self.key {
             self.db.query_row(
                 r#"
                     SELECT rowid, command, cwd, timestamp FROM command_history
@@ -84,7 +86,7 @@ impl Iterator for EntryCursor {
                     LIMIT 1
                 "#,
                 params![timestamp, rowid],
-                |row| Ok((row.get("timestamp")?, row.get("rowid")?, row.try_into()?)),
+                |row| Ok((row.get("timestamp")?, CommandEntry::try_from(row)?)),
             ).ok()?
         } else {
             self.db.query_row(
@@ -94,11 +96,11 @@ impl Iterator for EntryCursor {
                     LIMIT 1
                 "#,
                 params![],
-                |row| Ok((row.get("timestamp")?, row.get("rowid")?, row.try_into()?)),
+                |row| Ok((row.get("timestamp")?, CommandEntry::try_from(row)?)),
             ).ok()?
         };
 
-        self.key = Some((timestamp, rowid));
+        self.key = Some((timestamp, entry.id));
 
         Some(entry)
     }

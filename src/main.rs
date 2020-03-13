@@ -158,6 +158,8 @@ async fn interactive_main(fiber: &mut Fiber, options: Options) {
         history::History::open_default().unwrap()
     };
 
+    let session = history.create_session();
+
     // We want successive commands to act like they are being executed in the
     // same file, so set up a shared scope to execute them in.
     let scope = riptide_runtime::table!();
@@ -166,6 +168,7 @@ async fn interactive_main(fiber: &mut Fiber, options: Options) {
         fiber.stdin().try_clone().unwrap(),
         fiber.stdout().try_clone().unwrap(),
         history,
+        session,
     );
 
     while fiber.exit_code().is_none() {

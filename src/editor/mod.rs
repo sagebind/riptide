@@ -2,7 +2,7 @@ use super::buffer::Buffer;
 use crate::{
     editor::command::Command,
     editor::event::Event,
-    history::{EntryCursor, History},
+    history::{EntryCursor, History, Session},
     os::{TerminalInput, TerminalOutput},
 };
 use std::borrow::Cow;
@@ -20,16 +20,18 @@ pub struct Editor<I, O: AsRawFd> {
     stdin: TerminalInput<I>,
     stdout: TerminalOutput<O>,
     history: History,
+    history_session: Session,
     history_cursor: Option<EntryCursor>,
     buffer: Buffer,
 }
 
 impl<I, O: AsRawFd> Editor<I, O> {
-    pub fn new(stdin: I, stdout: O, history: History) -> Self {
+    pub fn new(stdin: I, stdout: O, history: History, session: Session) -> Self {
         Self {
             stdin: TerminalInput::new(stdin),
             stdout: TerminalOutput::new(stdout).unwrap(),
             history,
+            history_session: session,
             history_cursor: None,
             buffer: Buffer::new(),
         }
@@ -125,7 +127,7 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
         self.stdout.set_raw_mode(false).unwrap();
 
         // Record line to history.
-        self.history.add(self.buffer.text());
+        self.history_session.add(self.buffer.text());
 
         // Move the command line out of out buffer and return it.
         self.buffer.take_text()

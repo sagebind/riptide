@@ -35,8 +35,10 @@ use std::{
 };
 
 mod entry;
+mod session;
 
 pub use entry::{CommandEntry, EntryCursor};
+pub use session::Session;
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -99,6 +101,11 @@ impl History {
         Ok(history)
     }
 
+    /// Create a new history session and return it.
+    pub fn create_session(&self) -> Session {
+        Session::new(&self.db)
+    }
+
     fn get_version(&self) -> i64 {
         self.db
             .query_row("PRAGMA user_version", params![], |row| row.get(0))
@@ -110,11 +117,20 @@ impl History {
             "
             PRAGMA user_version = 1;
 
+            CREATE TABLE session_history (
+                session_id INTEGER PRIMARY KEY,
+                timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                user TEXT,
+                term TEXT,
+                pid INTEGER
+            );
+
             CREATE TABLE command_history (
+                session_id INTEGER NOT NULL,
+                timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
                 command TEXT NOT NULL,
                 cwd TEXT,
-                pid INTEGER,
-                timestamp INTEGER NOT NULL
+                FOREIGN KEY (session_id) REFERENCES session_history (session_id)
             );
         ",
         )?;
@@ -157,27 +173,6 @@ impl History {
     //         params![pattern],
     //     )
     // }
-
-    /// Record a command and add it to the history.
-    pub fn add(&self, command: impl Into<String>) {
-        let cwd = env::current_dir()
-            .ok()
-            .and_then(|path| path.to_str().map(String::from));
-
-        let pid = process::id();
-
-        let timestamp = UNIX_EPOCH
-            .elapsed()
-            .unwrap_or(Duration::from_secs(0))
-            .as_secs() as i64;
-
-        self.db
-            .execute(
-                "INSERT INTO command_history (command, cwd, pid, timestamp) VALUES (?, ?, ?, ?)",
-                params![command.into(), cwd, pid, timestamp],
-            )
-            .unwrap();
-    }
 }
 
 #[cfg(test)]
@@ -187,9 +182,10 @@ mod tests {
     #[test]
     fn add_and_get() {
         let history = History::in_memory().unwrap();
+        let session = history.create_session();
 
         for i in 0..9 {
-            history.add(format!("echo {}", i));
+            session.add(format!("echo {}", i));
         }
 
         let mut cursor = history.entries();
