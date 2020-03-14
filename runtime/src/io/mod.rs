@@ -3,14 +3,6 @@
 //! This module defines the interface used by pipes and other file descriptors
 //! for communicating with the reactor.
 
-use nix::{
-    fcntl::{
-        fcntl,
-        FcntlArg,
-        OFlag,
-    },
-    unistd::pipe2,
-};
 use std::{
     fmt,
     fs::File,
@@ -26,6 +18,7 @@ use tokio::io::{
 };
 
 pub mod process;
+mod unix;
 
 /// An I/O context encapsulates the management of standard streams independently
 /// of the current process, which allows more than one I/O context to coexist
@@ -43,9 +36,9 @@ impl IoContext {
     /// OS process.
     pub fn from_process() -> io::Result<Self> {
         Ok(Self {
-            stdin: unsafe { PipeReader::from_raw_fd(dup(io::stdin())?) },
-            stdout: unsafe { PipeWriter::from_raw_fd(dup(io::stdout())?) },
-            stderr: unsafe { PipeWriter::from_raw_fd(dup(io::stderr())?) },
+            stdin: unsafe { PipeReader::from_raw_fd(unix::dup(io::stdin())?) },
+            stdout: unsafe { PipeWriter::from_raw_fd(unix::dup(io::stdout())?) },
+            stderr: unsafe { PipeWriter::from_raw_fd(unix::dup(io::stderr())?) },
         })
     }
 
@@ -96,31 +89,12 @@ impl IoContext {
 
 /// Open a new pipe and return a reader/writer pair.
 pub fn pipe() -> io::Result<(PipeReader, PipeWriter)> {
-    pipe2(OFlag::O_CLOEXEC | OFlag::O_NONBLOCK)
-        .map_err(nix_err)
-        .map(|(read_fd, write_fd)| unsafe {
-            (
-                PipeReader::from_raw_fd(read_fd),
-                PipeWriter::from_raw_fd(write_fd),
-            )
-        })
-}
-
-fn dup(file: impl AsRawFd) -> io::Result<RawFd> {
-    nix::unistd::dup(file.as_raw_fd()).map_err(nix_err)
-}
-
-fn set_nonblocking(file: &mut impl AsRawFd, nonblocking: bool) -> io::Result<()> {
-    let mut flags = fcntl(file.as_raw_fd(), FcntlArg::F_GETFL)
-        .map(OFlag::from_bits)
-        .map_err(nix_err)?
-        .unwrap_or(OFlag::empty());
-
-    flags.set(OFlag::O_NONBLOCK, nonblocking);
-
-    fcntl(file.as_raw_fd(), FcntlArg::F_SETFL(flags))
-        .map_err(nix_err)
-        .map(|_| ())
+    unix::pipe().map(|(read_fd, write_fd)| unsafe {
+        (
+            PipeReader::from_raw_fd(read_fd),
+            PipeWriter::from_raw_fd(write_fd),
+        )
+    })
 }
 
 /// Reading end of an asynchronous pipe.
@@ -129,7 +103,7 @@ pub struct PipeReader(PollEvented<EventedFd>);
 
 impl PipeReader {
     pub fn set_nonblocking(&mut self, nonblocking: bool) -> io::Result<()> {
-        set_nonblocking(self, nonblocking)
+        unix::set_nonblocking(self, nonblocking)
     }
 
     pub fn try_clone(&self) -> io::Result<Self> {
@@ -178,7 +152,7 @@ pub struct PipeWriter(PollEvented<EventedFd>);
 
 impl PipeWriter {
     pub fn set_nonblocking(&mut self, nonblocking: bool) -> io::Result<()> {
-        set_nonblocking(self, nonblocking)
+        unix::set_nonblocking(self, nonblocking)
     }
 
     pub fn try_clone(&self) -> io::Result<Self> {
@@ -300,13 +274,5 @@ impl io::Write for EventedFd {
 
     fn flush(&mut self) -> io::Result<()> {
         self.0.flush()
-    }
-}
-
-fn nix_err(error: nix::Error) -> io::Error {
-    if let nix::Error::Sys(err_no) = error {
-        io::Error::from(err_no)
-    } else {
-        io::Error::new(io::ErrorKind::Other, error)
     }
 }
