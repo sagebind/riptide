@@ -3,7 +3,14 @@
 //! This module defines the interface used by pipes and other file descriptors
 //! for communicating with the reactor.
 
-use nix::{fcntl::OFlag, unistd::pipe2};
+use nix::{
+    fcntl::{
+        fcntl,
+        FcntlArg,
+        OFlag,
+    },
+    unistd::pipe2,
+};
 use std::{
     fmt,
     fs::File,
@@ -103,11 +110,28 @@ fn dup(file: impl AsRawFd) -> io::Result<RawFd> {
     nix::unistd::dup(file.as_raw_fd()).map_err(nix_err)
 }
 
+fn set_nonblocking(file: &mut impl AsRawFd, nonblocking: bool) -> io::Result<()> {
+    let mut flags = fcntl(file.as_raw_fd(), FcntlArg::F_GETFL)
+        .map(OFlag::from_bits)
+        .map_err(nix_err)?
+        .unwrap_or(OFlag::empty());
+
+    flags.set(OFlag::O_NONBLOCK, nonblocking);
+
+    fcntl(file.as_raw_fd(), FcntlArg::F_SETFL(flags))
+        .map_err(nix_err)
+        .map(|_| ())
+}
+
 /// Reading end of an asynchronous pipe.
 #[derive(Debug)]
 pub struct PipeReader(PollEvented<EventedFd>);
 
 impl PipeReader {
+    pub fn set_nonblocking(&mut self, nonblocking: bool) -> io::Result<()> {
+        set_nonblocking(self, nonblocking)
+    }
+
     pub fn try_clone(&self) -> io::Result<Self> {
         self.0.get_ref()
             .try_clone()
@@ -153,6 +177,10 @@ impl AsyncRead for PipeReader {
 pub struct PipeWriter(PollEvented<EventedFd>);
 
 impl PipeWriter {
+    pub fn set_nonblocking(&mut self, nonblocking: bool) -> io::Result<()> {
+        set_nonblocking(self, nonblocking)
+    }
+
     pub fn try_clone(&self) -> io::Result<Self> {
         self.0.get_ref()
             .try_clone()

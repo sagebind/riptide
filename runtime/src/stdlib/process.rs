@@ -1,8 +1,8 @@
 use crate::io::process;
 use crate::prelude::*;
-use std::process::Command;
 use std::thread;
 use std::time::Duration;
+use tokio::process::Command;
 
 pub fn load() -> Result<Value, Exception> {
     Ok(table! {
@@ -47,14 +47,25 @@ async fn command(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> 
             }
         }
 
-        Command::new(command)
+        let mut stdin = fiber.stdin().try_clone()?;
+
+        // Most processes assume standard I/O streams begin life as blocking.
+        stdin.set_nonblocking(false)?;
+
+        let result = Command::new(command)
             .args(string_args)
-            .stdin(fiber.stdin().try_clone()?)
+            .stdin(stdin)
             .stdout(fiber.stdout().try_clone()?)
             .stderr(fiber.stderr().try_clone()?)
             .status()
+            .await
             .map(|status| Value::from(status.code().unwrap_or(0) as f64))
-            .map_err(|e| e.to_string().into())
+            .map_err(|e| e.to_string().into());
+
+        // Restore non-blocking.
+        fiber.stdin().set_nonblocking(true)?;
+
+        result
     } else {
         throw!("command to execute is required")
     }

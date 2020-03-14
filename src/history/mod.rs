@@ -124,6 +124,11 @@ impl History {
                 cwd TEXT,
                 FOREIGN KEY (session_id) REFERENCES session_history (session_id)
             );
+
+            CREATE VIEW frequent_commands AS
+                SELECT command, count(*) AS count FROM command_history
+                GROUP BY command
+                ORDER BY count DESC, command ASC;
         ",
         )?;
 
