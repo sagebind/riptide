@@ -1,12 +1,8 @@
-use rusqlite::{params, Connection, Row};
+use rusqlite::{params, Connection};
 use std::{
-    convert::TryFrom,
     env,
-    error::Error,
-    path::Path,
     process,
     rc::Rc,
-    time::{Duration, UNIX_EPOCH},
 };
 
 pub struct Session {

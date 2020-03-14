@@ -115,34 +115,14 @@ async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: Pipeline) -> Result<Valu
     match pipeline.0.len() {
         1 => evaluate_call(fiber, pipeline.0.into_iter().next().unwrap()).await,
 
-        2 => {
-            let io = fiber.io.try_clone()?.split()?;
-
-            let mut left = fiber.fork();
-            left.io = io.0;
-
-            let mut right = fiber.fork();
-            right.io = io.1;
-
-            let (a, b) = join!(
-                async {
-                    evaluate_call(&mut left, pipeline.0[0].clone()).await
-                },
-                async {
-                    evaluate_call(&mut right, pipeline.0[1].clone()).await
-                },
-            );
-
-            // TODO: Bail from exceptions early.
-            Ok(Value::List(vec![a?, b?]))
-        }
-
-        _ => {
+        count => {
             let mut futures = Vec::new();
-            let _ = fiber.io.try_clone()?;
+            let mut ios = fiber.io.try_clone()?.split_n(count)?.into_iter();
 
             for call in pipeline.0.iter() {
                 let mut fiber = fiber.fork();
+                fiber.io = ios.next().unwrap();
+
                 futures.push(async move {
                     evaluate_call(&mut fiber, call.clone()).await
                 });

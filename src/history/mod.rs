@@ -26,12 +26,9 @@
 use rusqlite::{params, Connection, Row};
 use std::{
     convert::TryFrom,
-    env,
     error::Error,
     path::Path,
-    process,
     rc::Rc,
-    time::{Duration, UNIX_EPOCH},
 };
 
 mod entry;

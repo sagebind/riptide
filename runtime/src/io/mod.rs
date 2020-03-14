@@ -68,6 +68,23 @@ impl IoContext {
             },
         ))
     }
+
+    pub fn split_n(self, n: usize) -> io::Result<Vec<IoContext>> {
+        let mut ios = Vec::new();
+        let mut next = Some(self);
+
+        for i in 0..n {
+            if i == n - 1 {
+                ios.push(next.take().unwrap());
+            } else {
+                let (left, right) = next.take().unwrap().split()?;
+                next = Some(right);
+                ios.push(left);
+            }
+        }
+
+        Ok(ios)
+    }
 }
 
 /// Open a new pipe and return a reader/writer pair.

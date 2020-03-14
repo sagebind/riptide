@@ -1,6 +1,6 @@
 use rusqlite::{params, Connection, Row};
 use std::{
-    convert::{TryFrom, TryInto},
+    convert::TryFrom,
     rc::Rc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
