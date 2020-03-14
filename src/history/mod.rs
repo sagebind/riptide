@@ -74,12 +74,7 @@ impl History {
 
     /// Open a history file.
     pub fn open_default() -> Result<Self> {
-        let dir = directories::ProjectDirs::from("sh.riptide", "", "Riptide")
-            .unwrap()
-            .data_dir()
-            .to_owned();
-        std::fs::create_dir_all(&dir)?;
-        Self::open(dir.join("history.db"))
+        Self::open(crate::paths::history_db()?)
     }
 
     /// Create a temporary in-memory history database.

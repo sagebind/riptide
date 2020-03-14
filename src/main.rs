@@ -19,6 +19,7 @@ mod editor;
 mod history;
 mod logger;
 mod os;
+mod paths;
 
 #[derive(Debug, StructOpt)]
 struct Options {
