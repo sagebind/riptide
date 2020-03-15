@@ -20,6 +20,7 @@ path = "../syntax"
 [dependencies.tokio]
 version = "0.2"
 features = [
+    "fs",
     "io-driver",
     "io-util",
     "macros",

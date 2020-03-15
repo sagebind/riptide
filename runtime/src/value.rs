@@ -66,6 +66,12 @@ impl From<Number> for Value {
     }
 }
 
+impl From<u64> for Value {
+    fn from(value: u64) -> Self {
+        Value::Number(value as Number)
+    }
+}
+
 impl<'a> From<&'a str> for Value {
     fn from(value: &str) -> Self {
         Value::String(RipString::from(value))

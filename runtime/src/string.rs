@@ -2,6 +2,7 @@ use bstr::BString;
 use std::{
     borrow::*,
     cmp::Ordering,
+    ffi::OsStr,
     fmt,
     hash::{Hash, Hasher},
     rc::Rc,
@@ -33,6 +34,13 @@ impl RipString {
 
     pub fn as_utf8(&self) -> Option<&str> {
         str::from_utf8(self.as_bytes()).ok()
+    }
+
+    #[cfg(unix)]
+    pub fn as_os_str(&self) -> &OsStr {
+        use std::os::unix::ffi::OsStrExt;
+
+        OsStr::from_bytes(self.as_bytes())
     }
 
     pub fn to_lowercase(&self) -> Self {

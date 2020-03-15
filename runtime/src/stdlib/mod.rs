@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+mod fs;
 mod lang;
 mod process;
 mod string;
@@ -10,6 +11,7 @@ pub async fn stdlib_loader(_: &mut Fiber, args: &[Value]) -> Result<Value, Excep
         args.first().and_then(Value::as_string).and_then(|s| s.as_utf8()).ok_or("module name must be a string")?;
 
     match name {
+        "fs" => fs::load(),
         "lang" => lang::load(),
         "process" => process::load(),
         "string" => string::load(),
