@@ -1,9 +1,35 @@
 //! Functions for working with processes.
-use nix::unistd;
-use std::ffi::CString;
-use std::process;
 
-pub fn command() {}
+use crate::prelude::*;
+use nix::unistd;
+use std::ffi::{CString, OsStr};
+use std::process;
+use tokio::process::Command;
+
+/// Executes a shell command in the foreground, waiting for it to complete.
+///
+/// Returns the process exit code.
+pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Value]) -> Result<Value, Exception> {
+    let mut stdin = fiber.stdin().try_clone()?;
+
+    // Most processes assume standard I/O streams begin life as blocking.
+    stdin.set_nonblocking(false)?;
+
+    let result = Command::new(command)
+        .args(args.iter().map(|value| crate::string::RipString::from(value.clone())))
+        .stdin(stdin)
+        .stdout(fiber.stdout().try_clone()?)
+        .stderr(fiber.stderr().try_clone()?)
+        .status()
+        .await
+        .map(|status| Value::from(status.code().unwrap_or(0) as f64))
+        .map_err(|e| e.to_string().into());
+
+    // Restore non-blocking.
+    fiber.stdin().set_nonblocking(true)?;
+
+    result
+}
 
 /// Spawn a new child process and execute the given function in it.
 ///

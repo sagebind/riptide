@@ -78,6 +78,13 @@ impl AsRef<[u8]> for RipString {
     }
 }
 
+#[cfg(unix)]
+impl AsRef<OsStr> for RipString {
+    fn as_ref(&self) -> &OsStr {
+        self.as_os_str()
+    }
+}
+
 impl Borrow<[u8]> for RipString {
     fn borrow(&self) -> &[u8] {
         self.as_bytes()

@@ -137,29 +137,33 @@ async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: Pipeline) -> Result<Valu
 
 fn evaluate_call(fiber: &mut Fiber, call: Call) -> LocalBoxFuture<Result<Value, Exception>> {
     async move {
-        let (function, args) = match call {
-            Call::Named {function, args} => (fiber.get(function), args),
-            Call::Unnamed {function, args} => (
-                {
-                    let mut function = evaluate_expr(fiber, *function).await?;
+        match call {
+            Call::Named {function, args} => {
+                let name = function;
+                let function = fiber.get(&name);
 
-                    // If the function is a string, resolve binding names first before we try to eval the item as a function.
-                    if let Some(value) = function.as_string().map(|name| fiber.get(name)) {
-                        function = value;
-                    }
+                let mut arg_values = Vec::with_capacity(args.len());
+                for expr in args {
+                    arg_values.push(evaluate_expr(fiber, expr).await?);
+                }
 
-                    function
-                },
-                args,
-            ),
-        };
+                if !function.is_nil() {
+                    invoke(fiber, &function, &arg_values).await
+                } else {
+                    crate::io::process::command(fiber, &name, &arg_values).await
+                }
+            },
+            Call::Unnamed {function, args} => {
+                let function = evaluate_expr(fiber, *function).await?;
 
-        let mut arg_values = Vec::with_capacity(args.len());
-        for expr in args {
-            arg_values.push(evaluate_expr(fiber, expr).await?);
+                let mut arg_values = Vec::with_capacity(args.len());
+                for expr in args {
+                    arg_values.push(evaluate_expr(fiber, expr).await?);
+                }
+
+                invoke(fiber, &function, &arg_values).await
+            },
         }
-
-        invoke(fiber, &function, &arg_values).await
     }.boxed_local()
 }
 

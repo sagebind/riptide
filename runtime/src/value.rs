@@ -120,6 +120,15 @@ impl From<ForeignFn> for Value {
     }
 }
 
+impl From<Value> for RipString {
+    fn from(value: Value) -> Self {
+        match value {
+            Value::String(s) => s,
+            value => value.to_string().into(),
+        }
+    }
+}
+
 impl<T: Into<Value>> FromIterator<T> for Value {
     fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
         Value::List(iter.into_iter().map(Into::into).collect())
