@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Riptide</title>
+        <style>
+            html, body {
+                min-height: 100%;
+            }
+
+            html {
+                background-image: linear-gradient(#16d0b9, #319c8f);
+                background-repeat: no-repeat;
+                background-size: auto 20rem;
+            }
+            body {
+                color: #333;
+                font-family: serif;
+            }
+
+            header, h1, h2 {
+                font-family: "Open Sans", sans-serif;
+                font-weight: normal;
+            }
+
+            body > * {
+                margin: 0 auto;
+                max-width: 64em;
+            }
+
+            body > header {
+                display: flex;
+                align-items: center;
+            }
+
+            body > header > h1 {
+                flex-grow: 1;
+            }
+
+            body > header > nav > a {
+                display: inline-block;
+                margin-left: 0.5em;
+                padding: 0.5em 1em;
+                border-radius: 0.25em;
+                text-decoration: none;
+                color: inherit;
+                transition: background-color 0.2s;
+            }
+
+            body > header > nav > a:hover {
+                background-color: rgba(255, 255, 255, 0.25);
+            }
+
+            body > main {
+                margin-top: 18rem;
+            }
+        </style>
+    </head>
+
+    <body>
+        <header>
+            <h1>Riptide</h1>
+
+            <nav>
+                <a href="guide.html">Guide</a>
+                <a href="reference.html">Reference</a>
+            </nav>
+        </header>
+
+        <main>
+            <p>A work-in-progress alternative shell scripting language.</p>
+        </main>
+    </body>
+</html>
