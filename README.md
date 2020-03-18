@@ -15,5 +15,5 @@ Ripide is a powerful scripting language and interpreter that seeks to accomplish
 The Riptide project is licensed under the MIT license. See the [LICENSE](LICENSE) file for details.
 
 
-[Guide]: docs/guide.adoc
-[Reference]: docs/reference.adoc
+[Guide]: https://riptide.sh/guide.html
+[Reference]: https://riptide.sh/reference.html
