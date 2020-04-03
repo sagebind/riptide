@@ -63,7 +63,10 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
             match event {
                 Event::Char('\n') => {
                     self.stdout.write_all(b"\r\n").await.unwrap();
-                    break;
+
+                    if !self.buffer.text().is_empty() {
+                        break;
+                    }
                 }
                 Event::Left => {
                     self.buffer.move_cursor_relative(-1);

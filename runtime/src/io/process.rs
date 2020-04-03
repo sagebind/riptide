@@ -2,8 +2,11 @@
 
 use crate::prelude::*;
 use nix::unistd;
-use std::ffi::{CString, OsStr};
-use std::process;
+use std::{
+    ffi::{CString, OsStr},
+    future::Future,
+    process,
+};
 use tokio::process::Command;
 
 /// Executes a shell command in the foreground, waiting for it to complete.
@@ -31,13 +34,13 @@ pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Valu
     result
 }
 
-/// Spawn a new child process and execute the given function in it.
+/// Spawn a new child process and execute the given future in it.
 ///
 /// Returns the PID of the child process.
-pub fn spawn<F: FnOnce()>(body: F) -> Result<i32, ()> {
+pub async fn spawn<F: Future<Output = ()>>(future: F) -> Result<i32, ()> {
     match unistd::fork() {
         Ok(unistd::ForkResult::Child) => {
-            (body)();
+            future.await;
             process::exit(0);
         }
 

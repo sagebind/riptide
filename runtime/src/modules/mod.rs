@@ -9,6 +9,8 @@ use crate::syntax::source::SourceFile;
 use log::*;
 use std::{env, path::*};
 
+pub mod native;
+
 /// Builtin function that loads modules by name.
 pub async fn require(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     if args.is_empty() {

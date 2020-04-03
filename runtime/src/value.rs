@@ -66,6 +66,12 @@ impl From<Number> for Value {
     }
 }
 
+impl From<u32> for Value {
+    fn from(value: u32) -> Self {
+        Value::Number(value as Number)
+    }
+}
+
 impl From<u64> for Value {
     fn from(value: u64) -> Self {
         Value::Number(value as Number)

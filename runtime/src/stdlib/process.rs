@@ -1,13 +1,15 @@
 use crate::io::process;
 use crate::prelude::*;
-use std::thread;
-use std::time::Duration;
-use tokio::process::Command;
+use std::{
+    thread,
+    time::Duration,
+};
 
 pub fn load() -> Result<Value, Exception> {
     Ok(table! {
         "command" => Value::foreign_fn(command),
         "exec" => Value::foreign_fn(exec),
+        "pid" => Value::foreign_fn(pid),
         "sleep" => Value::foreign_fn(sleep),
         "spawn" => Value::foreign_fn(spawn),
     }
@@ -17,11 +19,17 @@ pub fn load() -> Result<Value, Exception> {
 /// Spawns a new child process and executes a given block in it.
 ///
 /// Returns the child process PID.
-async fn spawn(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
-    let pid = process::spawn(|| {
-        // let child_interpreter = Runtime::new();
-        // child_interpreter.execute(Exp)
+async fn spawn(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+    let block = match args.first() {
+        Some(arg) if arg.type_name() == "block" => arg.clone(),
+        _ => throw!("a block to execute must be provided"),
+    };
+    let child_args = args.iter().cloned().skip(1).collect::<Vec<_>>();
+
+    let pid = process::spawn(async move {
+        fiber.invoke(&block, &child_args).await.unwrap();
     })
+    .await
     .unwrap();
 
     Ok(Value::Number(pid as f64))
@@ -68,4 +76,9 @@ async fn sleep(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     } else {
         throw!("sleep duration required")
     }
+}
+
+/// Get the current process' ID.
+async fn pid(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
+    Ok(std::process::id().into())
 }
