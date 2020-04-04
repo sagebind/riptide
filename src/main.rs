@@ -78,7 +78,7 @@ async fn main() {
     // Adjust logging settings based on args.
     log::set_max_level(options.log_level_filter());
 
-    let mut fiber = riptide_runtime::init().await.expect("error in runtime initialization");
+    let mut fiber = create_runtime().await;
 
     // If at least one command is given, execute those in order and exit.
     if !options.commands.is_empty() {
@@ -185,4 +185,10 @@ async fn interactive_main(fiber: &mut Fiber, options: Options) {
             }
         }
     }
+}
+
+async fn create_runtime() -> Fiber {
+    let mut fiber = riptide_runtime::init().await.expect("error in runtime initialization");
+    riptide_stdlib::init(&mut fiber).await.expect("error in runtime initialization");
+    fiber
 }

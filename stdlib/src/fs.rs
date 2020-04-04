@@ -1,4 +1,8 @@
-use crate::prelude::*;
+use riptide_runtime::{
+    prelude::*,
+    table,
+    throw,
+};
 use tokio::{fs::File, io};
 
 pub fn load() -> Result<Value, Exception> {
@@ -9,7 +13,7 @@ pub fn load() -> Result<Value, Exception> {
     .into())
 }
 
-async fn read(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn read(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let path = match args.first().and_then(Value::as_string) {
         Some(p) => p.as_os_str(),
         None => throw!("file path required"),
@@ -21,7 +25,7 @@ async fn read(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::from(count))
 }
 
-async fn write(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn write(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let path = match args.first().and_then(Value::as_string) {
         Some(p) => p.as_os_str(),
         None => throw!("file path required"),

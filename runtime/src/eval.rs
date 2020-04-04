@@ -48,7 +48,7 @@ pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>, scope: Opt
 }
 
 /// Invoke the given value as a function with the given arguments.
-pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: &[Value]) -> Result<Value, Exception> {
+pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: Vec<Value>) -> Result<Value, Exception> {
     match value {
         Value::Block(closure) => invoke_closure(fiber, closure, args, Table::default()).await,
         Value::ForeignFn(function) => invoke_native(fiber, function, args).await,
@@ -57,7 +57,7 @@ pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: &[Value]) -> 
 }
 
 /// Invoke a block with an array of arguments.
-pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: &[Value], cvars: Table) -> Result<Value, Exception> {
+pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: Vec<Value>, cvars: Table) -> Result<Value, Exception> {
     let scope = Scope {
         name: Some(String::from("<closure>")),
         bindings: table! {
@@ -97,13 +97,13 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: &
 }
 
 /// Invoke a native function.
-async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: &[Value]) -> Result<Value, Exception> {
+async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: Vec<Value>) -> Result<Value, Exception> {
     fiber.stack.push(Rc::new(Scope {
         name: Some(String::from("<native>")),
         ..Default::default()
     }));
 
-    let result = function.call(fiber, &args).await;
+    let result = function.call(fiber, args).await;
 
     fiber.stack.pop();
 
@@ -148,7 +148,7 @@ fn evaluate_call(fiber: &mut Fiber, call: Call) -> LocalBoxFuture<Result<Value, 
                 }
 
                 if !function.is_nil() {
-                    invoke(fiber, &function, &arg_values).await
+                    invoke(fiber, &function, arg_values).await
                 } else {
                     crate::io::process::command(fiber, &name, &arg_values).await
                 }
@@ -161,7 +161,7 @@ fn evaluate_call(fiber: &mut Fiber, call: Call) -> LocalBoxFuture<Result<Value, 
                     arg_values.push(evaluate_expr(fiber, expr).await?);
                 }
 
-                invoke(fiber, &function, &arg_values).await
+                invoke(fiber, &function, arg_values).await
             },
         }
     }.boxed_local()
@@ -220,7 +220,7 @@ async fn evaluate_cvar_scope(fiber: &mut Fiber, cvar_scope: CvarScope) -> Result
         cvar_scope.name.0 => evaluate_expr(fiber, *cvar_scope.value).await?,
     };
 
-    invoke_closure(fiber, &closure, &[], cvars).await
+    invoke_closure(fiber, &closure, vec![], cvars).await
 }
 
 async fn evaluate_substitution(fiber: &mut Fiber, substitution: Substitution) -> Result<Value, Exception> {

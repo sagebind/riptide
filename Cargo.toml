@@ -25,6 +25,9 @@ features = ["with-backtrace"]
 [dependencies.riptide-runtime]
 path = "runtime"
 
+[dependencies.riptide-stdlib]
+path = "stdlib"
+
 [dependencies.rusqlite]
 version = "0.20"
 features = ["bundled"]
@@ -45,4 +48,4 @@ termios = "0.3"
 vte = "0.7" # parsing user input
 
 [workspace]
-members = ["runtime", "syntax"]
+members = ["runtime", "stdlib", "syntax"]

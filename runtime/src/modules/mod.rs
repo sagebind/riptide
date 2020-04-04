@@ -4,15 +4,45 @@
 //! by a series of _loaders_. Each loader is a function that converts the module name into the module contents if found,
 //! or Nil if not found.
 
-use crate::prelude::*;
-use crate::syntax::source::SourceFile;
+use crate::{
+    prelude::*,
+    foreign::ForeignFn,
+    syntax::source::SourceFile,
+};
 use log::*;
 use std::{env, path::*};
 
 pub mod native;
 
+impl Fiber {
+    /// Register a module loader.
+    pub(crate) fn register_module_loader(&self, loader: impl Into<ForeignFn>) {
+        let modules = self.globals().get("modules").as_table().unwrap();
+        modules.set(
+            "loaders",
+            modules.get("loaders").append(loader.into()).unwrap(),
+        );
+    }
+
+    /// Register a module implemented in native code.
+    // TODO: Change type of name.
+    pub fn register_native_module(&self, name: &'static str, init: impl Into<ForeignFn>) {
+        let init = init.into();
+
+        self.register_module_loader(foreign_fn!(clone init |fiber, args| {
+            if let Some(s) = args.first().and_then(Value::as_string) {
+                if s == name {
+                    return init.call(fiber, vec![]).await;
+                }
+            }
+
+            Ok(Value::Nil)
+        }));
+    }
+}
+
 /// Builtin function that loads modules by name.
-pub async fn require(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+pub async fn require(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     if args.is_empty() {
         throw!("module name to require must be given");
     }
@@ -44,12 +74,12 @@ pub async fn require(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Excepti
     throw!("module '{}' not found", name)
 }
 
-pub async fn relative_loader(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
+pub async fn relative_loader(_: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
 /// A module loader function that loads modules from system-wide paths.
-pub async fn system_loader(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+pub async fn system_loader(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let name = args.first().and_then(Value::as_string).ok_or("module name must be a string")?;
     log::debug!("loading module '{}' using system loader", name);
 

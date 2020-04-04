@@ -29,7 +29,7 @@ pub fn get() -> Table {
 }
 
 /// Binds a value to a new variable.
-async fn def(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn def(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
         None => throw!("variable name required"),
@@ -42,7 +42,7 @@ async fn def(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
-async fn set(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn set(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
         None => throw!("variable name required"),
@@ -56,7 +56,7 @@ async fn set(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Terminate the current process.
-async fn exit(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn exit(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let code = match args.first() {
         Some(&Value::Number(number)) => number as i32,
         _ => 0,
@@ -68,7 +68,7 @@ async fn exit(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     Err(Exception::unrecoverable(code as f64))
 }
 
-async fn export(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn export(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
         None => throw!("variable name to export required"),
@@ -83,16 +83,16 @@ async fn export(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Returns the name of the primitive type of the given arguments.
-async fn type_of(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn type_of(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     Ok(args.first().map(Value::type_name).map(Value::from).unwrap_or(Value::Nil))
 }
 
 /// Constructs a list from the given arguments.
-async fn list(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn list(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     Ok(Value::List(args.to_vec()))
 }
 
-async fn nth(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn nth(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let list = match args.get(0).and_then(Value::as_list) {
         Some(s) => s.to_vec(),
         None => throw!("first argument must be a list"),
@@ -106,7 +106,7 @@ async fn nth(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     Ok(list.get(index as usize).cloned().unwrap_or(Value::Nil))
 }
 
-async fn table_set(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn table_set(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let table = match args.get(0).and_then(Value::as_table) {
         Some(s) => s.clone(),
         None => throw!("first argument must be a table"),
@@ -125,12 +125,12 @@ async fn table_set(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Function that always returns Nil.
-async fn nil(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
+async fn nil(_: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
 /// Throw an exception.
-async fn throw(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn throw(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     match args.first() {
         Some(value) => Err(Exception::from(value.clone())),
         None => Err(Exception::from(Value::Nil)),
@@ -138,7 +138,7 @@ async fn throw(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Handle exceptions.
-async fn try_fn(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn try_fn(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let try_block = match args.first() {
         Some(value) => value,
         None => throw!("block to invoke required"),
@@ -165,7 +165,7 @@ async fn try_fn(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     }
 }
 
-async fn call(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn call(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     if let Some(function) = args.first() {
         let args = match args.get(1) {
             Some(Value::List(args)) => &args[..],
@@ -178,12 +178,12 @@ async fn call(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
     }
 }
 
-async fn include(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
+async fn include(_: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
     throw!("not implemented");
 }
 
 /// Returns a backtrace of the call stack as a list of strings.
-async fn backtrace(fiber: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
+async fn backtrace(fiber: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
     fn scope_to_value(scope: impl AsRef<Scope>) -> Value {
         let scope = scope.as_ref();
         Value::from(table! {

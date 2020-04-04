@@ -1,0 +1,24 @@
+[package]
+name = "riptide-stdlib"
+version = "0.2.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+description = "The Riptide standard library"
+edition = "2018"
+
+[dependencies]
+log = "0.4"
+
+[dependencies.riptide-runtime]
+path = "../runtime"
+
+[dependencies.tokio]
+version = "0.2"
+features = [
+    "fs",
+    "io-driver",
+    "io-util",
+    "macros",
+    "process",
+    "rt-core",
+    "signal",
+]

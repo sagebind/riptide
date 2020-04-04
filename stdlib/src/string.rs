@@ -1,4 +1,7 @@
-use crate::prelude::*;
+use riptide_runtime::{
+    prelude::*,
+    table,
+};
 
 pub fn load() -> Result<Value, Exception> {
     Ok(table! {

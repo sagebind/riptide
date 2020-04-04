@@ -1,5 +1,5 @@
 use super::{
-    eval, exceptions::Exception, foreign::ForeignFn, scope::Scope, string::RipString,
+    eval, exceptions::Exception, scope::Scope, string::RipString,
     table::Table, value::Value,
 };
 use crate::{
@@ -91,15 +91,6 @@ impl Fiber {
         }
     }
 
-    /// Register a module loader.
-    pub(crate) fn register_module_loader(&self, loader: impl Into<ForeignFn>) {
-        let modules = self.globals.get("modules").as_table().unwrap();
-        modules.set(
-            "loaders",
-            modules.get("loaders").append(loader.into()).unwrap(),
-        );
-    }
-
     /// Get the current executing scope.
     pub(crate) fn current_scope(&self) -> Option<&Rc<Scope>> {
         self.stack.last()
@@ -150,12 +141,12 @@ impl Fiber {
     ) -> Result<Value, Exception> {
         let closure = eval::compile(self, file, Some(scope))?;
 
-        eval::invoke_closure(self, &closure, &[], Default::default()).await
+        eval::invoke_closure(self, &closure, vec![], Default::default()).await
     }
 
     /// Invoke the given value as a function with the given arguments.
     pub async fn invoke(&mut self, value: &Value, args: &[Value]) -> Result<Value, Exception> {
-        eval::invoke(self, value, args).await
+        eval::invoke(self, value, args.to_vec()).await
     }
 
     /// Lookup a variable name in the current scope.

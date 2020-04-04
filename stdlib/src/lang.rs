@@ -1,4 +1,7 @@
-use crate::prelude::*;
+use riptide_runtime::{
+    prelude::*,
+    table,
+};
 use tokio::io::AsyncWriteExt;
 
 pub fn load() -> Result<Value, Exception> {
@@ -18,17 +21,17 @@ pub fn load() -> Result<Value, Exception> {
     .into())
 }
 
-async fn assert(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
+async fn assert(_: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
     unimplemented!();
 }
 
 /// Terminates the current process immediately.
-async fn panic(_: &mut Fiber, _: &[Value]) -> Result<Value, Exception> {
+async fn panic(_: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
     panic!();
 }
 
 /// Print the given values to standard output.
-async fn print(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn print(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let stdout = fiber.stdout();
     for arg in args.iter() {
         stdout.write_all(arg.to_string().as_bytes()).await?;
@@ -39,7 +42,7 @@ async fn print(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Print the given values to standard output, followed by a newline.
-async fn println(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn println(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let stdout = fiber.stdout();
     for arg in args.iter() {
         stdout.write_all(arg.to_string().as_bytes()).await?;
@@ -50,7 +53,7 @@ async fn println(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> 
 }
 
 /// Print the given values to standard error.
-async fn eprint(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn eprint(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let stderr = fiber.stderr();
     for arg in args.iter() {
         stderr.write_all(arg.to_string().as_bytes()).await?;
@@ -61,7 +64,7 @@ async fn eprint(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
 }
 
 /// Print the given values to standard error, followed by a newline.
-async fn eprintln(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn eprintln(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let stderr = fiber.stderr();
     for arg in args.iter() {
         stderr.write_all(arg.to_string().as_bytes()).await?;
@@ -71,7 +74,7 @@ async fn eprintln(fiber: &mut Fiber, args: &[Value]) -> Result<Value, Exception>
     Ok(Value::Nil)
 }
 
-async fn dump(_: &mut Fiber, args: &[Value]) -> Result<Value, Exception> {
+async fn dump(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     fn dump(value: &Value, indent: usize, depth: usize) {
         match value {
             Value::List(items) => {

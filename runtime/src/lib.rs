@@ -9,10 +9,9 @@ mod eval;
 mod exceptions;
 mod fiber;
 mod foreign;
-mod io;
+pub mod io;
 mod modules;
 mod scope;
-mod stdlib;
 mod string;
 mod table;
 mod value;
@@ -20,6 +19,7 @@ mod value;
 pub use crate::{
     exceptions::Exception,
     fiber::Fiber,
+    foreign::ForeignFn,
     table::Table,
     value::Value,
 };
@@ -64,12 +64,8 @@ pub async fn init() -> Result<Fiber, Exception> {
     }
 
     // Register predefined module loaders
-    fiber.register_module_loader(crate::stdlib::stdlib_loader);
     fiber.register_module_loader(modules::relative_loader);
     fiber.register_module_loader(modules::system_loader);
-
-    // Execute initialization
-    fiber.execute(None, include_str!("init.rip")).await?;
 
     log::debug!("runtime took {:?} to initialize", start_time.elapsed());
 
