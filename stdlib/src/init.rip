@@ -8,9 +8,9 @@
 #     loaded: [:] # A table mapping module names to the loaded object.
 # ]
 
-def fs (require fs)
-def lang (require lang)
-def process (require process)
+def fs (require std/fs)
+def lang (require std/lang)
+def process (require std/process)
 
 table-set $GLOBALS read $fs->read
 table-set $GLOBALS write $fs->write

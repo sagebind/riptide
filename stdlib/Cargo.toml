@@ -15,10 +15,7 @@ path = "../runtime"
 version = "0.2"
 features = [
     "fs",
-    "io-driver",
     "io-util",
-    "macros",
     "process",
-    "rt-core",
-    "signal",
+    "time",
 ]

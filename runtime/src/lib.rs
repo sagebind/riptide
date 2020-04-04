@@ -51,7 +51,7 @@ pub async fn init() -> Result<Fiber, Exception> {
 
     let start_time = Instant::now();
 
-    let mut fiber = Fiber::new(IoContext::from_process()?);
+    let fiber = Fiber::new(IoContext::from_process()?);
 
     // Set up globals
     fiber.globals().set("GLOBALS", fiber.globals().clone());
