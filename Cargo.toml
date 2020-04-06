@@ -29,7 +29,7 @@ path = "runtime"
 path = "stdlib"
 
 [dependencies.rusqlite]
-version = "0.20"
+version = "0.21"
 features = ["bundled"]
 
 [dependencies.tokio]
