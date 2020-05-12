@@ -9,7 +9,7 @@ use std::rc::Rc;
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Scope {
     /// The scope name, for debugging purposes.
-    pub(crate) name: Option<String>,
+    pub(crate) name: String,
 
     /// Local scope bindings. May shadow bindings in the parent scope.
     pub(crate) bindings: Table,
@@ -31,10 +31,7 @@ pub(crate) struct Scope {
 impl Scope {
     /// Get the name of this scope, if available.
     pub fn name(&self) -> &str {
-        self.name
-            .as_ref()
-            .map(|s| &s as &str)
-            .unwrap_or("<unknown>")
+        &self.name
     }
 
     /// Lookup a variable name in the current scope.

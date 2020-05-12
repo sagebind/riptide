@@ -14,14 +14,7 @@ use super::{
     table::Table,
     value::Value,
 };
-use futures::{
-    future::{
-        FutureExt,
-        LocalBoxFuture,
-        try_join_all,
-    },
-    join,
-};
+use futures::future::try_join_all;
 use std::rc::Rc;
 
 /// Compile the given source code as a closure.
@@ -39,7 +32,7 @@ pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>, scope: Opt
     Ok(Closure {
         block: block,
         scope: Rc::new(Scope {
-            name: Some(format!("{}:<closure>", file_name)),
+            name: format!("{}:<closure>", file_name),
             bindings: scope.unwrap_or_default(),
             module: module_scope,
             ..Default::default()
@@ -59,7 +52,7 @@ pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: Vec<Value>) -
 /// Invoke a block with an array of arguments.
 pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: Vec<Value>, cvars: Table) -> Result<Value, Exception> {
     let scope = Scope {
-        name: Some(String::from("<closure>")),
+        name: String::from("<closure>"),
         bindings: table! {
             "args" => args.to_vec(),
         },
@@ -99,7 +92,7 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
 /// Invoke a native function.
 async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: Vec<Value>) -> Result<Value, Exception> {
     fiber.stack.push(Rc::new(Scope {
-        name: Some(String::from("<native>")),
+        name: String::from("<native>"),
         ..Default::default()
     }));
 
@@ -135,61 +128,61 @@ async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: Pipeline) -> Result<Valu
     }
 }
 
-fn evaluate_call(fiber: &mut Fiber, call: Call) -> LocalBoxFuture<Result<Value, Exception>> {
-    async move {
-        match call {
-            Call::Named {function, args} => {
-                let name = function;
-                let function = fiber.get(&name);
+#[async_recursion::async_recursion(?Send)]
+async fn evaluate_call(fiber: &mut Fiber, call: Call) -> Result<Value, Exception> {
+    match call {
+        Call::Named {function, args} => {
+            let name = function;
+            let function = fiber.get(&name);
 
-                let mut arg_values = Vec::with_capacity(args.len());
-                for expr in args {
-                    arg_values.push(evaluate_expr(fiber, expr).await?);
-                }
+            let mut arg_values = Vec::with_capacity(args.len());
+            for expr in args {
+                arg_values.push(evaluate_expr(fiber, expr).await?);
+            }
 
-                if !function.is_nil() {
-                    invoke(fiber, &function, arg_values).await
-                } else {
-                    crate::io::process::command(fiber, &name, &arg_values).await
-                }
-            },
-            Call::Unnamed {function, args} => {
-                let function = evaluate_expr(fiber, *function).await?;
-
-                let mut arg_values = Vec::with_capacity(args.len());
-                for expr in args {
-                    arg_values.push(evaluate_expr(fiber, expr).await?);
-                }
-
+            if !function.is_nil() {
                 invoke(fiber, &function, arg_values).await
-            },
-        }
-    }.boxed_local()
+            } else {
+                crate::io::process::command(fiber, &name, &arg_values).await
+            }
+        },
+        Call::Unnamed {function, args} => {
+            let function = evaluate_expr(fiber, *function).await?;
+
+            let mut arg_values = Vec::with_capacity(args.len());
+            for expr in args {
+                arg_values.push(evaluate_expr(fiber, expr).await?);
+            }
+
+            invoke(fiber, &function, arg_values).await
+        },
+    }
 }
 
-fn evaluate_expr(fiber: &mut Fiber, expr: Expr) -> LocalBoxFuture<Result<Value, Exception>> {
-    async move {
-        match expr {
-            Expr::Number(number) => Ok(Value::Number(number)),
-            Expr::String(string) => Ok(Value::from(string)),
-            Expr::CvarReference(cvar) => evaluate_cvar(fiber, cvar).await,
-            Expr::CvarScope(cvar_scope) => evaluate_cvar_scope(fiber, cvar_scope).await,
-            Expr::Substitution(substitution) => evaluate_substitution(fiber, substitution).await,
-            Expr::Table(literal) => evaluate_table_literal(fiber, literal).await,
-            Expr::List(list) => evaluate_list_literal(fiber, list).await,
-            Expr::InterpolatedString(string) => evaluate_interpolated_string(fiber, string).await,
-            Expr::MemberAccess(MemberAccess(lhs, rhs)) => evaluate_member_access(fiber, *lhs, rhs).await,
-            Expr::Block(block) => evaluate_block(fiber, block),
-            Expr::Pipeline(pipeline) => evaluate_pipeline(fiber, pipeline).await,
-        }
-    }.boxed_local()
+#[async_recursion::async_recursion(?Send)]
+async fn evaluate_expr(fiber: &mut Fiber, expr: Expr) -> Result<Value, Exception> {
+    match expr {
+        Expr::Number(number) => Ok(Value::Number(number)),
+        Expr::String(string) => Ok(Value::from(string)),
+        Expr::CvarReference(cvar) => evaluate_cvar(fiber, cvar).await,
+        Expr::CvarScope(cvar_scope) => evaluate_cvar_scope(fiber, cvar_scope).await,
+        Expr::Substitution(substitution) => evaluate_substitution(fiber, substitution).await,
+        Expr::Table(literal) => evaluate_table_literal(fiber, literal).await,
+        Expr::List(list) => evaluate_list_literal(fiber, list).await,
+        Expr::InterpolatedString(string) => evaluate_interpolated_string(fiber, string).await,
+        Expr::MemberAccess(MemberAccess(lhs, rhs)) => evaluate_member_access(fiber, *lhs, rhs).await,
+        Expr::Block(block) => evaluate_block(fiber, block),
+        Expr::Pipeline(pipeline) => evaluate_pipeline(fiber, pipeline).await,
+    }
 }
 
 fn evaluate_block(fiber: &mut Fiber, block: Block) -> Result<Value, Exception> {
+    let name = format!("<closure:{}>", block.span);
+
     Ok(Value::from(Closure {
         block: block,
         scope: Rc::new(Scope {
-            name: Some(String::from("<closure>")),
+            name,
             module: fiber.current_scope().unwrap().module.clone(),
             parent: fiber.stack.last().cloned(),
             ..Default::default()
@@ -209,7 +202,7 @@ async fn evaluate_cvar_scope(fiber: &mut Fiber, cvar_scope: CvarScope) -> Result
     let closure = Closure {
         block: cvar_scope.scope,
         scope: Rc::new(Scope {
-            name: Some(String::from("<closure>")),
+            name: String::from("<closure>"),
             module: fiber.current_scope().unwrap().module.clone(),
             parent: fiber.stack.last().cloned(),
             ..Default::default()
