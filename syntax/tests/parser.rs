@@ -1,55 +1,67 @@
-use log::*;
-use riptide_syntax::ast;
-use riptide_syntax::parse;
-use riptide_syntax::source::*;
+use riptide_syntax::{
+    ast,
+    parse,
+    source::*,
+};
 use serde::Serialize;
-use std::fs;
+use std::{
+    env,
+    fs,
+    error::Error,
+    path::Path,
+};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct ParserTest {
     #[serde(default)]
+    #[serde(skip_serializing_if = "is_false")]
     skip: bool,
     source: String,
     ast: String,
 }
 
 impl ParserTest {
-    fn load(path: impl AsRef<std::path::Path>) -> Result<Self, Box<std::error::Error>> {
+    fn load(path: impl AsRef<Path>) -> Result<Self, Box<dyn Error>> {
         Ok(toml::from_str(&fs::read_to_string(path)?)?)
+    }
+
+    fn save(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn Error>> {
+        Ok(fs::write(path, toml::to_string_pretty(self)?)?)
     }
 }
 
-#[test]
-pub fn run_all_tests() -> Result<(), Box<std::error::Error>> {
-    stderrlog::new().verbosity(3).init()?;
+#[test_generator::test_resources("syntax/tests/parser/**/*.toml")]
+fn parser_test(path: &str) {
+    let path = &path[7..];
+    let mut test = ParserTest::load(path).unwrap();
+    let src = SourceFile::named(path.to_string(), test.source.clone());
 
-    for path in glob::glob("tests/parser/**/*.toml").unwrap().filter_map(Result::ok) {
-        let test = ParserTest::load(&path)?;
-        let src = SourceFile::named(path.display().to_string(), test.source.clone());
-
-        if test.skip {
-            info!("skipping test: {}", src.name());
-            continue;
-        }
-
-        info!("running test: {}", src.name());
-
-        let ast = parse(src.clone()).unwrap();
-        let actual = serialize_ast(&ast);
-        let expected = test.ast.trim();
-
-
-        if actual != expected {
-            eprintln!("{}", difference::Changeset::new(&expected, &actual, "\n"));
-            panic!("actual AST does not match expected AST");
-        }
+    if test.skip {
+        println!("skipping test: {}", src.name());
+        return;
     }
 
-    Ok(())
+    let ast = parse(src.clone()).unwrap();
+    let actual = serialize_ast(&ast);
+    let expected = test.ast.trim();
+
+    if env::var("PARSER_TEST_UPDATE").ok().as_deref() == Some("1") {
+        test.ast = actual;
+        test.ast.push('\n');
+        println!("updating parser test: {}", path);
+        test.save(path).unwrap();
+    } else if actual != expected {
+        eprintln!("{}", difference::Changeset::new(&expected, &actual, "\n"));
+        panic!("actual AST does not match expected AST");
+    }
 }
 
 fn serialize_ast(ast: &ast::Block) -> String {
     let mut serializer = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), true);
     ast.serialize(&mut serializer).unwrap();
     serializer.into_output_string()
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
 }

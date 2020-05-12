@@ -1,9 +1,33 @@
 //! Abstractions over reading files and source code used in the parser.
 
-use std::fs;
-use std::io;
-use std::path::Path;
-use std::rc::Rc;
+use std::{
+    fmt,
+    fs,
+    io,
+    path::Path,
+    rc::Rc,
+};
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Span {
+    pub(crate) file_name: Option<String>,
+    pub(crate) start: Position,
+    pub(crate) end: Position,
+}
+
+impl fmt::Display for Span {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}:{}", self.file_name.as_deref().unwrap_or("<unknown>"), self.start.line, self.start.col)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Position {
+    pub(crate) line: u32,
+    pub(crate) col: u32,
+}
 
 /// Holds information about a source file being parsed in memory.
 #[derive(Clone, Debug)]

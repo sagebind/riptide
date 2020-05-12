@@ -1,9 +1,14 @@
 //! Abstract syntax tree definitions for the language syntax.
 
+use crate::source::Span;
+
 /// A function block, containing a list of pipelines to execute.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Block {
+    /// Where in the source the block is defined.
+    pub span: Span,
+
     /// A list of named parameters.
     pub named_params: Option<Vec<String>>,
 

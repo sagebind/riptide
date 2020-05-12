@@ -6,6 +6,17 @@ println -255
 '''
 ast = '''
 Block(
+    span: Span(
+        file_name: Some("tests/parser/number-literals.toml"),
+        start: Position(
+            line: 1,
+            col: 1,
+        ),
+        end: Position(
+            line: 5,
+            col: 1,
+        ),
+    ),
     named_params: None,
     statements: [
         Pipeline([

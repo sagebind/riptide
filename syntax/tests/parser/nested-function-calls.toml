@@ -3,6 +3,17 @@ println hello ({read} THE) (uppercase World)
 '''
 ast = '''
 Block(
+    span: Span(
+        file_name: Some("tests/parser/nested-function-calls.toml"),
+        start: Position(
+            line: 1,
+            col: 1,
+        ),
+        end: Position(
+            line: 2,
+            col: 1,
+        ),
+    ),
     named_params: None,
     statements: [
         Pipeline([
@@ -13,6 +24,17 @@ Block(
                     Pipeline([
                         UnnamedCall(
                             function: Block(
+                                span: Span(
+                                    file_name: Some("tests/parser/nested-function-calls.toml"),
+                                    start: Position(
+                                        line: 1,
+                                        col: 16,
+                                    ),
+                                    end: Position(
+                                        line: 1,
+                                        col: 22,
+                                    ),
+                                ),
                                 named_params: None,
                                 statements: [
                                     Pipeline([

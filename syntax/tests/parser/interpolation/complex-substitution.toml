@@ -5,6 +5,17 @@ println "hello $({
 '''
 ast = '''
 Block(
+    span: Span(
+        file_name: Some("tests/parser/interpolation/complex-substitution.toml"),
+        start: Position(
+            line: 1,
+            col: 1,
+        ),
+        end: Position(
+            line: 4,
+            col: 1,
+        ),
+    ),
     named_params: None,
     statements: [
         Pipeline([
@@ -16,6 +27,17 @@ Block(
                         Pipeline(Pipeline([
                             UnnamedCall(
                                 function: Block(
+                                    span: Span(
+                                        file_name: Some("tests/parser/interpolation/complex-substitution.toml"),
+                                        start: Position(
+                                            line: 1,
+                                            col: 18,
+                                        ),
+                                        end: Position(
+                                            line: 3,
+                                            col: 2,
+                                        ),
+                                    ),
                                     named_params: None,
                                     statements: [
                                         Pipeline([

@@ -12,6 +12,17 @@ call{println}
 '''
 ast = '''
 Block(
+    span: Span(
+        file_name: Some("tests/parser/block-syntax.toml"),
+        start: Position(
+            line: 1,
+            col: 1,
+        ),
+        end: Position(
+            line: 11,
+            col: 1,
+        ),
+    ),
     named_params: None,
     statements: [
         Pipeline([
@@ -19,6 +30,17 @@ Block(
                 function: "call",
                 args: [
                     Block(
+                        span: Span(
+                            file_name: Some("tests/parser/block-syntax.toml"),
+                            start: Position(
+                                line: 2,
+                                col: 6,
+                            ),
+                            end: Position(
+                                line: 2,
+                                col: 17,
+                            ),
+                        ),
                         named_params: None,
                         statements: [
                             Pipeline([
@@ -37,6 +59,17 @@ Block(
                 function: "call",
                 args: [
                     Block(
+                        span: Span(
+                            file_name: Some("tests/parser/block-syntax.toml"),
+                            start: Position(
+                                line: 5,
+                                col: 6,
+                            ),
+                            end: Position(
+                                line: 7,
+                                col: 2,
+                            ),
+                        ),
                         named_params: None,
                         statements: [
                             Pipeline([
@@ -55,6 +88,17 @@ Block(
                 function: "call",
                 args: [
                     Block(
+                        span: Span(
+                            file_name: Some("tests/parser/block-syntax.toml"),
+                            start: Position(
+                                line: 10,
+                                col: 5,
+                            ),
+                            end: Position(
+                                line: 10,
+                                col: 14,
+                            ),
+                        ),
                         named_params: None,
                         statements: [
                             Pipeline([

@@ -3,6 +3,17 @@ println ${foo:.2}
 '''
 ast = '''
 Block(
+    span: Span(
+        file_name: Some("tests/parser/substitution/format.toml"),
+        start: Position(
+            line: 1,
+            col: 1,
+        ),
+        end: Position(
+            line: 2,
+            col: 1,
+        ),
+    ),
     named_params: None,
     statements: [
         Pipeline([

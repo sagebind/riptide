@@ -5,8 +5,6 @@
 
 use crate::error::ParseError;
 use crate::source::*;
-use pest::Parser;
-use std::convert::TryFrom;
 
 pub mod ast;
 pub mod error;
@@ -19,10 +17,9 @@ pub mod source;
 /// program instead contains any syntax errors, the errors are returned instead.
 pub fn parse(file: impl Into<SourceFile>) -> Result<ast::Block, ParseError> {
     let file = file.into();
+    let parser = parser::Parser::new(file.clone());
 
-    parser::Grammar::parse(parser::Rule::program, file.source())
-        .map(|mut pairs| pairs.next().unwrap())
-        .and_then(ast::Block::try_from)
+    parser.parse()
         .map_err(|e| translate_error(e, file.clone()))
 }
 

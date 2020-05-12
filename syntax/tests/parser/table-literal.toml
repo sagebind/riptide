@@ -8,6 +8,17 @@ println [
 '''
 ast = '''
 Block(
+    span: Span(
+        file_name: Some("tests/parser/table-literal.toml"),
+        start: Position(
+            line: 1,
+            col: 1,
+        ),
+        end: Position(
+            line: 7,
+            col: 1,
+        ),
+    ),
     named_params: None,
     statements: [
         Pipeline([

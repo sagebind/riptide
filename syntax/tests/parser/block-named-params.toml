@@ -5,6 +5,17 @@ call <left right> {
 '''
 ast = '''
 Block(
+    span: Span(
+        file_name: Some("tests/parser/block-named-params.toml"),
+        start: Position(
+            line: 1,
+            col: 1,
+        ),
+        end: Position(
+            line: 4,
+            col: 1,
+        ),
+    ),
     named_params: None,
     statements: [
         Pipeline([
@@ -12,6 +23,17 @@ Block(
                 function: "call",
                 args: [
                     Block(
+                        span: Span(
+                            file_name: Some("tests/parser/block-named-params.toml"),
+                            start: Position(
+                                line: 1,
+                                col: 6,
+                            ),
+                            end: Position(
+                                line: 3,
+                                col: 2,
+                            ),
+                        ),
                         named_params: Some([
                             "left",
                             "right",
