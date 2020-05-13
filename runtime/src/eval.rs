@@ -106,10 +106,14 @@ async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: Vec<Value>
 }
 
 async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: Pipeline) -> Result<Value, Exception> {
-    // If there's only one call in the pipeline, we don't need to fork and can just execute the function by itself.
     match pipeline.0.len() {
+        // If there's only one call in the pipeline, we don't need to fork and
+        // can just execute the function by itself.
         1 => evaluate_call(fiber, pipeline.0.into_iter().next().unwrap()).await,
 
+        // Fork the current fiber once for each step in the pipeline, wire up
+        // pipes between them for their I/O context, and then execute each call
+        // in the pipeline in their respective fibers concurrently.
         count => {
             let mut futures = Vec::new();
             let mut ios = fiber.io.try_clone()?.split_n(count)?.into_iter();

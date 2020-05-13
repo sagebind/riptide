@@ -72,43 +72,45 @@ async fn main() {
     log_panics::init();
     logger::init();
 
-    // Parse command line args.
-    let options = Options::from_args();
+    if let Some(exit_code) = {
+        // Parse command line args.
+        let options = Options::from_args();
 
-    // Adjust logging settings based on args.
-    log::set_max_level(options.log_level_filter());
+        // Adjust logging settings based on args.
+        log::set_max_level(options.log_level_filter());
 
-    let mut fiber = create_runtime().await;
+        let mut fiber = create_runtime().await;
 
-    // If at least one command is given, execute those in order and exit.
-    if !options.commands.is_empty() {
-        for command in options.commands {
-            match fiber.execute(None, command).await {
-                Ok(_) => {}
-                Err(e) => {
-                    log::error!("{}", e);
-                    fiber.exit(1);
-                    break;
+        // If at least one command is given, execute those in order and exit.
+        if !options.commands.is_empty() {
+            for command in options.commands {
+                match fiber.execute(None, command).await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        log::error!("{}", e);
+                        fiber.exit(1);
+                        break;
+                    }
                 }
             }
         }
-    }
-    // If a file is given, execute it and exit.
-    else if let Some(file) = options.file.as_ref() {
-        execute_file(&mut fiber, file).await;
-    }
-    // Interactive mode.
-    else if atty::is(atty::Stream::Stdin) {
-        interactive_main(&mut fiber, options).await;
-    }
-    // Execute stdin
-    else {
-        log::trace!("stdin is not a tty");
-        execute_stdin(&mut fiber).await;
-    }
+        // If a file is given, execute it and exit.
+        else if let Some(file) = options.file.as_ref() {
+            execute_file(&mut fiber, file).await;
+        }
+        // Interactive mode.
+        else if atty::is(atty::Stream::Stdin) {
+            interactive_main(&mut fiber, options).await;
+        }
+        // Execute stdin
+        else {
+            log::trace!("stdin is not a tty");
+            execute_stdin(&mut fiber).await;
+        }
 
-    // End this process with a particular exit code if specified.
-    if let Some(exit_code) = fiber.exit_code() {
+        fiber.exit_code()
+    } {
+        // End this process with a particular exit code if specified.
         log::trace!("exit({})", exit_code);
         process::exit(exit_code);
     }

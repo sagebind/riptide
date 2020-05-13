@@ -6,11 +6,20 @@ use crate::{
     io::{IoContext, PipeReader, PipeWriter},
     syntax::source::SourceFile,
 };
-use std::rc::Rc;
+use std::{
+    rc::Rc,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 /// This is the name of the hidden global variable that exit code requests are
 /// stored in.
 static EXIT_CODE_GLOBAL: &str = "__exit_code";
+
+fn next_pid() -> usize {
+    static NEXT_PID: AtomicUsize = AtomicUsize::new(1);
+
+    NEXT_PID.fetch_add(1, Ordering::SeqCst)
+}
 
 /// A fiber is an internal concept of a "thread of execution" which allows
 /// multiple call stacks to be tracked when executing parallel pipelines.
@@ -18,6 +27,9 @@ static EXIT_CODE_GLOBAL: &str = "__exit_code";
 /// Fibers are scheduled co-operatively on a single main thread.
 #[derive(Debug)]
 pub struct Fiber {
+    /// A short identifier for this fiber, for diagnostic purposes.
+    pid: usize,
+
     /// Table where global values are stored that are not on the stack.
     globals: Table,
 
@@ -31,11 +43,16 @@ pub struct Fiber {
 impl Fiber {
     /// Create a new fiber with the given I/O context.
     pub(crate) fn new(io_cx: IoContext) -> Self {
-        Self {
+        let fiber = Self {
+            pid: next_pid(),
             globals: Default::default(),
             stack: Vec::new(),
             io: io_cx,
-        }
+        };
+
+        log::debug!("root fiber {} created", fiber.pid);
+
+        fiber
     }
 
     /// Get the table that holds all global variables.
@@ -58,12 +75,18 @@ impl Fiber {
         &mut self.io.stderr
     }
 
+    /// Create a new fiber with the exact same stack and context as this one.
     pub fn fork(&self) -> Self {
-        Self {
+        let fork = Self {
+            pid: next_pid(),
             globals: self.globals.clone(),
             stack: self.stack.clone(),
             io: self.io.try_clone().unwrap(),
-        }
+        };
+
+        log::debug!("fiber {} forked from fiber {}", fork.pid, self.pid);
+
+        fork
     }
 
     /// Get the current exit code for the runtime. If no exit has been
@@ -191,5 +214,11 @@ impl Fiber {
         }
 
         Value::Nil
+    }
+}
+
+impl Drop for Fiber {
+    fn drop(&mut self) {
+        log::debug!("fiber {} dropped", self.pid);
     }
 }
