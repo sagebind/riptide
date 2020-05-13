@@ -189,7 +189,6 @@ async fn backtrace(fiber: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception>
         Value::from(table! {
             "name" => scope.name(),
             "bindings" => scope.bindings.clone(),
-            "parent" => scope.parent.as_ref().map(scope_to_value).unwrap_or(Value::Nil),
         })
     }
 

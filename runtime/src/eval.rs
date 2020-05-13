@@ -22,21 +22,21 @@ pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>, scope: Opt
     let file = file.into();
     let file_name = file.name().to_string();
 
-    let block = match parse(file) {
-        Ok(block) => block,
-        Err(e) => throw!("error parsing: {}", e),
-    };
+    match parse(file) {
+        Ok(block) => compile_block(fiber, block),
+        Err(e) => throw!("error parsing {}: {}", file_name, e),
+    }
+}
 
-    let module_scope = fiber.get_module_by_name(&file_name);
+/// Compile a block into an executable closure.
+fn compile_block(fiber: &mut Fiber, block: Block) -> Result<Closure, Exception> {
+    // Constructing a closure is quite easy since our interpreter is based
+    // around evaluating AST nodes directly within an environment. All we have to
+    // do aside from persisting the AST is capture the current environment.
 
     Ok(Closure {
-        block: block,
-        scope: Rc::new(Scope {
-            name: format!("{}:<closure>", file_name),
-            bindings: scope.unwrap_or_default(),
-            module: module_scope,
-            ..Default::default()
-        }),
+        block,
+        scope: fiber.current_scope().cloned(),
     })
 }
 
@@ -52,13 +52,15 @@ pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: Vec<Value>) -
 /// Invoke a block with an array of arguments.
 pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: Vec<Value>, cvars: Table) -> Result<Value, Exception> {
     let scope = Scope {
-        name: String::from("<closure>"),
+        name: format!("<closure:{}>", closure.block.span),
         bindings: table! {
             "args" => args.to_vec(),
         },
         cvars,
-        module: closure.scope.module.clone(),
-        parent: Some(closure.scope.clone()),
+        module: closure.scope.as_ref()
+            .map(|scope| scope.module.clone())
+            .unwrap_or_default(),
+        parent: closure.scope.clone(),
         ..Default::default()
     };
 
@@ -177,17 +179,7 @@ async fn evaluate_expr(fiber: &mut Fiber, expr: Expr) -> Result<Value, Exception
 }
 
 fn evaluate_block(fiber: &mut Fiber, block: Block) -> Result<Value, Exception> {
-    let name = format!("<closure:{}>", block.span);
-
-    Ok(Value::from(Closure {
-        block: block,
-        scope: Rc::new(Scope {
-            name,
-            module: fiber.current_scope().unwrap().module.clone(),
-            parent: fiber.stack.last().cloned(),
-            ..Default::default()
-        }),
-    }))
+    compile_block(fiber, block).map(Value::from)
 }
 
 async fn evaluate_member_access(fiber: &mut Fiber, lhs: Expr, rhs: String) -> Result<Value, Exception> {
@@ -199,15 +191,7 @@ async fn evaluate_cvar(fiber: &mut Fiber, cvar: CvarReference) -> Result<Value, 
 }
 
 async fn evaluate_cvar_scope(fiber: &mut Fiber, cvar_scope: CvarScope) -> Result<Value, Exception> {
-    let closure = Closure {
-        block: cvar_scope.scope,
-        scope: Rc::new(Scope {
-            name: String::from("<closure>"),
-            module: fiber.current_scope().unwrap().module.clone(),
-            parent: fiber.stack.last().cloned(),
-            ..Default::default()
-        }),
-    };
+    let closure = compile_block(fiber, cvar_scope.scope)?;
 
     let cvars = table! {
         cvar_scope.name.0 => evaluate_expr(fiber, *cvar_scope.value).await?,

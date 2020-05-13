@@ -36,5 +36,5 @@ def require-x <module> {
 }
 
 table-set $GLOBALS ls {
-    (require process)->command ls -l
+    (require std/process)->command ls -l
 }
