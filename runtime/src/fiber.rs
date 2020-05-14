@@ -172,8 +172,7 @@ impl Fiber {
         eval::invoke(self, value, args.to_vec()).await
     }
 
-    /// Lookup a variable name in the current scope.
-    #[deprecated]
+    /// Lookup a normal variable name in the current scope.
     pub fn get(&self, name: impl AsRef<[u8]>) -> Value {
         let name = name.as_ref();
 
@@ -188,7 +187,6 @@ impl Fiber {
     }
 
     /// Set a variable value in the current scope.
-    #[deprecated]
     pub fn set(&self, name: impl Into<RipString>, value: impl Into<Value>) {
         self.current_scope().unwrap().set(name, value);
     }

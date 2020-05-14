@@ -21,9 +21,6 @@ pub(crate) struct Scope {
     /// on creation of the scope.
     pub(crate) cvars: Table,
 
-    /// A reference to the module this scope is executed in.
-    pub(crate) module: Table,
-
     /// The lexically parent scope to this one.
     pub(crate) parent: Option<Rc<Scope>>,
 }
@@ -38,10 +35,6 @@ impl Scope {
     pub fn get(&self, name: impl AsRef<[u8]>) -> Value {
         let name = name.as_ref();
 
-        if name == b"exports" {
-            return self.module.clone().into();
-        }
-
         match self.bindings.get(name) {
             Value::Nil => {}
             value => return value,
@@ -51,16 +44,13 @@ impl Scope {
             return parent.get(name);
         }
 
-        match self.module.get(name) {
-            Value::Nil => {}
-            value => return value,
-        };
-
         Value::Nil
     }
 
     /// Set a variable value in the current scope.
     pub fn set(&self, name: impl Into<RipString>, value: impl Into<Value>) {
+        // TODO: Handle concept of assigning to existing variables and not just
+        // declaring new ones.
         self.bindings.set(name, value);
     }
 }

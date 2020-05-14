@@ -12,6 +12,9 @@ use tokio::process::Command;
 /// Executes a shell command in the foreground, waiting for it to complete.
 ///
 /// Returns the process exit code.
+///
+/// Cancellation is fully supported. Dropping the returned future will send a
+/// signal to the child process to terminate.
 pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Value]) -> Result<Value, Exception> {
     let mut stdin = fiber.stdin().try_clone()?;
 
@@ -23,6 +26,7 @@ pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Valu
         .stdin(stdin)
         .stdout(fiber.stdout().try_clone()?)
         .stderr(fiber.stderr().try_clone()?)
+        .kill_on_drop(true)
         .status()
         .await
         .map(|status| Value::from(status.code().unwrap_or(0) as f64))
@@ -37,10 +41,18 @@ pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Valu
 /// Spawn a new child process and execute the given future in it.
 ///
 /// Returns the PID of the child process.
-pub async fn spawn<F: Future<Output = ()>>(future: F) -> Result<i32, ()> {
+pub async fn spawn<F: Future<Output = ()>>(future: F) -> Result<i32, String> {
     match unistd::fork() {
         Ok(unistd::ForkResult::Child) => {
+            // If the given future panics, then ensure that we exit here while
+            // unwinding.
+            scopeguard::defer_on_unwind! {
+                process::exit(1);
+            }
+
             future.await;
+
+            // Success, terminate the process.
             process::exit(0);
         }
 
@@ -48,7 +60,7 @@ pub async fn spawn<F: Future<Output = ()>>(future: F) -> Result<i32, ()> {
             child,
         }) => Ok(child.into()),
 
-        Err(_) => Err(()),
+        Err(e) => Err(e.to_string()),
     }
 }
 

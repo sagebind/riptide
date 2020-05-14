@@ -28,11 +28,15 @@ async fn spawn(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> 
     };
     let child_args = args.iter().cloned().skip(1).collect::<Vec<_>>();
 
-    let pid = process::spawn(async move {
-        fiber.invoke(&block, &child_args).await.unwrap();
-    })
-    .await
-    .unwrap();
+    // Create a child fiber to correspond to the child process, otherwise the
+    // child will try and share file descriptors with the parent.
+    // TODO: This is borken somehow, as the child process is still messing with
+    // the parent's file descriptors somewhere resulting in an EBADF error.
+    let mut child_fiber = fiber.fork();
+
+    let pid = process::spawn(async {
+        child_fiber.invoke(&block, &child_args).await.unwrap();
+    }).await?;
 
     Ok(Value::Number(pid as f64))
 }

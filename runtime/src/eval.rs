@@ -57,9 +57,6 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
             "args" => args.to_vec(),
         },
         cvars,
-        module: closure.scope.as_ref()
-            .map(|scope| scope.module.clone())
-            .unwrap_or_default(),
         parent: closure.scope.clone(),
         ..Default::default()
     };
@@ -70,39 +67,48 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
         }
     }
 
+    // Push the scope onto the stack.
     fiber.stack.push(Rc::new(scope));
+
+    // Pop the scope off of the stack before returning. We use a scope guard to
+    // do this to ensure that the stack is popped even if the current task
+    // panics or is cancelled.
+    let mut fiber = scopeguard::guard(fiber, |fiber| {
+        fiber.stack.pop();
+    });
 
     let mut last_return_value = Value::Nil;
 
     // Evaluate each statement in order.
     for statement in closure.block.statements.clone().into_iter() {
-        match evaluate_statement(fiber, statement).await {
+        match evaluate_statement(&mut *fiber, statement).await {
             Ok(return_value) => last_return_value = return_value,
-            Err(exception) => {
-                // Exception thrown; abort and unwind stack.
-                fiber.stack.pop();
-                return Err(exception);
-            }
+
+            // Exception thrown; our scope guard from earlier will ensure that
+            // the stack is unwound.
+            Err(exception) => return Err(exception),
         }
     }
-
-    fiber.stack.pop();
 
     Ok(last_return_value)
 }
 
 /// Invoke a native function.
 async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: Vec<Value>) -> Result<Value, Exception> {
+    // Push the scope onto the stack.
     fiber.stack.push(Rc::new(Scope {
         name: String::from("<native>"),
         ..Default::default()
     }));
 
-    let result = function.call(fiber, args).await;
+    // Pop the scope off of the stack before returning. We use a scope guard to
+    // do this to ensure that the stack is popped even if the current task
+    // panics or is cancelled.
+    let mut fiber = scopeguard::guard(fiber, |fiber| {
+        fiber.stack.pop();
+    });
 
-    fiber.stack.pop();
-
-    result
+    function.call(&mut *fiber, args).await
 }
 
 async fn evaluate_statement(fiber: &mut Fiber, statement: Statement) -> Result<Value, Exception> {

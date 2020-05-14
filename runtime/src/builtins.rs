@@ -11,7 +11,6 @@ pub fn get() -> Table {
         "call" => Value::ForeignFn(call.into()),
         "def" => Value::ForeignFn(def.into()),
         "exit" => Value::ForeignFn(exit.into()),
-        "export" => Value::ForeignFn(export.into()),
         "include" => Value::ForeignFn(include.into()),
         "list" => Value::ForeignFn(list.into()),
         "nil" => Value::ForeignFn(nil.into()),
@@ -51,20 +50,6 @@ async fn exit(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
 
     // Throw the exit code as an exception so that the stack will unwind.
     Err(Exception::unrecoverable(code as f64))
-}
-
-async fn export(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
-    let name = match args.get(0).and_then(Value::as_string) {
-        Some(s) => s.clone(),
-        None => throw!("variable name to export required"),
-    };
-
-    let value = args.get(1).cloned()
-        .unwrap_or(fiber.get(&name));
-
-    fiber.current_scope().unwrap().module.set(name, value);
-
-    Ok(Value::Nil)
 }
 
 /// Returns the name of the primitive type of the given arguments.
