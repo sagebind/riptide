@@ -55,7 +55,7 @@ impl Parser {
 
         let statements = pairs.pop().unwrap()
             .into_inner()
-            .map(|p| self.parse_pipeline(p))
+            .map(|p| self.parse_statement(p))
             .collect::<Result<_, Error<Rule>>>()?;
 
         let named_params = pairs.pop().map(|pair| {
@@ -69,6 +69,33 @@ impl Parser {
             named_params,
             statements,
         })
+    }
+
+    fn parse_statement(&self, pair: Pair<'_, Rule>) -> Result<Statement, Error<Rule>> {
+        match pair.as_rule() {
+            Rule::pipeline_statement => Ok(Statement::Pipeline(self.parse_pipeline(pair.into_inner().next().unwrap())?)),
+            Rule::assignment_statement => {
+                let mut pairs = pair.into_inner();
+
+                Ok(Statement::Assignment(AssignmentStatement {
+                    target: self.parse_assignment_target(pairs.next().unwrap())?,
+                    value: self.parse_expr(pairs.next().unwrap())?,
+                }))
+            },
+            rule => panic!("unexpected rule: {:?}", rule),
+        }
+    }
+
+    fn parse_assignment_target(&self, pair: Pair<'_, Rule>) -> Result<AssignmentTarget, Error<Rule>> {
+        assert_eq!(pair.as_rule(), Rule::assignment_target);
+
+        let pair = pair.into_inner().next().unwrap();
+
+        match pair.as_rule() {
+            Rule::member_access_expr => Ok(AssignmentTarget::MemberAccess(self.parse_member_access(pair)?)),
+            Rule::variable_substitution => Ok(AssignmentTarget::Variable(string_literal(pair.into_inner().next().unwrap()))),
+            rule => panic!("unexpected rule: {:?}", rule),
+        }
     }
 
     fn parse_pipeline(&self, pair: Pair<'_, Rule>) -> Result<Pipeline, Error<Rule>> {
@@ -113,16 +140,7 @@ impl Parser {
         Ok(match pair.as_rule() {
             Rule::block => Expr::Block(self.parse_block(pair)?),
             Rule::pipeline => Expr::Pipeline(self.parse_pipeline(pair)?),
-            Rule::member_access_expr => {
-                let mut pairs = pair.into_inner();
-                let mut expr = self.parse_expr_inner(pairs.next().unwrap())?;
-
-                for member_name in pairs {
-                    expr = Expr::MemberAccess(MemberAccess(Box::new(expr), string_literal(member_name)));
-                }
-
-                expr
-            },
+            Rule::member_access_expr => self.parse_member_access(pair).map(Expr::MemberAccess)?,
             Rule::cvar => Expr::CvarReference(self.parse_cvar_reference(pair)?),
             Rule::cvar_scope => Expr::CvarScope(self.parse_cvar_scope(pair)?),
             Rule::substitution => Expr::Substitution(self.parse_substitution(pair)?),
@@ -133,6 +151,22 @@ impl Parser {
             Rule::number_literal => Expr::Number(pair.as_str().parse().unwrap()),
             rule => panic!("unexpected rule: {:?}", rule),
         })
+    }
+
+    fn parse_member_access(&self, pair: Pair<'_, Rule>) -> Result<MemberAccess, Error<Rule>> {
+        assert_eq!(pair.as_rule(), Rule::member_access_expr);
+
+        let mut pairs = pair.into_inner();
+        let mut member_access = MemberAccess(
+            Box::new(self.parse_expr_inner(pairs.next().unwrap())?),
+            string_literal(pairs.next().unwrap()),
+        );
+
+        for member_name in pairs {
+            member_access = MemberAccess(Box::new(Expr::MemberAccess(member_access)), string_literal(member_name));
+        }
+
+        Ok(member_access)
     }
 
     fn parse_cvar_reference(&self, pair: Pair<'_, Rule>) -> Result<CvarReference, Error<Rule>> {

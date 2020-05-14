@@ -13,7 +13,31 @@ pub struct Block {
     pub named_params: Option<Vec<String>>,
 
     /// A list of statements to execute.
-    pub statements: Vec<Pipeline>,
+    pub statements: Vec<Statement>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Statement {
+    Assignment(AssignmentStatement),
+    Pipeline(Pipeline),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AssignmentStatement {
+    pub target: AssignmentTarget,
+    pub value: Expr,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AssignmentTarget {
+    /// Assign a value to the member of an object.
+    MemberAccess(MemberAccess),
+
+    /// Assign a variable.
+    Variable(String),
 }
 
 /// A pipeline of function calls.
@@ -113,7 +137,6 @@ pub struct TableEntry {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ListLiteral(pub Vec<Expr>);
-
 
 /// An interpolated string literal.
 ///

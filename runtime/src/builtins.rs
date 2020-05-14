@@ -16,8 +16,6 @@ pub fn get() -> Table {
         "list" => Value::ForeignFn(list.into()),
         "nil" => Value::ForeignFn(nil.into()),
         "nth" => Value::ForeignFn(nth.into()),
-        "set" => Value::ForeignFn(set.into()),
-        "table-set" => Value::ForeignFn(table_set.into()),
         "throw" => Value::ForeignFn(throw.into()),
         "try" => Value::ForeignFn(try_fn.into()),
         "typeof" => Value::ForeignFn(type_of.into()),
@@ -30,19 +28,6 @@ pub fn get() -> Table {
 
 /// Binds a value to a new variable.
 async fn def(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
-    let name = match args.get(0).and_then(Value::as_string) {
-        Some(s) => s.clone(),
-        None => throw!("variable name required"),
-    };
-
-    let value = args.get(1).cloned().unwrap_or(Value::Nil);
-
-    fiber.set_parent(name, value);
-
-    Ok(Value::Nil)
-}
-
-async fn set(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let name = match args.get(0).and_then(Value::as_string) {
         Some(s) => s.clone(),
         None => throw!("variable name required"),
@@ -104,24 +89,6 @@ async fn nth(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     };
 
     Ok(list.get(index as usize).cloned().unwrap_or(Value::Nil))
-}
-
-async fn table_set(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
-    let table = match args.get(0).and_then(Value::as_table) {
-        Some(s) => s.clone(),
-        None => throw!("first argument must be a table"),
-    };
-
-    let key = match args.get(1).and_then(Value::as_string) {
-        Some(s) => s.clone(),
-        None => throw!("key must be a string"),
-    };
-
-    let value = args.get(2).cloned().unwrap_or(Value::Nil);
-
-    table.set(key, value);
-
-    Ok(Value::Nil)
 }
 
 /// Function that always returns Nil.

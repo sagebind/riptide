@@ -12,18 +12,29 @@ program = { SOI ~ statement_list ~ EOI }
 block = { block_params? ~ "{" ~ statement_list ~ "}" }
 block_params = { "<" ~ symbol* ~ ">" }
 
-// Statements are just pipelines separated by one or more separators. Extra
-// separators are ignored.
+// Blocks and programs are lists of statements.
 statement_list = { statement_separator* ~ (statement ~ (statement_separator+ ~ statement)*)? ~ statement_separator* }
 statement_separator = _{ NEWLINE | ";" }
-statement = _{ pipeline }
+
+// A statement can be either an assignment or a pipeline.
+statement = _{ assignment_statement | pipeline_statement }
+
+assignment_statement = { assignment_target ~ "=" ~ expr }
+
+// An expression used as the target of an assignment statement.
+assignment_target = {
+    member_access_expr
+    | &"$" ~ variable_substitution
+}
+
+pipeline_statement = { pipeline }
 
 // Expression is the main syntax building block.
 expr = {
     member_access_expr
-    | expr_unary
+    | atomic_expr
 }
-expr_unary = _{
+atomic_expr = _{
     block
     | "(" ~ pipeline ~ ")"
     | cvar_scope
@@ -36,7 +47,7 @@ expr_unary = _{
     | string_literal
 }
 
-member_access_expr = { expr_unary ~ (member_operator ~ string_literal)+ }
+member_access_expr = { atomic_expr ~ (member_operator ~ string_literal)+ }
 
 // Pipelines are function calls chained together with the pipe "|" operator.
 //

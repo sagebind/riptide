@@ -51,7 +51,7 @@ fn parser_test(path: &str) {
         println!("updating parser test: {}", path);
         test.save(path).unwrap();
     } else if actual != expected {
-        eprintln!("{}", difference::Changeset::new(&expected, &actual, "\n"));
+        println!("{}", difference::Changeset::new(&expected, &actual, "\n"));
         panic!("actual AST does not match expected AST");
     }
 }

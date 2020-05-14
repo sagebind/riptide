@@ -76,7 +76,7 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
 
     // Evaluate each statement in order.
     for statement in closure.block.statements.clone().into_iter() {
-        match evaluate_pipeline(fiber, statement).await {
+        match evaluate_statement(fiber, statement).await {
             Ok(return_value) => last_return_value = return_value,
             Err(exception) => {
                 // Exception thrown; abort and unwind stack.
@@ -103,6 +103,29 @@ async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: Vec<Value>
     fiber.stack.pop();
 
     result
+}
+
+async fn evaluate_statement(fiber: &mut Fiber, statement: Statement) -> Result<Value, Exception> {
+    match statement {
+        Statement::Pipeline(pipeline) => evaluate_pipeline(fiber, pipeline).await,
+        Statement::Assignment(AssignmentStatement {target, value}) => {
+            match target {
+                AssignmentTarget::MemberAccess(member_access) => {
+                    if let Some(table) = evaluate_expr(fiber, *member_access.0).await?.as_table() {
+                        table.set(member_access.1, evaluate_expr(fiber, value).await?);
+                    } else {
+                        throw!("cannot assign to a non-table")
+                    }
+                }
+                AssignmentTarget::Variable(variable) => {
+                    let value = evaluate_expr(fiber, value).await?;
+                    fiber.set(variable, value);
+                }
+            }
+
+            Ok(Value::Nil)
+        },
+    }
 }
 
 async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: Pipeline) -> Result<Value, Exception> {

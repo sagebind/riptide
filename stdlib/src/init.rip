@@ -8,22 +8,22 @@
 #     loaded: [:] # A table mapping module names to the loaded object.
 # ]
 
-def fs (require std/fs)
-def lang (require std/lang)
-def process (require std/process)
+$fs = (require std/fs)
+$lang = (require std/lang)
+$process = (require std/process)
 
-table-set $GLOBALS read $fs->read
-table-set $GLOBALS write $fs->write
+$GLOBALS->read = $fs->read
+$GLOBALS->write = $fs->write
 
-table-set $GLOBALS print $lang->print
-table-set $GLOBALS println $lang->println
-table-set $GLOBALS echo $lang->println
-table-set $GLOBALS dump $lang->dump
-table-set $GLOBALS eq $lang->eq
+$GLOBALS->print = $lang->print
+$GLOBALS->println = $lang->println
+$GLOBALS->echo = $lang->println
+$GLOBALS->dump = $lang->dump
+$GLOBALS->eq = $lang->eq
 
-table-set $GLOBALS command $process->command
+$GLOBALS->command = $process->command
 
-table-set $GLOBALS eval <string> {
+$GLOBALS->eval = <string> {
     call $source $string
 }
 
@@ -35,6 +35,6 @@ def require-x <module> {
     } | head
 }
 
-table-set $GLOBALS ls {
-    (require std/process)->command ls -l
+$GLOBALS->ls = {
+    $process->command ls -l
 }
