@@ -723,7 +723,7 @@ list_literal = { "[" ~ (NEWLINE* ~ expr)* ~ NEWLINE* ~ "]" }
 // Escapes are handled later in the parser pipeline.
 interpolated_string = ${ "\"" ~ interpolated_string_part* ~ "\"" }
 interpolated_string_part = ${ substitution | interpolated_string_literal_part }
-interpolated_string_literal_part = ${ ("\\\"" | !"\"" ~ !"$" ~ ANY)+ }
+interpolated_string_literal_part = ${ ("\\\"" | "\\$" | !"\"" ~ !"$" ~ ANY)+ }
 
 // A literal string. String literals are static and have no runtime
 // interpolation.
@@ -1485,7 +1485,7 @@ This replaces the current <em>process</em>, which includes all fibers in the cur
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2020-05-15 02:22:26 UTC
+Last updated 2020-05-15 05:02:56 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.9.1/styles/github.min.css">
