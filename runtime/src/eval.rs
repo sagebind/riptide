@@ -86,7 +86,13 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
 
             // Exception thrown; our scope guard from earlier will ensure that
             // the stack is unwound.
-            Err(exception) => return Err(exception),
+            Err(mut exception) => {
+                if exception.backtrace.is_empty() {
+                    exception.backtrace = fiber.backtrace().cloned().collect();
+                }
+
+                return Err(exception);
+            },
         }
     }
 
@@ -108,7 +114,12 @@ async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: Vec<Value>
         fiber.stack.pop();
     });
 
-    function.call(&mut *fiber, args).await
+    function.call(&mut *fiber, args).await.map_err(|mut e| {
+        if e.backtrace.is_empty() {
+            e.backtrace = fiber.backtrace().cloned().collect();
+        }
+        e
+    })
 }
 
 async fn evaluate_statement(fiber: &mut Fiber, statement: Statement) -> Result<Value, Exception> {

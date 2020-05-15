@@ -35,7 +35,7 @@ impl<I> TerminalInput<I> {
 
             fn execute(&mut self, byte: u8) {
                 let event = match byte {
-                    0 => Some(Event::Char('\0')),
+                    0 => Some(Event::Eof),
                     b'\r' | b'\n' => Some(Event::Char('\n')),
                     0x01..=0x1a => Some(Event::Ctrl((byte - 0x01 + b'a') as char)),
                     0x1c..=0x1f => Some(Event::Ctrl((byte - 0x1c + b'4') as char)),

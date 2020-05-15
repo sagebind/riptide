@@ -25,6 +25,11 @@ pub struct Editor<I, O: AsRawFd> {
     buffer: Buffer,
 }
 
+pub enum ReadLine {
+    Input(String),
+    Eof,
+}
+
 impl<I, O: AsRawFd> Editor<I, O> {
     pub fn new(stdin: I, stdout: O, history: History, session: Session) -> Self {
         Self {
@@ -50,39 +55,44 @@ impl<I, O: AsRawFd> Editor<I, O> {
 impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
     /// Show a command prompt to the user and await for the user to input a
     /// command. The typed command is returned once submitted.
-    pub async fn read_line(&mut self) -> String {
+    pub async fn read_line(&mut self) -> ReadLine {
         let prompt = self.get_prompt_str();
         self.stdout.write_all(prompt.as_bytes()).await.unwrap();
         self.stdout.flush().await.unwrap();
 
+        let mut editor = scopeguard::guard(self, |editor| {
+            editor.stdout.set_raw_mode(false).unwrap();
+        });
+
         // Enter raw mode.
-        self.stdout.set_raw_mode(true).unwrap();
+        editor.stdout.set_raw_mode(true).unwrap();
 
         // Handle keyboard events.
-        while let Ok(event) = self.stdin.next_event().await {
+        while let Ok(event) = editor.stdin.next_event().await {
+            log::trace!("event: {:?}", event);
             match event {
                 Event::Char('\n') => {
-                    self.stdout.write_all(b"\r\n").await.unwrap();
+                    editor.stdout.write_all(b"\r\n").await.unwrap();
 
-                    if !self.buffer.text().is_empty() {
+                    if !editor.buffer.text().is_empty() {
                         break;
                     }
                 }
-                Event::Left => {
-                    self.buffer.move_cursor_relative(-1);
+                Event::Left | Event::Ctrl('b') => {
+                editor.buffer.move_cursor_relative(-1);
                 }
-                Event::Right => {
-                    self.buffer.move_cursor_relative(1);
+                Event::Right | Event::Ctrl('f') => {
+                    editor.buffer.move_cursor_relative(1);
                 }
                 Event::Up => {
-                    let history = self.history.clone();
+                    let history = editor.history.clone();
 
-                    match self.history_cursor.get_or_insert_with(|| history.entries()).next() {
+                    match editor.history_cursor.get_or_insert_with(|| history.entries()).next() {
                         Some(entry) => {
                             // TODO: Save buffer for later if user wants to return to
                             // what they typed.
-                            self.buffer.clear();
-                            self.buffer.insert_str(entry.command());
+                            editor.buffer.clear();
+                            editor.buffer.insert_str(entry.command());
                         }
                         None => {
                             // TODO
@@ -90,50 +100,53 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
                     }
                 }
                 Event::Down => {
-                    if let Some(mut cursor) = self.history_cursor.take() {
-                        self.buffer.clear();
+                    if let Some(mut cursor) = editor.history_cursor.take() {
+                        editor.buffer.clear();
 
                         if let Some(entry) = cursor.prev() {
-                            self.buffer.insert_str(entry.command());
-                            self.history_cursor = Some(cursor);
+                            editor.buffer.insert_str(entry.command());
+                            editor.history_cursor = Some(cursor);
                         }
                     }
 
                     // TODO: Restore original buffer
                 }
-                Event::Home => {
-                    self.buffer.move_to_start_of_line();
+                Event::Home | Event::Ctrl('a') => {
+                    editor.buffer.move_to_start_of_line();
                 }
-                Event::End => {
-                    self.buffer.move_to_end_of_line();
+                Event::End | Event::Ctrl('e') => {
+                    editor.buffer.move_to_end_of_line();
                 }
                 Event::Char(c) => {
-                    self.buffer.insert_char(c);
+                    editor.buffer.insert_char(c);
                 }
                 Event::Backspace => {
-                    self.buffer.delete_before_cursor();
+                    editor.buffer.delete_before_cursor();
                 }
                 Event::Delete => {
-                    self.buffer.delete_after_cursor();
+                    editor.buffer.delete_after_cursor();
                 }
                 Event::Ctrl('c') => {
-                    self.buffer.clear();
+                    editor.buffer.clear();
+                }
+                Event::Ctrl('d') | Event::Eof => {
+                    if editor.buffer.is_empty() {
+                        return ReadLine::Eof;
+                    }
                 }
                 _ => {}
             }
 
-            self.redraw().await;
+            editor.redraw().await;
         }
 
-        self.history_cursor = None;
-
-        self.stdout.set_raw_mode(false).unwrap();
+        editor.history_cursor = None;
 
         // Record line to history.
-        self.history_session.add(self.buffer.text());
+        editor.history_session.add(editor.buffer.text());
 
         // Move the command line out of out buffer and return it.
-        self.buffer.take_text()
+        ReadLine::Input(editor.buffer.take_text())
     }
 
     /// Redraw the buffer.

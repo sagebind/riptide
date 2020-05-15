@@ -16,6 +16,10 @@ impl Buffer {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.text.is_empty()
+    }
+
     /// Get the current buffer text.
     pub fn text(&self) -> &str {
         &self.text

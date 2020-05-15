@@ -2,7 +2,7 @@
 
 #![allow(dead_code)]
 
-use crate::editor::Editor;
+use crate::editor::{Editor, ReadLine};
 use riptide_runtime::{
     prelude::*,
     syntax::source::SourceFile,
@@ -176,29 +176,36 @@ async fn interactive_main(fiber: &mut Fiber, options: Options) {
     );
 
     while fiber.exit_code().is_none() {
-        let line = editor.read_line().await;
+        match editor.read_line().await {
+            ReadLine::Input(line) => {
+                // If this is a blank line, then don't waste time compiling and
+                // executing it.
+                if line.is_empty() {
+                    continue;
+                }
 
-        // If this is a blank line, then don't waste time compiling and
-        // executing it.
-        if line.is_empty() {
-            continue;
-        }
+                // Execute the requested input and await for it to complete, or for the
+                // user to cancel it with Ctrl-C, whichever happens first.
+                tokio::select! {
+                    _ = signal::ctrl_c() => {
+                        // Insert a blank line.
+                        println!();
+                    }
 
-        // Execute the requested input and await for it to complete, or for the
-        // user to cancel it with Ctrl-C, whichever happens first.
-        tokio::select! {
-            _ = signal::ctrl_c() => {
-                // Insert a blank line.
-                println!();
-            }
-
-            result = fiber.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()) => match result {
-                Ok(Value::Nil) => {}
-                Ok(value) => println!("{}", value),
-                Err(e) => if fiber.exit_code().is_none() {
-                    log::error!("{}", e)
+                    result = fiber.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()) => match result {
+                        Ok(Value::Nil) => {}
+                        Ok(value) => println!("{}", value),
+                        Err(e) => if fiber.exit_code().is_none() {
+                            log::error!("{}", e)
+                        }
+                    }
                 }
             }
+
+            ReadLine::Eof => {
+                log::debug!("exit requested via EOF");
+                fiber.exit(0);
+            },
         }
     }
 }

@@ -1,4 +1,5 @@
 /// Enumeration of possible input events that could be received from the user.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Event {
     Char(char),
     Up,
@@ -13,4 +14,5 @@ pub enum Event {
     Backspace,
     Delete,
     Ctrl(char),
+    Eof,
 }

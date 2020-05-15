@@ -5,6 +5,7 @@ use nix::unistd;
 use std::{
     ffi::{CString, OsStr},
     future::Future,
+    io::ErrorKind,
     process,
 };
 use tokio::process::Command;
@@ -16,12 +17,24 @@ use tokio::process::Command;
 /// Cancellation is fully supported. Dropping the returned future will send a
 /// signal to the child process to terminate.
 pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Value]) -> Result<Value, Exception> {
+    // Here we clone the stdin file descriptor, because Command wants to take
+    // ownership of it.
     let mut stdin = fiber.stdin().try_clone()?;
 
-    // Most processes assume standard I/O streams begin life as blocking.
+    // Ensure we restore non-blocking once finished. Use a scope guard to ensure
+    // that the non-blocking flag is restored even on cancellation.
+    let mut fiber = scopeguard::guard(fiber, |fiber| {
+        if let Err(e) = fiber.stdin().set_nonblocking(true) {
+            log::warn!("failed to restore stdin to non-blocking mode: {}", e);
+        }
+    });
+
+    // Most processes assume standard I/O streams begin life as blocking. Note
+    // that this flag affects all file descriptors pointing to the same file
+    // description, so we must make sure to restore this when we're done.
     stdin.set_nonblocking(false)?;
 
-    let result = Command::new(command)
+    Command::new(command)
         .args(args.iter().map(|value| crate::string::RipString::from(value.clone())))
         .stdin(stdin)
         .stdout(fiber.stdout().try_clone()?)
@@ -30,12 +43,10 @@ pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Valu
         .status()
         .await
         .map(|status| Value::from(status.code().unwrap_or(0) as f64))
-        .map_err(|e| e.to_string().into());
-
-    // Restore non-blocking.
-    fiber.stdin().set_nonblocking(true)?;
-
-    result
+        .map_err(|e| match e.kind() {
+            ErrorKind::NotFound => Exception::from("no such command or file"),
+            _ => e.to_string().into(),
+        })
 }
 
 /// Spawn a new child process and execute the given future in it.
@@ -64,6 +75,7 @@ pub async fn spawn<F: Future<Output = ()>>(future: F) -> Result<i32, String> {
     }
 }
 
+/// Replace the current process with an external command.
 pub fn exec(command: &str, args: &[&str]) -> Result<(), String> {
     let command_c = CString::new(command).unwrap();
 
