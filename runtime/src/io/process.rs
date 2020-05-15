@@ -36,6 +36,7 @@ pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Valu
 
     Command::new(command)
         .args(args.iter().map(|value| crate::string::RipString::from(value.clone())))
+        .current_dir(fiber.current_dir().to_string())
         .stdin(stdin)
         .stdout(fiber.stdout().try_clone()?)
         .stderr(fiber.stderr().try_clone()?)

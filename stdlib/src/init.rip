@@ -38,3 +38,9 @@ def require-x <module> {
 $GLOBALS->ls = {
     $process->command ls -l
 }
+
+# Set default prompt
+$GLOBALS->riptide-prompt = {
+    # Ugly hack until returning an expression works.
+    nth ["$(pwd)\$ "] 0
+}

@@ -176,7 +176,7 @@ async fn interactive_main(fiber: &mut Fiber, options: Options) {
     );
 
     while fiber.exit_code().is_none() {
-        match editor.read_line().await {
+        match editor.read_line(fiber).await {
             ReadLine::Input(line) => {
                 // If this is a blank line, then don't waste time compiling and
                 // executing it.

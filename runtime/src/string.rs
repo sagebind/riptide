@@ -2,7 +2,7 @@ use bstr::BString;
 use std::{
     borrow::*,
     cmp::Ordering,
-    ffi::OsStr,
+    ffi::{OsStr, OsString},
     fmt,
     hash::{Hash, Hasher},
     rc::Rc,
@@ -69,6 +69,22 @@ impl<'s> From<&'s [u8]> for RipString {
 impl From<Vec<u8>> for RipString {
     fn from(value: Vec<u8>) -> Self {
         RipString(Rc::new(value.into()))
+    }
+}
+
+#[cfg(unix)]
+impl From<OsString> for RipString {
+    fn from(value: OsString) -> Self {
+        use std::os::unix::ffi::OsStringExt;
+
+        value.into_vec().into()
+    }
+}
+
+#[cfg(unix)]
+impl<'a> From<&'a OsStr> for RipString {
+    fn from(value: &OsStr) -> Self {
+        value.to_os_string().into()
     }
 }
 

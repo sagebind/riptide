@@ -48,99 +48,6 @@ pub enum Value {
     ForeignFn(ForeignFn),
 }
 
-impl Default for Value {
-    fn default() -> Self {
-        Value::Nil
-    }
-}
-
-impl From<bool> for Value {
-    fn from(value: bool) -> Self {
-        Value::Boolean(value)
-    }
-}
-
-impl From<Number> for Value {
-    fn from(value: Number) -> Self {
-        Value::Number(value)
-    }
-}
-
-impl From<u32> for Value {
-    fn from(value: u32) -> Self {
-        Value::Number(value as Number)
-    }
-}
-
-impl From<u64> for Value {
-    fn from(value: u64) -> Self {
-        Value::Number(value as Number)
-    }
-}
-
-impl<'a> From<&'a str> for Value {
-    fn from(value: &str) -> Self {
-        Value::String(RipString::from(value))
-    }
-}
-
-impl From<String> for Value {
-    fn from(value: String) -> Self {
-        Value::String(RipString::from(value))
-    }
-}
-
-impl From<RipString> for Value {
-    fn from(value: RipString) -> Self {
-        Value::String(value)
-    }
-}
-
-impl From<Vec<Value>> for Value {
-    fn from(list: Vec<Value>) -> Self {
-        Value::List(list)
-    }
-}
-
-impl<'a> From<&'a [Value]> for Value {
-    fn from(list: &[Value]) -> Self {
-        Value::List(list.to_vec())
-    }
-}
-
-impl From<Table> for Value {
-    fn from(table: Table) -> Self {
-        Value::Table(table)
-    }
-}
-
-impl From<Closure> for Value {
-    fn from(closure: Closure) -> Self {
-        Value::Block(Rc::new(closure))
-    }
-}
-
-impl From<ForeignFn> for Value {
-    fn from(f: ForeignFn) -> Self {
-        Value::ForeignFn(f)
-    }
-}
-
-impl From<Value> for RipString {
-    fn from(value: Value) -> Self {
-        match value {
-            Value::String(s) => s,
-            value => value.to_string().into(),
-        }
-    }
-}
-
-impl<T: Into<Value>> FromIterator<T> for Value {
-    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
-        Value::List(iter.into_iter().map(Into::into).collect())
-    }
-}
-
 impl Value {
     pub const TRUE: Self = Value::Boolean(true);
     pub const FALSE: Self = Value::Boolean(false);
@@ -239,6 +146,105 @@ impl Value {
             },
             _ => None,
         }
+    }
+}
+
+impl Default for Value {
+    fn default() -> Self {
+        Value::Nil
+    }
+}
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Value::Boolean(value)
+    }
+}
+
+impl From<Number> for Value {
+    fn from(value: Number) -> Self {
+        Value::Number(value)
+    }
+}
+
+impl From<u32> for Value {
+    fn from(value: u32) -> Self {
+        Value::Number(value as Number)
+    }
+}
+
+impl From<u64> for Value {
+    fn from(value: u64) -> Self {
+        Value::Number(value as Number)
+    }
+}
+
+impl<'a> From<&'a str> for Value {
+    fn from(value: &str) -> Self {
+        Value::String(RipString::from(value))
+    }
+}
+
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Value::String(RipString::from(value))
+    }
+}
+
+impl From<RipString> for Value {
+    fn from(value: RipString) -> Self {
+        Value::String(value)
+    }
+}
+
+impl From<std::path::PathBuf> for Value {
+    fn from(value: std::path::PathBuf) -> Self {
+        Value::String(RipString::from(value.as_os_str()))
+    }
+}
+
+impl From<Vec<Value>> for Value {
+    fn from(list: Vec<Value>) -> Self {
+        Value::List(list)
+    }
+}
+
+impl<'a> From<&'a [Value]> for Value {
+    fn from(list: &[Value]) -> Self {
+        Value::List(list.to_vec())
+    }
+}
+
+impl From<Table> for Value {
+    fn from(table: Table) -> Self {
+        Value::Table(table)
+    }
+}
+
+impl From<Closure> for Value {
+    fn from(closure: Closure) -> Self {
+        Value::Block(Rc::new(closure))
+    }
+}
+
+impl From<ForeignFn> for Value {
+    fn from(f: ForeignFn) -> Self {
+        Value::ForeignFn(f)
+    }
+}
+
+impl From<Value> for RipString {
+    fn from(value: Value) -> Self {
+        match value {
+            Value::String(s) => s,
+            value => value.to_string().into(),
+        }
+    }
+}
+
+impl<T: Into<Value>> FromIterator<T> for Value {
+    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+        Value::List(iter.into_iter().map(Into::into).collect())
     }
 }
 

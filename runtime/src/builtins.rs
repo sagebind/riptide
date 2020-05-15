@@ -9,12 +9,14 @@ pub fn get() -> Table {
         "require" => Value::ForeignFn(modules::require.into()),
         "backtrace" => Value::ForeignFn(backtrace.into()),
         "call" => Value::ForeignFn(call.into()),
+        "cd" => Value::ForeignFn(cd.into()),
         "def" => Value::ForeignFn(def.into()),
         "exit" => Value::ForeignFn(exit.into()),
         "include" => Value::ForeignFn(include.into()),
         "list" => Value::ForeignFn(list.into()),
         "nil" => Value::ForeignFn(nil.into()),
         "nth" => Value::ForeignFn(nth.into()),
+        "pwd" => Value::ForeignFn(pwd.into()),
         "throw" => Value::ForeignFn(throw.into()),
         "try" => Value::ForeignFn(try_fn.into()),
         "typeof" => Value::ForeignFn(type_of.into()),
@@ -35,6 +37,19 @@ async fn def(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let value = args.get(1).cloned().unwrap_or(Value::Nil);
 
     fiber.set_parent(name, value);
+
+    Ok(Value::Nil)
+}
+
+/// Changes the current working directory of the current process.
+async fn cd(_fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
+    let dir = match args.first() {
+        Some(value) => value.to_string().into(),
+        None => directories::BaseDirs::new().unwrap().home_dir().to_owned(),
+    };
+
+    // TODO: Should fibers have independent working directories?
+    std::env::set_current_dir(dir)?;
 
     Ok(Value::Nil)
 }
@@ -79,6 +94,10 @@ async fn nth(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
 /// Function that always returns Nil.
 async fn nil(_: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
     Ok(Value::Nil)
+}
+
+async fn pwd(fiber: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
+    Ok(fiber.current_dir())
 }
 
 /// Throw an exception.

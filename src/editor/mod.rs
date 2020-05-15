@@ -5,6 +5,7 @@ use crate::{
     history::{EntryCursor, History, Session},
     os::{TerminalInput, TerminalOutput},
 };
+use riptide_runtime::{Fiber, Value};
 use std::borrow::Cow;
 use std::os::unix::io::AsRawFd;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
@@ -42,12 +43,37 @@ impl<I, O: AsRawFd> Editor<I, O> {
         }
     }
 
-    fn get_prompt_str(&self) -> Cow<'static, str> {
-        // match interpreter::function_call(PROMPT_FUNCTION, &[], &mut Streams::null()) {
-        //     Ok(Expression::Atom(s)) => s,
-        //     _ => Cow::Borrowed(DEFAULT_PROMPT),
-        // }
+    async fn get_prompt_str(&self, fiber: &mut Fiber) -> Cow<'static, str> {
+        match fiber.globals().get("riptide-prompt") {
+            // Static prompt.
+            Value::String(s) => return Cow::Owned(s.to_string()),
 
+            // Prompt is determined by a callback function.
+            value @ Value::Block(_) => match fiber.invoke(&value, &[]).await {
+                // Closure returned successfully.
+                Ok(Value::String(s)) => return Cow::Owned(s.to_string()),
+
+                // Closure succeeded, but returned an invalid data type.
+                Ok(value) => {
+                    log::warn!("prompt function returned invalid data type: {}", value.type_name());
+                }
+
+                Err(e) => {
+                    log::warn!("prompt function threw exception: {}", e);
+                }
+            },
+
+            Value::Nil => {
+                // Unspecified
+            }
+
+            value => {
+                // Invalid data type
+                log::warn!("prompt must be a closure or string, not '{}'", value.type_name());
+            }
+        }
+
+        // If no prompt is defined, use a fallback prompt string.
         Cow::Borrowed(DEFAULT_PROMPT)
     }
 }
@@ -55,8 +81,9 @@ impl<I, O: AsRawFd> Editor<I, O> {
 impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
     /// Show a command prompt to the user and await for the user to input a
     /// command. The typed command is returned once submitted.
-    pub async fn read_line(&mut self) -> ReadLine {
-        let prompt = self.get_prompt_str();
+    pub async fn read_line(&mut self, fiber: &mut Fiber) -> ReadLine {
+        let prompt = self.get_prompt_str(fiber).await;
+
         self.stdout.write_all(prompt.as_bytes()).await.unwrap();
         self.stdout.flush().await.unwrap();
 
@@ -137,7 +164,7 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
                 _ => {}
             }
 
-            editor.redraw().await;
+            editor.redraw(fiber).await;
         }
 
         editor.history_cursor = None;
@@ -150,8 +177,9 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
     }
 
     /// Redraw the buffer.
-    pub async fn redraw(&mut self) {
-        let prompt = self.get_prompt_str();
+    pub async fn redraw(&mut self, fiber: &mut Fiber) {
+        let prompt = self.get_prompt_str(fiber).await;
+
         self.stdout.write_all(b"\r").await.unwrap();
         self.stdout
             .command(Command::ClearAfterCursor)

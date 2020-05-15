@@ -89,6 +89,21 @@ impl Fiber {
         fork
     }
 
+    /// Get the fiber's current working directory.
+    pub fn current_dir(&self) -> Value {
+        // First check the `@cwd` context variable.
+        let mut cwd = self.get_cvar("cwd");
+
+        // If not set, check the process-wide (default) working directory.
+        if cwd.is_nil() {
+            if let Ok(path) = std::env::current_dir() {
+                cwd = path.into();
+            }
+        }
+
+        cwd
+    }
+
     /// Get the current exit code for the runtime. If no exit has been
     /// requested, then `None` will be returned.
     ///

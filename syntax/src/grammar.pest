@@ -92,7 +92,7 @@ list_literal = { "[" ~ (NEWLINE* ~ expr)* ~ NEWLINE* ~ "]" }
 // Escapes are handled later in the parser pipeline.
 interpolated_string = ${ "\"" ~ interpolated_string_part* ~ "\"" }
 interpolated_string_part = ${ substitution | interpolated_string_literal_part }
-interpolated_string_literal_part = ${ ("\\\"" | !"\"" ~ !"$" ~ ANY)+ }
+interpolated_string_literal_part = ${ ("\\\"" | "\\$" | !"\"" ~ !"$" ~ ANY)+ }
 
 // A literal string. String literals are static and have no runtime
 // interpolation.
