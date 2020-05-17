@@ -18,31 +18,32 @@ Block(
         ),
     ),
     named_params: None,
+    vararg_param: None,
     statements: [
-        Pipeline([
+        Pipeline(Pipeline([
             UnnamedCall(
                 function: MemberAccess(MemberAccess(Variable("lang"), "ext"), "panic"),
                 args: [
                     "hello world",
                 ],
             ),
-        ]),
-        Pipeline([
+        ])),
+        Pipeline(Pipeline([
             NamedCall(
                 function: "println",
                 args: [
                     Variable("mytable"),
                 ],
             ),
-        ]),
-        Pipeline([
+        ])),
+        Pipeline(Pipeline([
             NamedCall(
                 function: "println",
                 args: [
                     MemberAccess(MemberAccess(Variable("mytable"), "key with spaces"), "bar"),
                 ],
             ),
-        ]),
+        ])),
     ],
 )
 '''

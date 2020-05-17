@@ -21,8 +21,9 @@ Block(
         ),
     ),
     named_params: None,
+    vararg_param: None,
     statements: [
-        Pipeline([
+        Pipeline(Pipeline([
             UnnamedCall(
                 function: Block(
                     span: Span(
@@ -37,8 +38,9 @@ Block(
                         ),
                     ),
                     named_params: None,
+                    vararg_param: None,
                     statements: [
-                        Pipeline([
+                        Pipeline(Pipeline([
                             UnnamedCall(
                                 function: Block(
                                     span: Span(
@@ -53,8 +55,9 @@ Block(
                                         ),
                                     ),
                                     named_params: None,
+                                    vararg_param: None,
                                     statements: [
-                                        Pipeline([
+                                        Pipeline(Pipeline([
                                             UnnamedCall(
                                                 function: Block(
                                                     span: Span(
@@ -69,28 +72,29 @@ Block(
                                                         ),
                                                     ),
                                                     named_params: None,
+                                                    vararg_param: None,
                                                     statements: [
-                                                        Pipeline([
+                                                        Pipeline(Pipeline([
                                                             NamedCall(
                                                                 function: "println",
                                                                 args: [],
                                                             ),
-                                                        ]),
+                                                        ])),
                                                     ],
                                                 ),
                                                 args: [],
                                             ),
-                                        ]),
+                                        ])),
                                     ],
                                 ),
                                 args: [],
                             ),
-                        ]),
+                        ])),
                     ],
                 ),
                 args: [],
             ),
-        ]),
+        ])),
     ],
 )
 '''

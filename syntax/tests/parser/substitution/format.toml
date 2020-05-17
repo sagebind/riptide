@@ -15,15 +15,16 @@ Block(
         ),
     ),
     named_params: None,
+    vararg_param: None,
     statements: [
-        Pipeline([
+        Pipeline(Pipeline([
             NamedCall(
                 function: "println",
                 args: [
                     Format("foo", Some(".2")),
                 ],
             ),
-        ]),
+        ])),
     ],
 )
 '''

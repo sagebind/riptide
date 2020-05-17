@@ -12,6 +12,10 @@ pub struct Block {
     /// A list of named parameters.
     pub named_params: Option<Vec<String>>,
 
+    /// An optional, final named parameter that receives unbound arguments as a
+    /// list.
+    pub vararg_param: Option<String>,
+
     /// A list of statements to execute.
     pub statements: Vec<Statement>,
 }

@@ -18,39 +18,40 @@ Block(
         ),
     ),
     named_params: None,
+    vararg_param: None,
     statements: [
-        Pipeline([
+        Pipeline(Pipeline([
             NamedCall(
                 function: "println",
                 args: [
                     100,
                 ],
             ),
-        ]),
-        Pipeline([
+        ])),
+        Pipeline(Pipeline([
             NamedCall(
                 function: "println",
                 args: [
                     102.5,
                 ],
             ),
-        ]),
-        Pipeline([
+        ])),
+        Pipeline(Pipeline([
             NamedCall(
                 function: "println",
                 args: [
                     0.25,
                 ],
             ),
-        ]),
-        Pipeline([
+        ])),
+        Pipeline(Pipeline([
             NamedCall(
                 function: "println",
                 args: [
                     -255,
                 ],
             ),
-        ]),
+        ])),
     ],
 )
 '''

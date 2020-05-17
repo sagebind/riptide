@@ -58,15 +58,29 @@ impl Parser {
             .map(|p| self.parse_statement(p))
             .collect::<Result<_, Error<Rule>>>()?;
 
-        let named_params = pairs.pop().map(|pair| {
-            assert_eq!(pair.as_rule(), Rule::block_params);
+        let mut named_params = None;
+        let mut vararg_param = None;
 
-            pair.into_inner().map(|pair| pair.as_str().to_owned()).collect()
-        });
+        if let Some(block_params) = pairs.pop() {
+            assert_eq!(block_params.as_rule(), Rule::block_params);
+
+            for param in block_params.into_inner() {
+                match param.as_rule() {
+                    Rule::param_decl => {
+                        named_params.get_or_insert_with(Vec::new).push(param.as_str().to_owned());
+                    }
+                    Rule::vararg_param_decl => {
+                        vararg_param = Some(param.into_inner().next().unwrap().as_str().to_owned());
+                    }
+                    rule => panic!("unexpected rule: {:?}", rule),
+                }
+            }
+        }
 
         Ok(Block {
             span,
             named_params,
+            vararg_param,
             statements,
         })
     }

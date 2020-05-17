@@ -24,8 +24,9 @@ Block(
         ),
     ),
     named_params: None,
+    vararg_param: None,
     statements: [
-        Pipeline([
+        Pipeline(Pipeline([
             NamedCall(
                 function: "call",
                 args: [
@@ -42,19 +43,20 @@ Block(
                             ),
                         ),
                         named_params: None,
+                        vararg_param: None,
                         statements: [
-                            Pipeline([
+                            Pipeline(Pipeline([
                                 NamedCall(
                                     function: "println",
                                     args: [],
                                 ),
-                            ]),
+                            ])),
                         ],
                     ),
                 ],
             ),
-        ]),
-        Pipeline([
+        ])),
+        Pipeline(Pipeline([
             NamedCall(
                 function: "call",
                 args: [
@@ -71,19 +73,20 @@ Block(
                             ),
                         ),
                         named_params: None,
+                        vararg_param: None,
                         statements: [
-                            Pipeline([
+                            Pipeline(Pipeline([
                                 NamedCall(
                                     function: "println",
                                     args: [],
                                 ),
-                            ]),
+                            ])),
                         ],
                     ),
                 ],
             ),
-        ]),
-        Pipeline([
+        ])),
+        Pipeline(Pipeline([
             NamedCall(
                 function: "call",
                 args: [
@@ -100,18 +103,19 @@ Block(
                             ),
                         ),
                         named_params: None,
+                        vararg_param: None,
                         statements: [
-                            Pipeline([
+                            Pipeline(Pipeline([
                                 NamedCall(
                                     function: "println",
                                     args: [],
                                 ),
-                            ]),
+                            ])),
                         ],
                     ),
                 ],
             ),
-        ]),
+        ])),
     ],
 )
 '''

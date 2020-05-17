@@ -1,12 +1,12 @@
 source = '''
-call <left right> {
+call <...args> {
     println
 }
 '''
 ast = '''
 Block(
     span: Span(
-        file_name: Some("tests/parser/block-named-params.toml"),
+        file_name: Some("tests/parser/block-varargs.toml"),
         start: Position(
             line: 1,
             col: 1,
@@ -25,7 +25,7 @@ Block(
                 args: [
                     Block(
                         span: Span(
-                            file_name: Some("tests/parser/block-named-params.toml"),
+                            file_name: Some("tests/parser/block-varargs.toml"),
                             start: Position(
                                 line: 1,
                                 col: 6,
@@ -35,11 +35,8 @@ Block(
                                 col: 2,
                             ),
                         ),
-                        named_params: Some([
-                            "left",
-                            "right",
-                        ]),
-                        vararg_param: None,
+                        named_params: None,
+                        vararg_param: Some("args"),
                         statements: [
                             Pipeline(Pipeline([
                                 NamedCall(
