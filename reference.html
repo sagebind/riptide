@@ -641,7 +641,14 @@ program = { SOI ~ statement_list ~ EOI }
 // Blocks are surrounded by curly braces, with an optional square bracket
 // delimited parameter list proceeding it.
 block = { block_params? ~ "{" ~ statement_list ~ "}" }
-block_params = { "&lt;" ~ symbol* ~ "&gt;" }
+block_params = { "&lt;" ~ block_params_list ~ "&gt;" }
+block_params_list = _{
+    vararg_param_decl
+    | param_decl ~ block_params_list?
+}
+
+param_decl = { symbol }
+vararg_param_decl = { "..." ~ symbol }
 
 // Blocks and programs are lists of statements.
 statement_list = { statement_separator* ~ (statement ~ (statement_separator+ ~ statement)*)? ~ statement_separator* }
@@ -1485,7 +1492,7 @@ This replaces the current <em>process</em>, which includes all fibers in the cur
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2020-05-17 03:38:51 UTC
+Last updated 2020-05-17 04:26:05 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.9.1/styles/github.min.css">
