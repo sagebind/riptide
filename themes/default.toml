@@ -1,0 +1,6 @@
+name = "default"
+
+[prompt]
+format = ">"
+item-separator = "-"
+item-format = "<%s>"

@@ -1,20 +1,21 @@
-use super::buffer::Buffer;
 use crate::{
-    editor::command::Command,
-    editor::event::Event,
+    buffer::Buffer,
+    editor::{command::Command, event::Event},
     history::{EntryCursor, History, Session},
     os::{TerminalInput, TerminalOutput},
+    theme::Theme,
 };
 use riptide_runtime::{Fiber, Value};
-use std::borrow::Cow;
-use std::os::unix::io::AsRawFd;
+use std::{
+    fmt::Write,
+    os::unix::io::AsRawFd,
+};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
+use yansi::Paint;
 
 pub mod command;
 pub mod event;
-
-/// The default prompt string if none is defined.
-const DEFAULT_PROMPT: &str = "$ ";
+pub mod prompt;
 
 /// Controls the interactive command line editor.
 pub struct Editor<I, O: AsRawFd> {
@@ -43,15 +44,20 @@ impl<I, O: AsRawFd> Editor<I, O> {
         }
     }
 
-    async fn get_prompt_str(&self, fiber: &mut Fiber) -> Cow<'static, str> {
+    // TODO: Determine how this is configured.
+    fn get_theme(&self) -> Theme {
+        Theme::default()
+    }
+
+    async fn get_prompt_str(&self, fiber: &mut Fiber) -> String {
         match fiber.globals().get("riptide-prompt") {
             // Static prompt.
-            Value::String(s) => return Cow::Owned(s.to_string()),
+            Value::String(s) => return s.to_string(),
 
             // Prompt is determined by a callback function.
             value @ Value::Block(_) => match fiber.invoke(&value, &[]).await {
                 // Closure returned successfully.
-                Ok(Value::String(s)) => return Cow::Owned(s.to_string()),
+                Ok(Value::String(s)) => return s.to_string(),
 
                 // Closure succeeded, but returned an invalid data type.
                 Ok(value) => {
@@ -73,8 +79,24 @@ impl<I, O: AsRawFd> Editor<I, O> {
             }
         }
 
-        // If no prompt is defined, use a fallback prompt string.
-        Cow::Borrowed(DEFAULT_PROMPT)
+        let theme = self.get_theme();
+        let mut buf = String::new();
+
+        let cwd = fiber.current_dir().to_string();
+        write!(
+            &mut buf,
+            "{}{}",
+            Paint::blue(theme.prompt.as_ref().unwrap().item_format.as_ref().unwrap().replace("%s", &cwd)),
+            theme.prompt.as_ref().unwrap().item_separator.as_ref().unwrap(),
+        ).unwrap();
+
+        write!(
+            &mut buf,
+            "{} ",
+            theme.prompt.as_ref().unwrap().format.as_ref().unwrap(),
+        ).unwrap();
+
+        buf
     }
 }
 

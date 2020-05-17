@@ -21,6 +21,7 @@ mod history;
 mod logger;
 mod os;
 mod paths;
+mod theme;
 
 #[derive(Debug, StructOpt)]
 struct Options {
