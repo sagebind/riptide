@@ -43,19 +43,19 @@ fn compile_block(fiber: &mut Fiber, block: Block) -> Result<Closure, Exception> 
 /// Invoke the given value as a function with the given arguments.
 pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: Vec<Value>) -> Result<Value, Exception> {
     match value {
-        Value::Block(closure) => invoke_closure(fiber, closure, args, Table::default()).await,
+        Value::Block(closure) => invoke_closure(fiber, closure, args, table!(), table!()).await,
         Value::ForeignFn(function) => invoke_native(fiber, function, args).await,
         value => throw!("cannot invoke '{:?}' as a function", value),
     }
 }
 
 /// Invoke a block with an array of arguments.
-pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: Vec<Value>, cvars: Table) -> Result<Value, Exception> {
+pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: Vec<Value>, bindings: Table, cvars: Table) -> Result<Value, Exception> {
+    bindings.set("args", args.to_vec());
+
     let scope = Scope {
         name: format!("<closure:{}>", closure.block.span),
-        bindings: table! {
-            "args" => args.to_vec(),
-        },
+        bindings,
         cvars,
         parent: closure.scope.clone(),
         ..Default::default()
@@ -241,7 +241,7 @@ async fn evaluate_cvar_scope(fiber: &mut Fiber, cvar_scope: CvarScope) -> Result
         cvar_scope.name.0 => evaluate_expr(fiber, *cvar_scope.value).await?,
     };
 
-    invoke_closure(fiber, &closure, vec![], cvars).await
+    invoke_closure(fiber, &closure, vec![], cvars, table!()).await
 }
 
 async fn evaluate_substitution(fiber: &mut Fiber, substitution: Substitution) -> Result<Value, Exception> {

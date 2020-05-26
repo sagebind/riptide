@@ -129,28 +129,6 @@ impl Fiber {
         }
     }
 
-    /// Get the current executing scope.
-    pub(crate) fn current_scope(&self) -> Option<&Rc<Scope>> {
-        self.stack.last()
-    }
-
-    /// Get a backtrace-like view of the stack.
-    pub(crate) fn backtrace(&self) -> impl Iterator<Item = &Rc<Scope>> {
-        self.stack.iter().rev()
-    }
-
-    /// Get a module scope table by the module's name. If the module table does
-    /// not already exist, it will be created.
-    pub(crate) fn get_module_by_name(&self, name: &str) -> Table {
-        let loaded = self.globals.get("modules").get("loaded");
-
-        if loaded.get(name).is_nil() {
-            loaded.as_table().unwrap().set(name, table!());
-        }
-
-        loaded.get(name).as_table().unwrap().clone()
-    }
-
     /// Execute the given script within this runtime.
     ///
     /// The script will be executed inside the context of the module with the given name. If no module name is given, an
@@ -177,9 +155,9 @@ impl Fiber {
         file: impl Into<SourceFile>,
         scope: Table,
     ) -> Result<Value, Exception> {
-        let closure = eval::compile(self, file, Some(scope))?;
+        let closure = eval::compile(self, file, None)?;
 
-        eval::invoke_closure(self, &closure, vec![], Default::default()).await
+        eval::invoke_closure(self, &closure, vec![], scope, Default::default()).await
     }
 
     /// Invoke the given value as a function with the given arguments.
@@ -220,6 +198,28 @@ impl Fiber {
         }
 
         Value::Nil
+    }
+
+    /// Get the current executing scope.
+    pub(crate) fn current_scope(&self) -> Option<&Rc<Scope>> {
+        self.stack.last()
+    }
+
+    /// Get a backtrace-like view of the stack.
+    pub(crate) fn backtrace(&self) -> impl Iterator<Item = &Rc<Scope>> {
+        self.stack.iter().rev()
+    }
+
+    /// Get a module scope table by the module's name. If the module table does
+    /// not already exist, it will be created.
+    pub(crate) fn get_module_by_name(&self, name: &str) -> Table {
+        let loaded = self.globals.get("modules").get("loaded");
+
+        if loaded.get(name).is_nil() {
+            loaded.as_table().unwrap().set(name, table!());
+        }
+
+        loaded.get(name).as_table().unwrap().clone()
     }
 }
 
