@@ -10,7 +10,6 @@ pub fn get() -> Table {
         "backtrace" => Value::ForeignFn(backtrace.into()),
         "call" => Value::ForeignFn(call.into()),
         "cd" => Value::ForeignFn(cd.into()),
-        "def" => Value::ForeignFn(def.into()),
         "exit" => Value::ForeignFn(exit.into()),
         "include" => Value::ForeignFn(include.into()),
         "list" => Value::ForeignFn(list.into()),
@@ -25,20 +24,6 @@ pub fn get() -> Table {
             "loaded" => Value::from(table!()),
         }),
     }
-}
-
-/// Binds a value to a new variable.
-async fn def(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
-    let name = match args.get(0).and_then(Value::as_string) {
-        Some(s) => s.clone(),
-        None => throw!("variable name required"),
-    };
-
-    let value = args.get(1).cloned().unwrap_or(Value::Nil);
-
-    fiber.set_parent(name, value);
-
-    Ok(Value::Nil)
 }
 
 /// Changes the current working directory of the current process.

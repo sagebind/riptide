@@ -3,7 +3,7 @@
 # This script must never throw an exception, or the runtime will panic.
 
 # Pre-define the global modules table.
-# table-set $GLOBALS modules [
+# $GLOBALS->modules [
 #     loaders: [] # A list of loader functions.
 #     loaded: [:] # A table mapping module names to the loaded object.
 # ]
@@ -27,7 +27,7 @@ $GLOBALS->eval = <string> {
     call $source $string
 }
 
-def require-x <module> {
+$require-x = <module> {
     send $GLOBALS->modules->loaders | map {
         call $0 $module
     } | filter {

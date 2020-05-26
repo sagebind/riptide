@@ -206,13 +206,6 @@ impl Fiber {
         self.current_scope().unwrap().set(name, value);
     }
 
-    #[deprecated]
-    pub(crate) fn set_parent(&self, name: impl Into<RipString>, value: impl Into<Value>) {
-        if self.stack.len() >= 2 {
-            self.stack[self.stack.len() - 2].set(name, value);
-        }
-    }
-
     /// Get the current value of a context variable.
     pub fn get_cvar(&self, name: impl AsRef<[u8]>) -> Value {
         let name = name.as_ref();
