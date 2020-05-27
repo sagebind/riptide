@@ -1,12 +1,10 @@
 //! Implementations of built-in global functions that are always available.
 
 use crate::prelude::*;
-use super::modules;
 use super::scope::Scope;
 
 pub fn get() -> Table {
     table! {
-        "require" => Value::ForeignFn(modules::require.into()),
         "backtrace" => Value::ForeignFn(backtrace.into()),
         "call" => Value::ForeignFn(call.into()),
         "cd" => Value::ForeignFn(cd.into()),

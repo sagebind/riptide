@@ -1,4 +1,4 @@
-use bstr::BString;
+use bstr::{BStr, BString};
 use std::{
     borrow::*,
     cmp::Ordering,
@@ -60,6 +60,18 @@ impl From<String> for RipString {
     }
 }
 
+impl<'s> From<&'s BStr> for RipString {
+    fn from(value: &BStr) -> Self {
+        RipString(Rc::new(value.into()))
+    }
+}
+
+impl From<BString> for RipString {
+    fn from(value: BString) -> Self {
+        RipString(Rc::new(value))
+    }
+}
+
 impl<'s> From<&'s [u8]> for RipString {
     fn from(value: &'s [u8]) -> Self {
         RipString(Rc::new(value.into()))
@@ -85,6 +97,12 @@ impl From<OsString> for RipString {
 impl<'a> From<&'a OsStr> for RipString {
     fn from(value: &OsStr) -> Self {
         value.to_os_string().into()
+    }
+}
+
+impl AsRef<BStr> for RipString {
+    fn as_ref(&self) -> &BStr {
+        self.0.as_ref().as_ref()
     }
 }
 

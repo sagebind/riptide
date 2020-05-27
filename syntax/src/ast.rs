@@ -24,6 +24,7 @@ pub struct Block {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Statement {
     Assignment(AssignmentStatement),
+    Import(ImportStatement),
     Pipeline(Pipeline),
 }
 
@@ -32,6 +33,13 @@ pub enum Statement {
 pub struct AssignmentStatement {
     pub target: AssignmentTarget,
     pub value: Expr,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ImportStatement {
+    pub path: String,
+    pub imports: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

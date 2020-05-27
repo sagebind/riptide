@@ -18,7 +18,7 @@ use futures::future::try_join_all;
 use std::rc::Rc;
 
 /// Compile the given source code as a closure.
-pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>, scope: Option<Table>) -> Result<Closure, Exception> {
+pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>) -> Result<Closure, Exception> {
     let file = file.into();
     let file_name = file.name().to_string();
 
@@ -122,8 +122,13 @@ async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: Vec<Value>
     })
 }
 
+#[async_recursion::async_recursion(?Send)]
 async fn evaluate_statement(fiber: &mut Fiber, statement: Statement) -> Result<Value, Exception> {
     match statement {
+        Statement::Import(statement) => {
+            evaluate_import_statement(fiber, statement).await?;
+            Ok(Default::default())
+        },
         Statement::Pipeline(pipeline) => evaluate_pipeline(fiber, pipeline).await,
         Statement::Assignment(AssignmentStatement {target, value}) => {
             match target {
@@ -143,6 +148,18 @@ async fn evaluate_statement(fiber: &mut Fiber, statement: Statement) -> Result<V
             Ok(Value::Nil)
         },
     }
+}
+
+async fn evaluate_import_statement(fiber: &mut Fiber, statement: ImportStatement) -> Result<(), Exception> {
+    let module_contents = fiber.load_module(statement.path.as_bytes()).await?;
+
+    for import in statement.imports {
+        if let Some(table) = module_contents.as_table() {
+            fiber.set(import.clone(), table.get(import));
+        }
+    }
+
+    Ok(())
 }
 
 async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: Pipeline) -> Result<Value, Exception> {

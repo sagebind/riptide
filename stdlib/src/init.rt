@@ -8,20 +8,20 @@
 #     loaded: [:] # A table mapping module names to the loaded object.
 # ]
 
-$fs = (require std/fs)
-$lang = (require std/lang)
-$process = (require std/process)
+import std/lang for print println dump eq
+import std/process for command
+import std/fs for read write
 
-$GLOBALS->read = $fs->read
-$GLOBALS->write = $fs->write
+$GLOBALS->read = $read
+$GLOBALS->write = $write
 
-$GLOBALS->print = $lang->print
-$GLOBALS->println = $lang->println
-$GLOBALS->echo = $lang->println
-$GLOBALS->dump = $lang->dump
-$GLOBALS->eq = $lang->eq
+$GLOBALS->print = $print
+$GLOBALS->println = $println
+$GLOBALS->echo = $println
+$GLOBALS->dump = $dump
+$GLOBALS->eq = $eq
 
-$GLOBALS->command = $process->command
+$GLOBALS->command = $command
 
 $GLOBALS->eval = <string> {
     call $source $string
@@ -36,5 +36,5 @@ $require-x = <module> {
 }
 
 $GLOBALS->ls = {
-    $process->command ls -l
+    command ls -l
 }

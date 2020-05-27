@@ -191,6 +191,18 @@ impl From<String> for Value {
     }
 }
 
+impl<'a> From<&'a bstr::BStr> for Value {
+    fn from(value: &bstr::BStr) -> Self {
+        Value::String(RipString::from(value))
+    }
+}
+
+impl From<bstr::BString> for Value {
+    fn from(value: bstr::BString) -> Self {
+        Value::String(RipString::from(value))
+    }
+}
+
 impl From<RipString> for Value {
     fn from(value: RipString) -> Self {
         Value::String(value)

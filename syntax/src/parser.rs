@@ -87,6 +87,7 @@ impl Parser {
 
     fn parse_statement(&self, pair: Pair<'_, Rule>) -> Result<Statement, Error<Rule>> {
         match pair.as_rule() {
+            Rule::import_statement => Ok(Statement::Import(self.parse_import_statement(pair)?)),
             Rule::pipeline_statement => Ok(Statement::Pipeline(self.parse_pipeline(pair.into_inner().next().unwrap())?)),
             Rule::assignment_statement => {
                 let mut pairs = pair.into_inner();
@@ -98,6 +99,24 @@ impl Parser {
             },
             rule => panic!("unexpected rule: {:?}", rule),
         }
+    }
+
+    fn parse_import_statement(&self, pair: Pair<'_, Rule>) -> Result<ImportStatement, Error<Rule>> {
+        assert_eq!(pair.as_rule(), Rule::import_statement);
+
+        let mut pairs = pair.into_inner();
+
+        let path = string_literal(pairs.next().unwrap());
+        let mut imports = Vec::new();
+
+        for pair in pairs {
+            imports.push(string_literal(pair));
+        }
+
+        Ok(ImportStatement {
+            path,
+            imports,
+        })
     }
 
     fn parse_assignment_target(&self, pair: Pair<'_, Rule>) -> Result<AssignmentTarget, Error<Rule>> {

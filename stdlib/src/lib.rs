@@ -15,7 +15,7 @@ pub async fn init(fiber: &mut Fiber) -> Result<(), Exception> {
     fiber.register_native_module("std/string", foreign_fn!(|_, _| string::load()));
 
     // Execute initialization
-    fiber.execute(None, include_str!("init.rip")).await?;
+    fiber.execute(None, include_str!("init.rt")).await?;
 
     Ok(())
 }

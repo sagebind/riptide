@@ -155,7 +155,7 @@ impl Fiber {
         file: impl Into<SourceFile>,
         scope: Table,
     ) -> Result<Value, Exception> {
-        let closure = eval::compile(self, file, None)?;
+        let closure = eval::compile(self, file)?;
 
         eval::invoke_closure(self, &closure, vec![], scope, Default::default()).await
     }
@@ -208,6 +208,34 @@ impl Fiber {
     /// Get a backtrace-like view of the stack.
     pub(crate) fn backtrace(&self) -> impl Iterator<Item = &Rc<Scope>> {
         self.stack.iter().rev()
+    }
+
+    pub(crate) async fn load_module(&mut self, name: impl AsRef<bstr::BStr>) -> Result<Value, Exception> {
+        let name = name.as_ref();
+
+        match self.globals().get("modules").get("loaded").get(name) {
+            Value::Nil => {}
+            value => return Ok(value),
+        }
+
+        log::debug!("module '{}' not defined, calling loader chain", name);
+
+        if let Some(loaders) = self.globals().get("modules").get("loaders").as_list() {
+            for loader in loaders {
+                let args = [Value::from(name.clone())];
+                match self.invoke(loader, &args).await {
+                    Ok(Value::Nil) => continue,
+                    Err(exception) => return Err(exception),
+                    Ok(value) => {
+                        self.globals().get("modules").get("loaded").as_table().unwrap().set(name.clone(), value.clone());
+
+                        return Ok(value);
+                    }
+                }
+            }
+        }
+
+        throw!("module '{}' not found", name)
     }
 
     /// Get a module scope table by the module's name. If the module table does

@@ -9,7 +9,6 @@ use crate::{
     foreign::ForeignFn,
     syntax::source::SourceFile,
 };
-use log::*;
 use std::{env, path::*};
 
 pub mod native;
@@ -39,39 +38,6 @@ impl Fiber {
             Ok(Value::Nil)
         }));
     }
-}
-
-/// Builtin function that loads modules by name.
-pub async fn require(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
-    if args.is_empty() {
-        throw!("module name to require must be given");
-    }
-
-    let name = args[0].as_string().ok_or("module name must be a string")?;
-
-    match fiber.globals().get("modules").get("loaded").get(name) {
-        Value::Nil => {}
-        value => return Ok(value),
-    }
-
-    debug!("module '{}' not defined, calling loader chain", name);
-
-    if let Some(loaders) = fiber.globals().get("modules").get("loaders").as_list() {
-        for loader in loaders {
-            let args = [Value::from(name.clone())];
-            match fiber.invoke(loader, &args).await {
-                Ok(Value::Nil) => continue,
-                Err(exception) => return Err(exception),
-                Ok(value) => {
-                    fiber.globals().get("modules").get("loaded").as_table().unwrap().set(name.clone(), value.clone());
-
-                    return Ok(value);
-                }
-            }
-        }
-    }
-
-    throw!("module '{}' not found", name)
 }
 
 pub async fn relative_loader(_: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
