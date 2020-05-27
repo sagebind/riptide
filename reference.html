@@ -655,7 +655,9 @@ statement_list = { statement_separator* ~ (statement ~ (statement_separator+ ~ s
 statement_separator = _{ NEWLINE | ";" }
 
 // A statement can be either an assignment or a pipeline.
-statement = _{ assignment_statement | pipeline_statement }
+statement = _{ import_statement | assignment_statement | pipeline_statement }
+
+import_statement = { "import" ~ string_literal ~ "for" ~ string_literal+ }
 
 assignment_statement = { assignment_target ~ "=" ~ expr }
 
@@ -1492,7 +1494,7 @@ This replaces the current <em>process</em>, which includes all fibers in the cur
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2020-05-26 04:28:20 UTC
+Last updated 2020-05-27 05:10:03 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.9.1/styles/github.min.css">
