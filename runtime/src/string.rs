@@ -2,6 +2,7 @@ use bstr::{BStr, BString};
 use std::{
     borrow::*,
     cmp::Ordering,
+    convert::TryFrom,
     ffi::{OsStr, OsString},
     fmt,
     hash::{Hash, Hasher},
@@ -84,6 +85,15 @@ impl From<Vec<u8>> for RipString {
     }
 }
 
+impl From<RipString> for Vec<u8> {
+    fn from(value: RipString) -> Self {
+        match Rc::try_unwrap(value.0) {
+            Ok(bstring) => bstring.into(),
+            Err(rc) => rc.as_ref().to_vec(),
+        }
+    }
+}
+
 #[cfg(unix)]
 impl From<OsString> for RipString {
     fn from(value: OsString) -> Self {
@@ -97,6 +107,14 @@ impl From<OsString> for RipString {
 impl<'a> From<&'a OsStr> for RipString {
     fn from(value: &OsStr) -> Self {
         value.to_os_string().into()
+    }
+}
+
+impl TryFrom<RipString> for String {
+    type Error = std::string::FromUtf8Error;
+
+    fn try_from(value: RipString) -> Result<Self, Self::Error> {
+        String::from_utf8(value.into())
     }
 }
 

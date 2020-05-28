@@ -1,0 +1,7 @@
+$GLOBALS->modules = [
+    # A list of module loader functions.
+    loaders: []
+
+    # A map of module paths to their preloaded contents.
+    loaded: [:]
+]

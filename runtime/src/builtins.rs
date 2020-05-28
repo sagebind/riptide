@@ -1,7 +1,13 @@
 //! Implementations of built-in global functions that are always available.
 
-use crate::prelude::*;
-use super::scope::Scope;
+use crate::{
+    eval,
+    prelude::*,
+    scope::Scope,
+    string::RipString,
+};
+use riptide_syntax::source::SourceFile;
+use std::convert::TryInto;
 
 pub fn get() -> Table {
     table! {
@@ -10,17 +16,13 @@ pub fn get() -> Table {
         "cd" => Value::ForeignFn(cd.into()),
         "exit" => Value::ForeignFn(exit.into()),
         "include" => Value::ForeignFn(include.into()),
-        "list" => Value::ForeignFn(list.into()),
+        "load" => Value::ForeignFn(load.into()),
         "nil" => Value::ForeignFn(nil.into()),
         "nth" => Value::ForeignFn(nth.into()),
         "pwd" => Value::ForeignFn(pwd.into()),
         "throw" => Value::ForeignFn(throw.into()),
         "try" => Value::ForeignFn(try_fn.into()),
         "typeof" => Value::ForeignFn(type_of.into()),
-        "modules" => Value::from(table! {
-            "loaders" => Value::List(Vec::new()),
-            "loaded" => Value::from(table!()),
-        }),
     }
 }
 
@@ -55,9 +57,17 @@ async fn type_of(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     Ok(args.first().map(Value::type_name).map(Value::from).unwrap_or(Value::Nil))
 }
 
-/// Constructs a list from the given arguments.
-async fn list(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
-    Ok(Value::List(args.to_vec()))
+/// Parse a string as code, returning it as an executable closure.
+async fn load(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
+    let script: RipString = match args.get(0).and_then(Value::as_string) {
+        Some(s) => s.clone(),
+        None => throw!("first argument must be a string"),
+    };
+
+    let script: String = script.try_into().map_err(|e: std::string::FromUtf8Error| e.to_string())?;
+    let file = SourceFile::named("<dynamic>", script);
+
+    eval::compile(fiber, file).map(Value::from)
 }
 
 async fn nth(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {

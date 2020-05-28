@@ -51,7 +51,7 @@ pub async fn init() -> Result<Fiber, Exception> {
 
     let start_time = Instant::now();
 
-    let fiber = Fiber::new(IoContext::from_process()?);
+    let mut fiber = Fiber::new(IoContext::from_process()?);
 
     // Set up globals
     fiber.globals().set("GLOBALS", fiber.globals().clone());
@@ -62,6 +62,9 @@ pub async fn init() -> Result<Fiber, Exception> {
     for global in builtins_table.keys() {
         fiber.globals().set(global.clone(), builtins_table.get(global));
     }
+
+    // Run the first bootstrap script
+    fiber.execute(None, include_str!("init.rt")).await?;
 
     // Register predefined module loaders
     fiber.register_module_loader(modules::relative_loader);

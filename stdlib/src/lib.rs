@@ -3,10 +3,10 @@ use riptide_runtime::{
     foreign_fn,
 };
 
-pub mod fs;
-pub mod lang;
-pub mod process;
-pub mod string;
+mod fs;
+mod lang;
+mod process;
+mod string;
 
 pub async fn init(fiber: &mut Fiber) -> Result<(), Exception> {
     fiber.register_native_module("std/fs", foreign_fn!(|_, _| fs::load()));

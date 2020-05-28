@@ -237,18 +237,6 @@ impl Fiber {
 
         throw!("module '{}' not found", name)
     }
-
-    /// Get a module scope table by the module's name. If the module table does
-    /// not already exist, it will be created.
-    pub(crate) fn get_module_by_name(&self, name: &str) -> Table {
-        let loaded = self.globals.get("modules").get("loaded");
-
-        if loaded.get(name).is_nil() {
-            loaded.as_table().unwrap().set(name, table!());
-        }
-
-        loaded.get(name).as_table().unwrap().clone()
-    }
 }
 
 impl Drop for Fiber {
