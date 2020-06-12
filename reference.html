@@ -698,8 +698,12 @@ pipeline = !{ call ~ ("|" ~ call)* }
 // A function call is a reference to a function followed by a series of argument
 // expressions.
 call = { named_call | unnamed_call }
-named_call = { string_literal ~ expr* }
-unnamed_call = { expr+ }
+named_call = { string_literal ~ call_args }
+unnamed_call = { expr ~ call_args }
+
+call_args = _{ call_arg* }
+call_arg = { splat_arg | expr }
+splat_arg = { "..." ~ expr }
 
 // Reference a context variable.
 cvar = ${ "@" ~ string_literal }
@@ -1494,7 +1498,7 @@ This replaces the current <em>process</em>, which includes all fibers in the cur
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2020-06-12 02:22:50 UTC
+Last updated 2020-06-12 06:12:18 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.9.1/styles/github.min.css">
