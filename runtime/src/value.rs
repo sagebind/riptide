@@ -8,7 +8,6 @@ use super::{
 use std::{
     fmt,
     iter::FromIterator,
-    rc::Rc,
 };
 
 type Number = f64;
@@ -18,7 +17,7 @@ type Number = f64;
 ///
 /// The "scalar" types are stored inline, while more heavyweight types are stored behind a pointer. This keeps the
 /// memory footprint of a value small so it can be copied cheaply.
-#[derive(Clone)]
+#[derive(Clone, gc::Finalize, gc::Trace)]
 pub enum Value {
     /// The "empty" value. This is equivalent to a unit type or "null" in some languages.
     Nil,
@@ -42,10 +41,10 @@ pub enum Value {
     Table(Table),
 
     /// A block, containing a list of expressions to execute. Stored by reference.
-    Block(Rc<Closure>),
+    Block(Closure),
 
     /// Reference to a foreign (native) function.
-    ForeignFn(ForeignFn),
+    ForeignFn(#[unsafe_ignore_trace] ForeignFn),
 }
 
 impl Value {
@@ -235,7 +234,7 @@ impl From<Table> for Value {
 
 impl From<Closure> for Value {
     fn from(closure: Closure) -> Self {
-        Value::Block(Rc::new(closure))
+        Value::Block(closure)
     }
 }
 
@@ -247,8 +246,8 @@ impl From<ForeignFn> for Value {
 
 impl From<Value> for RipString {
     fn from(value: Value) -> Self {
-        match value {
-            Value::String(s) => s,
+        match &value {
+            Value::String(s) => s.clone(),
             value => value.to_string().into(),
         }
     }

@@ -52,12 +52,12 @@ impl<I, O: AsRawFd> Editor<I, O> {
     async fn get_prompt_str(&self, fiber: &mut Fiber) -> String {
         match fiber.globals().get("riptide-prompt") {
             // Static prompt.
-            Value::String(s) => return s.to_string(),
+            Value::String(ref s) => return s.to_string(),
 
             // Prompt is determined by a callback function.
             value @ Value::Block(_) => match fiber.invoke(&value, &[]).await {
                 // Closure returned successfully.
-                Ok(Value::String(s)) => return s.to_string(),
+                Ok(Value::String(ref s)) => return s.to_string(),
 
                 // Closure succeeded, but returned an invalid data type.
                 Ok(value) => {

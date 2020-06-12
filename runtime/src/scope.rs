@@ -1,12 +1,12 @@
 use super::{string::RipString, table::Table, value::Value};
-use std::rc::Rc;
+use gc::Gc;
 
 /// A function evaluation scope.
 ///
 /// A scope encompasses the _environment_ in which functions are evaluated.
 /// Scopes are hierarchial, and contain a reference to the enclosing, or parent,
 /// scope.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, gc::Finalize, gc::Trace)]
 pub(crate) struct Scope {
     /// The scope name, for debugging purposes.
     pub(crate) name: String,
@@ -22,7 +22,7 @@ pub(crate) struct Scope {
     pub(crate) cvars: Table,
 
     /// The lexically parent scope to this one.
-    pub(crate) parent: Option<Rc<Scope>>,
+    pub(crate) parent: Option<Gc<Scope>>,
 }
 
 impl Scope {

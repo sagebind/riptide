@@ -69,53 +69,71 @@ impl Options {
     }
 }
 
-#[tokio::main(basic_scheduler)]
-async fn main() {
-    log_panics::init();
+/// Entrypoint of the program. This just does some boring setup and teardown
+/// around the real main body of the program.
+fn main() {
     logger::init();
+    log_panics::init();
 
-    if let Some(exit_code) = {
-        // Parse command line args.
-        let options = Options::from_args();
+    // Create a single-threaded Tokio runtime, which drives the async Riptide
+    // runtime without threads.
+    let mut rt = tokio::runtime::Builder::new()
+        .basic_scheduler()
+        .enable_all()
+        .build()
+        .unwrap();
 
-        // Adjust logging settings based on args.
-        log::set_max_level(options.log_level_filter());
+    // Run real main and capture the exit code.
+    let exit_code = rt.block_on(real_main());
 
-        let mut fiber = create_runtime().await;
+    // Cleanup the runtime before exiting.
+    drop(rt);
 
-        // If at least one command is given, execute those in order and exit.
-        if !options.commands.is_empty() {
-            for command in options.commands {
-                match fiber.execute(None, command).await {
-                    Ok(_) => {}
-                    Err(e) => {
-                        log::error!("{}", e);
-                        fiber.exit(1);
-                        break;
-                    }
-                }
-            }
-        }
-        // If a file is given, execute it and exit.
-        else if let Some(file) = options.file.as_ref() {
-            execute_file(&mut fiber, file).await;
-        }
-        // Interactive mode.
-        else if atty::is(atty::Stream::Stdin) {
-            interactive_main(&mut fiber, options).await;
-        }
-        // Execute stdin
-        else {
-            log::trace!("stdin is not a tty");
-            execute_stdin(&mut fiber).await;
-        }
-
-        fiber.exit_code()
-    } {
-        // End this process with a particular exit code if specified.
+    // End this process with a particular exit code if specified.
+    if let Some(exit_code) = exit_code.filter(|&i| i != 0) {
         log::trace!("exit({})", exit_code);
         process::exit(exit_code);
     }
+}
+
+/// Main program body.
+async fn real_main() -> Option<i32> {
+    // Parse command line args.
+    let options = Options::from_args();
+
+    // Adjust logging settings based on args.
+    log::set_max_level(options.log_level_filter());
+
+    let mut fiber = create_runtime().await;
+
+    // If at least one command is given, execute those in order and exit.
+    if !options.commands.is_empty() {
+        for command in options.commands {
+            match fiber.execute(None, command).await {
+                Ok(_) => {}
+                Err(e) => {
+                    log::error!("{}", e);
+                    fiber.exit(1);
+                    break;
+                }
+            }
+        }
+    }
+    // If a file is given, execute it and exit.
+    else if let Some(file) = options.file.as_ref() {
+        execute_file(&mut fiber, file).await;
+    }
+    // Interactive mode.
+    else if atty::is(atty::Stream::Stdin) {
+        interactive_main(&mut fiber, options).await;
+    }
+    // Execute stdin
+    else {
+        log::trace!("stdin is not a tty");
+        execute_stdin(&mut fiber).await;
+    }
+
+    fiber.exit_code()
 }
 
 async fn execute_file(fiber: &mut Fiber, path: impl AsRef<Path>) {

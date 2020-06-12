@@ -44,7 +44,6 @@ version = "0.2"
 features = [
     "io-driver",
     "io-util",
-    "macros",
     "process",
     "rt-core",
     "signal",

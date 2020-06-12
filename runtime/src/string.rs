@@ -17,8 +17,12 @@ use std::{
 ///
 /// Since strings are copied and tossed around quite a bit, the string is reference counted to reduce memory and
 /// copying.
-#[derive(Clone, Eq)]
+#[derive(Clone, Eq, gc::Finalize)]
 pub struct RipString(Rc<BString>);
+
+unsafe impl gc::Trace for RipString {
+    gc::unsafe_empty_trace!();
+}
 
 impl Default for RipString {
     fn default() -> Self {

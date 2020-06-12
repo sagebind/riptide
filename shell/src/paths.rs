@@ -1,21 +1,17 @@
 use directories::ProjectDirs;
 use std::{fs, io, path::{Path, PathBuf}};
 
-lazy_static::lazy_static! {
-    static ref PROJECT_DIRS: Option<ProjectDirs> = directories::ProjectDirs::from("sh.riptide", "", "Riptide");
-}
-
-pub fn config_dir() -> io::Result<&'static Path> {
-    PROJECT_DIRS.as_ref()
-        .unwrap()
+pub fn config_dir() -> io::Result<PathBuf> {
+    project_dirs()
         .config_dir()
+        .to_path_buf()
         .mkdirs()
 }
 
-pub fn data_dir() -> io::Result<&'static Path> {
-    PROJECT_DIRS.as_ref()
-        .unwrap()
+pub fn data_dir() -> io::Result<PathBuf> {
+    project_dirs()
         .data_dir()
+        .to_path_buf()
         .mkdirs()
 }
 
@@ -25,6 +21,10 @@ pub fn config_file() -> io::Result<PathBuf> {
 
 pub fn history_db() -> io::Result<PathBuf> {
     data_dir().map(|dir| dir.join("history.db"))
+}
+
+fn project_dirs() -> ProjectDirs {
+    directories::ProjectDirs::from("sh.riptide", "", "Riptide").unwrap()
 }
 
 trait Mkdirs: AsRef<Path> + Sized {

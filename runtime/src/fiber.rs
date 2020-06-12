@@ -6,10 +6,8 @@ use crate::{
     io::{IoContext, PipeReader, PipeWriter},
     syntax::source::SourceFile,
 };
-use std::{
-    rc::Rc,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use gc::Gc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// This is the name of the hidden global variable that exit code requests are
 /// stored in.
@@ -34,7 +32,7 @@ pub struct Fiber {
     globals: Table,
 
     /// Call stack of functions being executed by this fiber.
-    pub(crate) stack: Vec<Rc<Scope>>,
+    pub(crate) stack: Vec<Gc<Scope>>,
 
     /// Standard I/O streams for this fiber.
     pub(crate) io: IoContext,
@@ -201,12 +199,12 @@ impl Fiber {
     }
 
     /// Get the current executing scope.
-    pub(crate) fn current_scope(&self) -> Option<&Rc<Scope>> {
+    pub(crate) fn current_scope(&self) -> Option<&Gc<Scope>> {
         self.stack.last()
     }
 
     /// Get a backtrace-like view of the stack.
-    pub(crate) fn backtrace(&self) -> impl Iterator<Item = &Rc<Scope>> {
+    pub(crate) fn backtrace(&self) -> impl Iterator<Item = &Gc<Scope>> {
         self.stack.iter().rev()
     }
 
@@ -241,6 +239,7 @@ impl Fiber {
 
 impl Drop for Fiber {
     fn drop(&mut self) {
+        gc::force_collect();
         log::debug!("fiber {} dropped", self.pid);
     }
 }

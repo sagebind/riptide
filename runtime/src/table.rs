@@ -1,17 +1,16 @@
 use super::string::RipString;
 use super::value::Value;
+use gc::{Gc, GcCell};
 use std::{
-    cell::RefCell,
     collections::BTreeMap,
     fmt,
     iter::FromIterator,
-    rc::Rc,
 };
 
 /// Implementation of a "table". Tables are used like a map or object.
 ///
 /// Only string keys are allowed.
-#[derive(Clone)]
+#[derive(Clone, gc::Finalize, gc::Trace)]
 pub struct Table {
     /// Tables are stored by reference instead of by value. We use reference
     /// counting as a simple mechanism for that. Reference cycles are not
@@ -19,7 +18,7 @@ pub struct Table {
     ///
     /// Unlike all other value types, tables are internally mutable, so we are
     /// using a cell here to implement that.
-    inner: Rc<RefCell<BTreeMap<RipString, Value>>>,
+    inner: Gc<GcCell<BTreeMap<RipString, Value>>>,
 }
 
 impl Default for Table {
@@ -37,7 +36,7 @@ impl Table {
     }
 
     fn id(&self) -> usize {
-        self.inner.as_ptr() as usize
+        &*self.inner as *const _ as usize
     }
 
     /// Get the value indexed by a key.
@@ -68,7 +67,7 @@ impl Table {
 impl<K: Into<RipString>, V: Into<Value>> FromIterator<(K, V)> for Table {
     fn from_iter<I: IntoIterator<Item=(K, V)>>(iter: I) -> Self {
         Self {
-            inner: Rc::new(RefCell::new(iter.into_iter()
+            inner: Gc::new(GcCell::new(iter.into_iter()
                 .map(|(k, v)| (k.into(), v.into()))
                 .collect())),
         }
@@ -78,7 +77,7 @@ impl<K: Into<RipString>, V: Into<Value>> FromIterator<(K, V)> for Table {
 impl PartialEq for Table {
     fn eq(&self, rhs: &Table) -> bool {
         // Table equality is based on identity rather than value.
-        Rc::ptr_eq(&self.inner, &rhs.inner)
+        Gc::ptr_eq(&self.inner, &rhs.inner)
     }
 }
 

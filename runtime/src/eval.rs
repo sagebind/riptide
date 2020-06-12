@@ -14,8 +14,8 @@ use super::{
     table::Table,
     value::Value,
 };
+use gc::Gc;
 use futures::future::try_join_all;
-use std::rc::Rc;
 
 /// Compile the given source code as a closure.
 pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>) -> Result<Closure, Exception> {
@@ -68,7 +68,7 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
     }
 
     // Push the scope onto the stack.
-    fiber.stack.push(Rc::new(scope));
+    fiber.stack.push(Gc::new(scope));
 
     // Pop the scope off of the stack before returning. We use a scope guard to
     // do this to ensure that the stack is popped even if the current task
@@ -102,9 +102,11 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
 /// Invoke a native function.
 async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: Vec<Value>) -> Result<Value, Exception> {
     // Push the scope onto the stack.
-    fiber.stack.push(Rc::new(Scope {
+    fiber.stack.push(Gc::new(Scope {
         name: String::from("<native>"),
-        ..Default::default()
+        bindings: Default::default(),
+        cvars: Default::default(),
+        parent: None,
     }));
 
     // Pop the scope off of the stack before returning. We use a scope guard to
