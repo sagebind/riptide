@@ -2,9 +2,9 @@
 #
 # This script must never throw an exception, or the runtime will panic.
 
-import "std/lang" for print println dump eq
-import "std/process" for command
-import "std/fs" for read write
+import 'std/lang' for print println dump eq
+import 'std/process' for command
+import 'std/fs' for read write
 
 $GLOBALS->read = $read
 $GLOBALS->write = $write

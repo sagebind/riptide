@@ -118,7 +118,7 @@ symbol = ${ !reserved_words ~ symbol_char ~ (!member_operator ~ symbol_char)* }
 
 // A list of keywords that are not allowed as bare identifiers because they have
 // special meaning.
-reserved_words = _{ "let" }
+reserved_words = _{ "import" | "let" }
 
 // Operator to access namespaces and table members.
 member_operator = _{ "->" }
