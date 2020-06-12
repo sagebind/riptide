@@ -198,6 +198,11 @@ impl Fiber {
         Value::Nil
     }
 
+    /// Force the garbage collector to run now.
+    pub fn collect_garbage(&mut self) {
+        gc::force_collect();
+    }
+
     /// Get the current executing scope.
     pub(crate) fn current_scope(&self) -> Option<&Gc<Scope>> {
         self.stack.last()
@@ -239,7 +244,7 @@ impl Fiber {
 
 impl Drop for Fiber {
     fn drop(&mut self) {
-        gc::force_collect();
+        self.collect_garbage();
         log::debug!("fiber {} dropped", self.pid);
     }
 }

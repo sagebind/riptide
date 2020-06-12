@@ -148,7 +148,7 @@ impl Parser {
 
                 Ok(Call::Named {
                     function: string_literal(pairs.next().unwrap()),
-                    args: pairs.map(|p| self.parse_expr(p)).collect::<Result<_, _>>()?,
+                    args: pairs.map(|p| self.parse_call_arg(p)).collect::<Result<_, _>>()?,
                 })
             }
             Rule::unnamed_call => {
@@ -156,9 +156,21 @@ impl Parser {
 
                 Ok(Call::Unnamed {
                     function: Box::new(pairs.next().map(|p| self.parse_expr(p)).unwrap()?),
-                    args: pairs.map(|p| self.parse_expr(p)).collect::<Result<_, _>>()?,
+                    args: pairs.map(|p| self.parse_call_arg(p)).collect::<Result<_, _>>()?,
                 })
             }
+            rule => panic!("unexpected rule: {:?}", rule),
+        }
+    }
+
+    fn parse_call_arg(&self, pair: Pair<'_, Rule>) -> Result<CallArg, Error<Rule>> {
+        assert_eq!(pair.as_rule(), Rule::call_arg);
+
+        let pair = pair.into_inner().next().unwrap();
+
+        match pair.as_rule() {
+            Rule::splat_arg => Ok(CallArg::Splat(self.parse_expr(pair.into_inner().next().unwrap())?)),
+            Rule::expr => Ok(CallArg::Expr(self.parse_expr(pair)?)),
             rule => panic!("unexpected rule: {:?}", rule),
         }
     }

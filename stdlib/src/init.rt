@@ -17,16 +17,12 @@ $GLOBALS->eq = $eq
 
 $GLOBALS->command = $command
 
-$GLOBALS->eval = <string> {
-    call $source $string
-}
-
 $GLOBALS->ls = {
     command ls -l
 }
 
 # Evaluates a string as code.
-$GLOBALS->eval = <script> {
+$GLOBALS->eval = <script ...args> {
     $closure = (load $script)
-    call $closure
+    $closure ...$args
 }

@@ -51,8 +51,6 @@ pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: Vec<Value>) -
 
 /// Invoke a block with an array of arguments.
 pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: Vec<Value>, bindings: Table, cvars: Table) -> Result<Value, Exception> {
-    bindings.set("args", args.to_vec());
-
     let scope = Scope {
         name: format!("<closure:{}>", closure.block.span),
         bindings,
@@ -61,10 +59,22 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
         ..Default::default()
     };
 
+    // Before attempting to bind args to named params, first define the implicit
+    // `args` variable.
+    scope.set("args", args.clone());
+
+    let mut args = args.into_iter();
+
+    // Bind arguments to any named params.
     if let Some(named_params) = closure.block.named_params.as_ref() {
-        for (i, param_name) in named_params.iter().enumerate() {
-            scope.set(param_name.as_bytes(), args.get(i).cloned().unwrap_or(Value::Nil));
+        for named_param in named_params.iter() {
+            scope.set(named_param.as_bytes(), args.next().unwrap_or(Value::Nil));
         }
+    }
+
+    // Bind remaining unused args to a vararg param if defined.
+    if let Some(vararg_param) = closure.block.vararg_param.as_ref() {
+        scope.set(vararg_param.as_bytes(), args.collect::<Value>());
     }
 
     // Push the scope onto the stack.
@@ -199,11 +209,7 @@ async fn evaluate_call(fiber: &mut Fiber, call: Call) -> Result<Value, Exception
         Call::Named {function, args} => {
             let name = function;
             let function = fiber.get(&name);
-
-            let mut arg_values = Vec::with_capacity(args.len());
-            for expr in args {
-                arg_values.push(evaluate_expr(fiber, expr).await?);
-            }
+            let arg_values = evaluate_call_args(fiber, args).await?;
 
             if !function.is_nil() {
                 invoke(fiber, &function, arg_values).await
@@ -213,15 +219,34 @@ async fn evaluate_call(fiber: &mut Fiber, call: Call) -> Result<Value, Exception
         },
         Call::Unnamed {function, args} => {
             let function = evaluate_expr(fiber, *function).await?;
-
-            let mut arg_values = Vec::with_capacity(args.len());
-            for expr in args {
-                arg_values.push(evaluate_expr(fiber, expr).await?);
-            }
+            let arg_values = evaluate_call_args(fiber, args).await?;
 
             invoke(fiber, &function, arg_values).await
         },
     }
+}
+
+async fn evaluate_call_args(fiber: &mut Fiber, args: Vec<CallArg>) -> Result<Vec<Value>, Exception> {
+    let mut arg_values = Vec::with_capacity(args.len());
+
+    for arg in args {
+        match arg {
+            CallArg::Expr(expr) => arg_values.push(evaluate_expr(fiber, expr).await?),
+            CallArg::Splat(expr) => {
+                let splat_items = evaluate_expr(fiber, expr).await?;
+
+                if let Some(items) = splat_items.as_list() {
+                    for item in items {
+                        arg_values.push(item.clone());
+                    }
+                } else if !splat_items.is_nil() {
+                    throw!("cannot expand a {} value as function arguments", splat_items.type_name());
+                }
+            }
+        }
+    }
+
+    Ok(arg_values)
 }
 
 #[async_recursion::async_recursion(?Send)]

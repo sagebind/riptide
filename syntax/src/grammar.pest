@@ -67,8 +67,12 @@ pipeline = !{ call ~ ("|" ~ call)* }
 // A function call is a reference to a function followed by a series of argument
 // expressions.
 call = { named_call | unnamed_call }
-named_call = { string_literal ~ expr* }
-unnamed_call = { expr+ }
+named_call = { string_literal ~ call_args }
+unnamed_call = { expr ~ call_args }
+
+call_args = _{ call_arg* }
+call_arg = { splat_arg | expr }
+splat_arg = { "..." ~ expr }
 
 // Reference a context variable.
 cvar = ${ "@" ~ string_literal }

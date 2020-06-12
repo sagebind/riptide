@@ -65,15 +65,26 @@ pub enum Call {
     #[cfg_attr(feature = "serde", serde(rename = "NamedCall"))]
     Named {
         function: String,
-        args: Vec<Expr>,
+        args: Vec<CallArg>,
     },
 
     /// A function call on a callable object.
     #[cfg_attr(feature = "serde", serde(rename = "UnnamedCall"))]
     Unnamed {
         function: Box<Expr>,
-        args: Vec<Expr>
+        args: Vec<CallArg>
     },
+}
+
+/// An argument to a function call.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum CallArg {
+    /// A single expression.
+    Expr(Expr),
+
+    /// A splat, expanding the expression as a list into multiple args.
+    Splat(Expr),
 }
 
 /// Abstract representation of an expression.
