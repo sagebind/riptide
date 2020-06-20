@@ -6,6 +6,7 @@ description = "The Riptide standard library"
 edition = "2018"
 
 [dependencies]
+glob = "0.3"
 log = "0.4"
 
 [dependencies.riptide-runtime]

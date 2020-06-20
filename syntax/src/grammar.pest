@@ -117,7 +117,7 @@ single_quote_inner = ${ ("\\'" | !"'" ~ ANY)* }
 number_literal = ${ "-"? ~ ("." ~ ASCII_DIGIT+ | ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)?) }
 
 // A symbol is an unquoted string, usually used for identifying variable names.
-symbol_char = _{ ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/" }
+symbol_char = _{ ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/" | "*" }
 symbol = ${ !reserved_words ~ symbol_char ~ (!member_operator ~ symbol_char)* }
 
 // A list of keywords that are not allowed as bare identifiers because they have

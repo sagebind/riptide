@@ -1,0 +1,4 @@
+# An initialization script that is run before the beginning of every interactive
+# session to bring a bunch of things into scope for convenience.
+
+import std/fs for glob

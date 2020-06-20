@@ -187,6 +187,12 @@ async fn interactive_main(fiber: &mut Fiber, options: Options) {
     // same file, so set up a shared scope to execute them in.
     let scope = riptide_runtime::table!();
 
+    // Prepare this scope by running an init script in it.
+    let interactive = SourceFile::named("<input>", include_str!("interactive.rt"));
+    fiber.execute_in_scope(Some("main"), interactive, scope.clone())
+        .await
+        .expect("bug in interactive.rt");
+
     let mut editor = Editor::new(
         fiber.stdin().try_clone().unwrap(),
         fiber.stdout().try_clone().unwrap(),
@@ -213,7 +219,15 @@ async fn interactive_main(fiber: &mut Fiber, options: Options) {
 
                     result = fiber.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()) => match result {
                         Ok(Value::Nil) => {}
-                        Ok(value) => println!("{}", value),
+                        Ok(value) => {
+                            if let Some(values) = value.as_list() {
+                                for value in values {
+                                    println!("{}", value);
+                                }
+                            } else {
+                                println!("{}", value);
+                            }
+                        }
                         Err(e) => if fiber.exit_code().is_none() {
                             log::error!("{}", e)
                         }

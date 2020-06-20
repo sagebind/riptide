@@ -34,7 +34,7 @@ pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Valu
     // description, so we must make sure to restore this when we're done.
     stdin.set_nonblocking(false)?;
 
-    Command::new(command)
+    let exit_status = Command::new(command)
         .args(args.iter().map(|value| crate::string::RipString::from(value.clone())))
         .current_dir(fiber.current_dir().to_string())
         .stdin(stdin)
@@ -43,11 +43,16 @@ pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Valu
         .kill_on_drop(true)
         .status()
         .await
-        .map(|status| Value::from(status.code().unwrap_or(0) as f64))
         .map_err(|e| match e.kind() {
             ErrorKind::NotFound => Exception::from("no such command or file"),
             _ => e.to_string().into(),
-        })
+        })?;
+
+    if exit_status.success() {
+        Ok(Value::Nil)
+    } else {
+        Err(Exception::from(Value::from(exit_status.code().unwrap_or(0) as f64)))
+    }
 }
 
 /// Spawn a new child process and execute the given future in it.
