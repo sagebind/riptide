@@ -17,9 +17,8 @@ pub mod source;
 /// program instead contains any syntax errors, the errors are returned instead.
 pub fn parse(file: impl Into<SourceFile>) -> Result<ast::Block, ParseError> {
     let file = file.into();
-    let parser = parser::Parser::new(file.clone());
 
-    parser.parse()
+    parser::parse(file.clone())
         .map_err(|e| translate_error(e, file.clone()))
 }
 
