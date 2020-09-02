@@ -3,17 +3,6 @@ println hello ({read} THE) (uppercase World)
 '''
 ast = '''
 Block(
-    span: Span(
-        file_name: Some("tests/parser/nested-function-calls.toml"),
-        start: Position(
-            line: 1,
-            col: 1,
-        ),
-        end: Position(
-            line: 2,
-            col: 1,
-        ),
-    ),
     named_params: None,
     vararg_param: None,
     statements: [
@@ -21,21 +10,10 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    "hello",
-                    Pipeline([
+                    Expr("hello"),
+                    Expr(Pipeline([
                         UnnamedCall(
                             function: Block(
-                                span: Span(
-                                    file_name: Some("tests/parser/nested-function-calls.toml"),
-                                    start: Position(
-                                        line: 1,
-                                        col: 16,
-                                    ),
-                                    end: Position(
-                                        line: 1,
-                                        col: 22,
-                                    ),
-                                ),
                                 named_params: None,
                                 vararg_param: None,
                                 statements: [
@@ -48,18 +26,18 @@ Block(
                                 ],
                             ),
                             args: [
-                                "THE",
+                                Expr("THE"),
                             ],
                         ),
-                    ]),
-                    Pipeline([
+                    ])),
+                    Expr(Pipeline([
                         NamedCall(
                             function: "uppercase",
                             args: [
-                                "World",
+                                Expr("World"),
                             ],
                         ),
-                    ]),
+                    ])),
                 ],
             ),
         ])),

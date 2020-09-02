@@ -65,7 +65,7 @@ async fn load(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     };
 
     let script: String = script.try_into().map_err(|e: std::string::FromUtf8Error| e.to_string())?;
-    let file = SourceFile::named("<dynamic>", script);
+    let file = SourceFile::r#virtual("<dynamic>", script);
 
     eval::compile(fiber, file).map(Value::from)
 }

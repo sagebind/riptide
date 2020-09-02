@@ -6,17 +6,6 @@ println $mytable->'key with spaces'->bar
 '''
 ast = '''
 Block(
-    span: Span(
-        file_name: Some("tests/parser/variable-paths.toml"),
-        start: Position(
-            line: 1,
-            col: 1,
-        ),
-        end: Position(
-            line: 5,
-            col: 1,
-        ),
-    ),
     named_params: None,
     vararg_param: None,
     statements: [
@@ -24,7 +13,7 @@ Block(
             UnnamedCall(
                 function: MemberAccess(MemberAccess(Variable("lang"), "ext"), "panic"),
                 args: [
-                    "hello world",
+                    Expr("hello world"),
                 ],
             ),
         ])),
@@ -32,7 +21,7 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    Variable("mytable"),
+                    Expr(Variable("mytable")),
                 ],
             ),
         ])),
@@ -40,7 +29,7 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    MemberAccess(MemberAccess(Variable("mytable"), "key with spaces"), "bar"),
+                    Expr(MemberAccess(MemberAccess(Variable("mytable"), "key with spaces"), "bar")),
                 ],
             ),
         ])),

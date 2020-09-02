@@ -3,17 +3,6 @@ println 'hello world'
 '''
 ast = '''
 Block(
-    span: Span(
-        file_name: Some("tests/parser/single-quoted-string-literal.toml"),
-        start: Position(
-            line: 1,
-            col: 1,
-        ),
-        end: Position(
-            line: 2,
-            col: 1,
-        ),
-    ),
     named_params: None,
     vararg_param: None,
     statements: [
@@ -21,7 +10,7 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    "hello world",
+                    Expr("hello world"),
                 ],
             ),
         ])),

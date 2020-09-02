@@ -7,7 +7,8 @@ use crate::source::Span;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Block {
     /// Where in the source the block is defined.
-    pub span: Span,
+    #[serde(skip)]
+    pub span: Option<Span>,
 
     /// A list of named parameters.
     pub named_params: Option<Vec<String>>,

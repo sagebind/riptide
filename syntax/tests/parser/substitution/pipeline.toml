@@ -3,17 +3,6 @@ println $(foo)
 '''
 ast = '''
 Block(
-    span: Span(
-        file_name: Some("tests/parser/substitution/pipeline.toml"),
-        start: Position(
-            line: 1,
-            col: 1,
-        ),
-        end: Position(
-            line: 2,
-            col: 1,
-        ),
-    ),
     named_params: None,
     vararg_param: None,
     statements: [
@@ -21,12 +10,12 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    Pipeline(Pipeline([
+                    Expr(Pipeline(Pipeline([
                         NamedCall(
                             function: "foo",
                             args: [],
                         ),
-                    ])),
+                    ]))),
                 ],
             ),
         ])),

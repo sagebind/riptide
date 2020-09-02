@@ -1,6 +1,6 @@
 use crate::{
     ast::*,
-    source::{Position, SourceFile, Span},
+    source::{SourceFile, Span},
 };
 use pest::{
     error::Error,
@@ -21,7 +21,7 @@ pub(crate) fn parse(source_file: SourceFile) -> Result<Block, Error<Rule>> {
         source_file,
     };
 
-    from_pair(Grammar::parse(Rule::program, ctx.source_file.source())?.next().unwrap(), &ctx)
+    from_pair(Grammar::parse(Rule::program, ctx.source_file.source_text())?.next().unwrap(), &ctx)
 }
 
 fn from_pair<T: ParsableNode>(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<T, Error<Rule>> {
@@ -36,17 +36,10 @@ impl ParsingContext {
     fn span(&self, pair: &Pair<'_, Rule>) -> Span {
         let span = pair.as_span();
 
-        Span {
-            file_name: Some(self.source_file.name().to_owned()),
-            start: Position {
-                line: span.start_pos().line_col().0 as u32,
-                col: span.start_pos().line_col().1 as u32,
-            },
-            end: Position {
-                line: span.end_pos().line_col().0 as u32,
-                col: span.end_pos().line_col().1 as u32,
-            },
-        }
+        self.source_file.slice(
+            span.start_pos().pos(),
+            span.end_pos().pos(),
+        ).unwrap()
     }
 }
 
@@ -86,7 +79,7 @@ impl ParsableNode for Block {
         }
 
         Ok(Block {
-            span,
+            span: Some(span),
             named_params,
             vararg_param,
             statements,

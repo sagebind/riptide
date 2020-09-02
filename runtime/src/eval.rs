@@ -52,7 +52,7 @@ pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: Vec<Value>) -
 /// Invoke a block with an array of arguments.
 pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: Vec<Value>, bindings: Table, cvars: Table) -> Result<Value, Exception> {
     let scope = Scope {
-        name: format!("<closure:{}>", closure.block.span),
+        name: format!("<closure:{}>", closure.block.span.as_ref().unwrap()),
         bindings,
         cvars,
         parent: closure.scope.clone(),

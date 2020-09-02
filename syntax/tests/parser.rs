@@ -34,7 +34,7 @@ impl ParserTest {
 fn parser_test(path: &str) {
     let path = &path[7..];
     let mut test = ParserTest::load(path).unwrap();
-    let src = SourceFile::named(path.to_string(), test.source.clone());
+    let src = SourceFile::r#virtual(path, test.source.clone());
 
     if test.skip {
         println!("skipping test: {}", src.name());

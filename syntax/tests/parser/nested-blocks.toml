@@ -9,68 +9,24 @@ source = '''
 '''
 ast = '''
 Block(
-    span: Span(
-        file_name: Some("tests/parser/nested-blocks.toml"),
-        start: Position(
-            line: 1,
-            col: 1,
-        ),
-        end: Position(
-            line: 8,
-            col: 1,
-        ),
-    ),
     named_params: None,
     vararg_param: None,
     statements: [
         Pipeline(Pipeline([
             UnnamedCall(
                 function: Block(
-                    span: Span(
-                        file_name: Some("tests/parser/nested-blocks.toml"),
-                        start: Position(
-                            line: 1,
-                            col: 1,
-                        ),
-                        end: Position(
-                            line: 7,
-                            col: 2,
-                        ),
-                    ),
                     named_params: None,
                     vararg_param: None,
                     statements: [
                         Pipeline(Pipeline([
                             UnnamedCall(
                                 function: Block(
-                                    span: Span(
-                                        file_name: Some("tests/parser/nested-blocks.toml"),
-                                        start: Position(
-                                            line: 2,
-                                            col: 5,
-                                        ),
-                                        end: Position(
-                                            line: 6,
-                                            col: 6,
-                                        ),
-                                    ),
                                     named_params: None,
                                     vararg_param: None,
                                     statements: [
                                         Pipeline(Pipeline([
                                             UnnamedCall(
                                                 function: Block(
-                                                    span: Span(
-                                                        file_name: Some("tests/parser/nested-blocks.toml"),
-                                                        start: Position(
-                                                            line: 3,
-                                                            col: 9,
-                                                        ),
-                                                        end: Position(
-                                                            line: 5,
-                                                            col: 10,
-                                                        ),
-                                                    ),
                                                     named_params: None,
                                                     vararg_param: None,
                                                     statements: [

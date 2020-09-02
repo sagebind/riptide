@@ -3,17 +3,6 @@ println foo 'bar\'' "baz' a \" b"
 '''
 ast = '''
 Block(
-    span: Span(
-        file_name: Some("tests/parser/string-escapes.toml"),
-        start: Position(
-            line: 1,
-            col: 1,
-        ),
-        end: Position(
-            line: 2,
-            col: 1,
-        ),
-    ),
     named_params: None,
     vararg_param: None,
     statements: [
@@ -21,11 +10,11 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    "foo",
-                    "bar\'",
-                    InterpolatedString([
+                    Expr("foo"),
+                    Expr("bar\'"),
+                    Expr(InterpolatedString([
                         "baz\' a \" b",
-                    ]),
+                    ])),
                 ],
             ),
         ])),

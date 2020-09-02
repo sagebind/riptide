@@ -24,7 +24,7 @@ pub fn parse(file: impl Into<SourceFile>) -> Result<ast::Block, ParseError> {
 
 fn translate_error(error: pest::error::Error<parser::Rule>, file: SourceFile) -> ParseError {
     ParseError {
-        inner: error.with_path(file.name()),
+        inner: error.with_path(file.name().as_ref()),
         file,
     }
 }

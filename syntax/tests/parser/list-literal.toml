@@ -9,17 +9,6 @@ println [
 '''
 ast = '''
 Block(
-    span: Span(
-        file_name: Some("tests/parser/list-literal.toml"),
-        start: Position(
-            line: 1,
-            col: 1,
-        ),
-        end: Position(
-            line: 8,
-            col: 1,
-        ),
-    ),
     named_params: None,
     vararg_param: None,
     statements: [
@@ -27,11 +16,11 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    ListLiteral([
+                    Expr(ListLiteral([
                         "a",
                         "b",
                         "c",
-                    ]),
+                    ])),
                 ],
             ),
         ])),
@@ -39,11 +28,11 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    ListLiteral([
+                    Expr(ListLiteral([
                         1,
                         2,
                         3,
-                    ]),
+                    ])),
                 ],
             ),
         ])),

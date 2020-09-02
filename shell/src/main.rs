@@ -163,7 +163,7 @@ async fn execute_stdin(fiber: &mut Fiber) {
         return;
     }
 
-    if let Err(e) = fiber.execute(None, SourceFile::named("<stdin>", source)).await {
+    if let Err(e) = fiber.execute(None, SourceFile::r#virtual("<stdin>", source)).await {
         log::error!("{}", e);
         fiber.exit(1);
     }
@@ -188,7 +188,7 @@ async fn interactive_main(fiber: &mut Fiber, options: Options) {
     let scope = riptide_runtime::table!();
 
     // Prepare this scope by running an init script in it.
-    let interactive = SourceFile::named("<input>", include_str!("interactive.rt"));
+    let interactive = SourceFile::r#virtual("<input>", include_str!("interactive.rt"));
     fiber.execute_in_scope(Some("main"), interactive, scope.clone())
         .await
         .expect("bug in interactive.rt");
@@ -217,7 +217,7 @@ async fn interactive_main(fiber: &mut Fiber, options: Options) {
                         println!();
                     }
 
-                    result = fiber.execute_in_scope(Some("main"), SourceFile::named("<input>", line), scope.clone()) => match result {
+                    result = fiber.execute_in_scope(Some("main"), SourceFile::r#virtual("<tty>", line), scope.clone()) => match result {
                         Ok(Value::Nil) => {}
                         Ok(value) => {
                             if let Some(values) = value.as_list() {

@@ -6,17 +6,6 @@ println -255
 '''
 ast = '''
 Block(
-    span: Span(
-        file_name: Some("tests/parser/number-literals.toml"),
-        start: Position(
-            line: 1,
-            col: 1,
-        ),
-        end: Position(
-            line: 5,
-            col: 1,
-        ),
-    ),
     named_params: None,
     vararg_param: None,
     statements: [
@@ -24,7 +13,7 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    100,
+                    Expr(100),
                 ],
             ),
         ])),
@@ -32,7 +21,7 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    102.5,
+                    Expr(102.5),
                 ],
             ),
         ])),
@@ -40,7 +29,7 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    0.25,
+                    Expr(0.25),
                 ],
             ),
         ])),
@@ -48,7 +37,7 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    -255,
+                    Expr(-255),
                 ],
             ),
         ])),

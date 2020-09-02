@@ -3,17 +3,6 @@ import 'std/lang' for println
 '''
 ast = '''
 Block(
-    span: Span(
-        file_name: Some("tests/parser/import.toml"),
-        start: Position(
-            line: 1,
-            col: 1,
-        ),
-        end: Position(
-            line: 2,
-            col: 1,
-        ),
-    ),
     named_params: None,
     vararg_param: None,
     statements: [

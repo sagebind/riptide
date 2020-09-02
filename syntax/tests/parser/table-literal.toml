@@ -8,17 +8,6 @@ println [
 '''
 ast = '''
 Block(
-    span: Span(
-        file_name: Some("tests/parser/table-literal.toml"),
-        start: Position(
-            line: 1,
-            col: 1,
-        ),
-        end: Position(
-            line: 7,
-            col: 1,
-        ),
-    ),
     named_params: None,
     vararg_param: None,
     statements: [
@@ -26,7 +15,7 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    TableLiteral([]),
+                    Expr(TableLiteral([])),
                 ],
             ),
         ])),
@@ -34,7 +23,7 @@ Block(
             NamedCall(
                 function: "println",
                 args: [
-                    TableLiteral([
+                    Expr(TableLiteral([
                         TableEntry(
                             key: "foo",
                             value: "bar",
@@ -43,7 +32,7 @@ Block(
                             key: "baz",
                             value: 1234,
                         ),
-                    ]),
+                    ])),
                 ],
             ),
         ])),
