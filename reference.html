@@ -672,13 +672,14 @@ pipeline_statement = { pipeline }
 // Expression is the main syntax building block.
 expr = {
     member_access_expr
-    | atomic_expr
+    | unary_expr
 }
-atomic_expr = _{
+unary_expr = _{
     block
     | "(" ~ pipeline ~ ")"
     | cvar_scope
     | cvar
+    | regex_literal
     | substitution
     | table_literal
     | list_literal
@@ -687,7 +688,9 @@ atomic_expr = _{
     | string_literal
 }
 
-member_access_expr = { atomic_expr ~ (member_operator ~ string_literal)+ }
+regex_literal = ${ "`" ~ ("\\\\" | "\\/" | !"`" ~ ANY)* ~ "`" }
+
+member_access_expr = { unary_expr ~ (member_operator ~ string_literal)+ }
 
 // Pipelines are function calls chained together with the pipe "|" operator.
 //
@@ -748,7 +751,7 @@ single_quote_inner = ${ ("\\'" | !"'" ~ ANY)* }
 number_literal = ${ "-"? ~ ("." ~ ASCII_DIGIT+ | ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)?) }
 
 // A symbol is an unquoted string, usually used for identifying variable names.
-symbol_char = _{ ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/" | "*" }
+symbol_char = _{ ASCII_ALPHANUMERIC | "_" | "-" | "?" | "!" | "." | "/" | "*" | "=" }
 symbol = ${ !reserved_words ~ symbol_char ~ (!member_operator ~ symbol_char)* }
 
 // A list of keywords that are not allowed as bare identifiers because they have
@@ -1498,7 +1501,7 @@ This replaces the current <em>process</em>, which includes all fibers in the cur
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2020-09-02 04:59:34 UTC
+Last updated 2020-09-06 22:57:05 UTC
 </div>
 </div>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.9.1/styles/github.min.css">
