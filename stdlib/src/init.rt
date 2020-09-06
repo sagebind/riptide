@@ -17,8 +17,8 @@ $GLOBALS->eq = $eq
 
 $GLOBALS->command = $command
 
-$GLOBALS->ls = {
-    command ls -l
+$GLOBALS->ls = <...args> {
+    command ls -l ...$args
 }
 
 # Evaluates a string as code.

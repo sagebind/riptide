@@ -222,6 +222,12 @@ impl Span {
         self.end
     }
 
+    /// Get the full source file this span is from.
+    #[inline]
+    pub fn source_file(&self) -> &SourceFile {
+        &self.file
+    }
+
     /// Get the source text for this span.
     pub fn source_text(&self) -> &str {
         &self.file.0.buffer

@@ -5,6 +5,7 @@ use super::{
     string::RipString,
     table::Table,
 };
+use regex::bytes::Regex;
 use std::{
     fmt,
     iter::FromIterator,
@@ -30,6 +31,8 @@ pub enum Value {
 
     /// A string. Immutable, and stored by reference.
     String(RipString),
+
+    Regex(#[unsafe_ignore_trace] Regex),
 
     /// An immutable list of values. Stored by value.
     ///
@@ -62,6 +65,7 @@ impl Value {
             Value::Boolean(_) => "boolean",
             Value::Number(_) => "number",
             Value::String(_) => "string",
+            Value::Regex(_) => "regex",
             Value::List(_) => "list",
             Value::Table(_) => "table",
             Value::Block(_) => "block",
@@ -340,6 +344,7 @@ impl fmt::Display for Value {
             Value::Boolean(boolean) => write!(f, "{}", boolean),
             Value::Number(number) => write!(f, "{}", number),
             Value::String(string) => write!(f, "{}", string),
+            Value::Regex(regex) => write!(f, "{}", regex),
             Value::List(items) => {
                 write!(f, "[")?;
                 let mut first = true;

@@ -1,35 +1,59 @@
 use crate::{
     ast::*,
+    error::ParseError,
+    grammar::{self, Rule},
     source::{SourceFile, Span},
 };
-use pest::{
-    error::Error,
-    iterators::Pair,
-    Parser as _,
-};
+use pest::iterators::Pair;
 
-#[derive(pest_derive::Parser)]
-#[grammar = "grammar.pest"]
-struct Grammar;
+/// Attempt to parse a source file into an abstract syntax tree.
+///
+/// If the given file contains a valid Riptide program, a root AST node is
+/// returned representing the program. If the program instead contains any
+/// syntax errors, the errors are returned instead.
+pub fn parse(source_file: impl Into<SourceFile>) -> Result<Block, ParseError> {
+    let source_file = source_file.into();
 
-trait ParsableNode: Sized {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>>;
-}
-
-pub(crate) fn parse(source_file: SourceFile) -> Result<Block, Error<Rule>> {
-    let ctx = ParsingContext {
-        source_file,
+    let mut ctx = ParsingContext {
+        source_file: source_file.clone(),
+        regex_parser: regex_syntax::Parser::new(),
     };
 
-    from_pair(Grammar::parse(Rule::program, ctx.source_file.source_text())?.next().unwrap(), &ctx)
+    let mut pair = match grammar::parse(source_file.source_text(), Rule::program) {
+        Ok(pair) => pair,
+        Err(e) => {
+            let span = match e.line_col {
+                pest::error::LineColLocation::Pos((start, end)) => source_file.slice(start, end).unwrap(),
+                _ => unimplemented!(),
+            };
+
+            return Err(ParseError::from_pest(span, e));
+        }
+    };
+
+    from_pair(pair.next().unwrap(), &mut ctx)
 }
 
-fn from_pair<T: ParsableNode>(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<T, Error<Rule>> {
+/// An AST node that can be parsed.
+///
+/// Which is all of them...
+trait ParsableNode: Sized {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError>;
+}
+
+/// Convenience function for `ParsableNode` that saves some typing.
+fn from_pair<T: ParsableNode>(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<T, ParseError> {
     T::from_pair(pair, ctx)
 }
 
+/// Contextual information needed for parsing.
 struct ParsingContext {
+    /// Source file currently being parsed. This is provided so that the AST
+    /// can fetch span information.
     source_file: SourceFile,
+
+    /// Regular expression parser.
+    regex_parser: regex_syntax::Parser,
 }
 
 impl ParsingContext {
@@ -44,7 +68,7 @@ impl ParsingContext {
 }
 
 impl ParsableNode for Block {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert!(pair.as_rule() == Rule::program || pair.as_rule() == Rule::block);
 
         let span = ctx.span(&pair);
@@ -57,7 +81,7 @@ impl ParsableNode for Block {
         let statements = pairs.pop().unwrap()
             .into_inner()
             .map(|p| from_pair(p, ctx))
-            .collect::<Result<_, Error<Rule>>>()?;
+            .collect::<Result<_, ParseError>>()?;
 
         let mut named_params = None;
         let mut vararg_param = None;
@@ -88,7 +112,7 @@ impl ParsableNode for Block {
 }
 
 impl ParsableNode for Statement {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         match pair.as_rule() {
             Rule::import_statement => Ok(Statement::Import(from_pair(pair, ctx)?)),
             Rule::pipeline_statement => Ok(Statement::Pipeline(from_pair(pair.into_inner().next().unwrap(), ctx)?)),
@@ -106,7 +130,7 @@ impl ParsableNode for Statement {
 }
 
 impl ParsableNode for ImportStatement {
-    fn from_pair(pair: Pair<'_, Rule>, _ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, _ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::import_statement);
 
         let mut pairs = pair.into_inner();
@@ -126,7 +150,7 @@ impl ParsableNode for ImportStatement {
 }
 
 impl ParsableNode for AssignmentTarget {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::assignment_target);
 
         let pair = pair.into_inner().next().unwrap();
@@ -140,7 +164,7 @@ impl ParsableNode for AssignmentTarget {
 }
 
 impl ParsableNode for Pipeline {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::pipeline);
 
         Ok(Pipeline(pair.into_inner().map(|p| from_pair(p, ctx)).collect::<Result<_, _>>()?))
@@ -148,7 +172,7 @@ impl ParsableNode for Pipeline {
 }
 
 impl ParsableNode for Call {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::call);
 
         let pair = pair.into_inner().next().unwrap();
@@ -176,7 +200,7 @@ impl ParsableNode for Call {
 }
 
 impl ParsableNode for CallArg {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::call_arg);
 
         let pair = pair.into_inner().next().unwrap();
@@ -191,13 +215,14 @@ impl ParsableNode for CallArg {
 
 impl Expr {
     // TODO: Remove this
-    fn from_pair_inner(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair_inner(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         Ok(match pair.as_rule() {
             Rule::block => Expr::Block(from_pair(pair, ctx)?),
             Rule::pipeline => Expr::Pipeline(from_pair(pair, ctx)?),
             Rule::member_access_expr => from_pair(pair, ctx).map(Expr::MemberAccess)?,
             Rule::cvar => Expr::CvarReference(from_pair(pair, ctx)?),
             Rule::cvar_scope => Expr::CvarScope(from_pair(pair, ctx)?),
+            Rule::regex_literal => Expr::Regex(from_pair(pair, ctx)?),
             Rule::substitution => Expr::Substitution(from_pair(pair, ctx)?),
             Rule::table_literal => Expr::Table(from_pair(pair, ctx)?),
             Rule::list_literal => Expr::List(from_pair(pair, ctx)?),
@@ -210,7 +235,7 @@ impl Expr {
 }
 
 impl ParsableNode for Expr {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert!(matches!(pair.as_rule(), Rule::expr));
 
         Self::from_pair_inner(pair.into_inner().next().unwrap(), ctx)
@@ -218,7 +243,7 @@ impl ParsableNode for Expr {
 }
 
 impl ParsableNode for MemberAccess {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::member_access_expr);
 
         let mut pairs = pair.into_inner();
@@ -236,13 +261,13 @@ impl ParsableNode for MemberAccess {
 }
 
 impl ParsableNode for CvarReference {
-    fn from_pair(pair: Pair<'_, Rule>, _ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, _ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         Ok(CvarReference(string_literal(pair)))
     }
 }
 
 impl ParsableNode for CvarScope {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         let mut pairs = pair.into_inner();
 
         Ok(CvarScope {
@@ -254,7 +279,7 @@ impl ParsableNode for CvarScope {
 }
 
 impl ParsableNode for Substitution {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::substitution);
 
         let pair = pair.into_inner().next().unwrap();
@@ -279,7 +304,7 @@ impl ParsableNode for Substitution {
 }
 
 impl ParsableNode for TableLiteral {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::table_literal);
 
         Ok(TableLiteral(pair.into_inner().map(|p| from_pair(p, ctx)).collect::<Result<_, _>>()?))
@@ -287,7 +312,7 @@ impl ParsableNode for TableLiteral {
 }
 
 impl ParsableNode for TableEntry {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::table_literal_entry);
 
         let mut pairs = pair.into_inner();
@@ -300,7 +325,7 @@ impl ParsableNode for TableEntry {
 }
 
 impl ParsableNode for ListLiteral {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::list_literal);
 
         Ok(ListLiteral(pair.into_inner().map(|p| from_pair(p, ctx)).collect::<Result<_, _>>()?))
@@ -308,7 +333,7 @@ impl ParsableNode for ListLiteral {
 }
 
 impl ParsableNode for InterpolatedString {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::interpolated_string);
 
         Ok(InterpolatedString(pair.into_inner().map(|p| from_pair(p, ctx)).collect::<Result<_, _>>()?))
@@ -316,7 +341,7 @@ impl ParsableNode for InterpolatedString {
 }
 
 impl ParsableNode for InterpolatedStringPart {
-    fn from_pair(pair: Pair<'_, Rule>, ctx: &ParsingContext) -> Result<Self, Error<Rule>> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::interpolated_string_part);
 
         let pair = pair.into_inner().next().unwrap();
@@ -326,6 +351,19 @@ impl ParsableNode for InterpolatedStringPart {
             Rule::interpolated_string_literal_part => Ok(InterpolatedStringPart::String(translate_escapes(pair.as_str()))),
             rule => panic!("unexpected rule: {:?}", rule),
         }
+    }
+}
+
+impl ParsableNode for RegexLiteral {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
+        let regex_str = pair.as_str();
+        let regex_str = &regex_str[1..regex_str.len()-1];
+
+        if let Err(e) = ctx.regex_parser.parse(regex_str) {
+            return Err(ParseError::new(ctx.span(&pair), e.to_string()));
+        }
+
+        Ok(RegexLiteral(regex_str.into()))
     }
 }
 

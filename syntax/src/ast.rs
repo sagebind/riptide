@@ -1,6 +1,7 @@
 //! Abstract syntax tree definitions for the language syntax.
 
 use crate::source::Span;
+use std::fmt;
 
 /// A function block, containing a list of pipelines to execute.
 #[derive(Clone, Debug, PartialEq)]
@@ -103,6 +104,7 @@ pub enum Expr {
     MemberAccess(MemberAccess),
     CvarReference(CvarReference),
     CvarScope(CvarScope),
+    Regex(RegexLiteral),
     Substitution(Substitution),
     Table(TableLiteral),
     List(ListLiteral),
@@ -179,4 +181,14 @@ pub struct InterpolatedString(pub Vec<InterpolatedStringPart>);
 pub enum InterpolatedStringPart {
     String(String),
     Substitution(Substitution),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct RegexLiteral(pub String);
+
+impl fmt::Display for RegexLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
 }
