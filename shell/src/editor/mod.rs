@@ -1,5 +1,6 @@
 use crate::{
     buffer::Buffer,
+    completion::Completer,
     editor::{command::Command, event::Event},
     history::{EntryCursor, History, Session},
     os::{TerminalInput, TerminalOutput},
@@ -18,12 +19,13 @@ pub mod event;
 pub mod prompt;
 
 /// Controls the interactive command line editor.
-pub struct Editor<I, O: AsRawFd> {
+pub struct Editor<I, O: AsRawFd, C> {
     stdin: TerminalInput<I>,
     stdout: TerminalOutput<O>,
     history: History,
     history_session: Session,
     history_cursor: Option<EntryCursor>,
+    completer: C,
     buffer: Buffer,
 }
 
@@ -32,14 +34,15 @@ pub enum ReadLine {
     Eof,
 }
 
-impl<I, O: AsRawFd> Editor<I, O> {
-    pub fn new(stdin: I, stdout: O, history: History, session: Session) -> Self {
+impl<I, O: AsRawFd, C> Editor<I, O, C> {
+    pub fn new(stdin: I, stdout: O, history: History, session: Session, completer: C) -> Self {
         Self {
             stdin: TerminalInput::new(stdin),
             stdout: TerminalOutput::new(stdout).unwrap(),
             history,
             history_session: session,
             history_cursor: None,
+            completer,
             buffer: Buffer::new(),
         }
     }
@@ -100,7 +103,7 @@ impl<I, O: AsRawFd> Editor<I, O> {
     }
 }
 
-impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
+impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin, C: Completer> Editor<I, O, C> {
     /// Show a command prompt to the user and await for the user to input a
     /// command. The typed command is returned once submitted.
     pub async fn read_line(&mut self, fiber: &mut Fiber) -> ReadLine {
@@ -202,6 +205,7 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
     pub async fn redraw(&mut self, fiber: &mut Fiber) {
         let prompt = self.get_prompt_str(fiber).await;
 
+        // Render the current buffer text.
         self.stdout.write_all(b"\r").await.unwrap();
         self.stdout
             .command(Command::ClearAfterCursor)
@@ -211,6 +215,23 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin> Editor<I, O> {
             .write_all(format!("{}{}", prompt, self.buffer.text()).as_bytes())
             .await
             .unwrap();
+
+        // Render the top completion suggestion.
+        if !self.buffer.is_empty() {
+            if let Some(suggestion) = self.completer.complete_one(self.buffer.text()) {
+                if let Some(suffix) = suggestion.strip_prefix(self.buffer.text()) {
+                    self.stdout
+                        .write_all(format!("{}", Paint::new(suffix).dimmed()).as_bytes())
+                        .await
+                        .unwrap();
+
+                    self.stdout
+                        .command(Command::MoveCursorLeft(suffix.len()))
+                        .await
+                        .unwrap();
+                }
+            }
+        }
 
         // Update the cursor position.
         let diff = self.buffer.text().len() - self.buffer.cursor();

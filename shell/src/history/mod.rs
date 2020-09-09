@@ -48,8 +48,8 @@ pub struct History {
 /// Aggregated information about a particular command string.
 #[derive(Clone)]
 pub struct CommandSummary {
-    command: String,
-    count: u32,
+    pub command: String,
+    pub count: u32,
 }
 
 impl TryFrom<&Row<'_>> for CommandSummary {
@@ -152,24 +152,29 @@ impl History {
     //     )
     // }
 
-    // /// Query for frequent commands with a prefix.
-    // pub fn frequent_commands_starting_with(
-    //     &self,
-    //     prefix: impl Into<String>,
-    // ) -> Cursor<CommandSummary> {
-    //     let pattern = prefix.into().replace("%", "\\%").replace("\\", "\\\\") + "%";
+    /// Query for frequent commands with a prefix.
+    pub fn frequent_commands_starting_with(
+        &self,
+        prefix: impl Into<String>,
+    ) -> Vec<CommandSummary> {
+        let pattern = prefix.into().replace("%", "\\%").replace("\\", "\\\\") + "%";
 
-    //     Cursor::query(
-    //         &self.db,
-    //         r#"
-    //             SELECT command, count(*) AS count FROM command_history
-    //             WHERE command LIKE ? ESCAPE "\"
-    //             GROUP BY command
-    //             ORDER BY count DESC
-    //         "#,
-    //         params![pattern],
-    //     )
-    // }
+        let mut stmt = self.db.prepare(r#"
+            SELECT command, count(*) AS count FROM command_history
+            WHERE command LIKE ? ESCAPE "\"
+            GROUP BY command
+            ORDER BY count DESC
+        "#).unwrap();
+
+        let mut rows = stmt.query(params![pattern]).unwrap();
+        let mut summaries = Vec::new();
+
+        while let Some(row) = rows.next().unwrap() {
+            summaries.push(CommandSummary::try_from(row).unwrap());
+        }
+
+        summaries
+    }
 }
 
 #[cfg(test)]

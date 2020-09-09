@@ -16,11 +16,13 @@ use structopt::StructOpt;
 use tokio::signal;
 
 mod buffer;
+mod completion;
 mod editor;
 mod history;
 mod logger;
 mod os;
 mod paths;
+mod session;
 mod theme;
 
 #[derive(Debug, StructOpt)]
@@ -193,11 +195,14 @@ async fn interactive_main(fiber: &mut Fiber, options: Options) {
         .await
         .expect("bug in interactive.rt");
 
+    let completer = completion::history::HistoryCompleter::new(history.clone());
+
     let mut editor = Editor::new(
         fiber.stdin().try_clone().unwrap(),
         fiber.stdout().try_clone().unwrap(),
         history,
         session,
+        completer,
     );
 
     while fiber.exit_code().is_none() {
