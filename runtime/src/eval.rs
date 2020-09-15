@@ -176,9 +176,21 @@ async fn evaluate_statement(fiber: &mut Fiber, statement: Statement) -> Result<V
 async fn evaluate_import_statement(fiber: &mut Fiber, statement: ImportStatement) -> Result<(), Exception> {
     let module_contents = fiber.load_module(statement.path.as_bytes()).await?;
 
-    for import in statement.imports {
-        if let Some(table) = module_contents.as_table() {
-            fiber.set(import.clone(), table.get(import));
+    match statement.clause {
+        ImportClause::Items(imports) => {
+            for import in imports {
+                if let Some(table) = module_contents.as_table() {
+                    fiber.set(import.clone(), table.get(import));
+                }
+            }
+        }
+
+        ImportClause::Wildcard => {
+            if let Some(table) = module_contents.as_table() {
+                for key in table.keys() {
+                    fiber.set(key.clone(), table.get(key));
+                }
+            }
         }
     }
 

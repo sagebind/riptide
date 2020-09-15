@@ -57,12 +57,6 @@ pub async fn init() -> Result<Fiber, Exception> {
     fiber.globals().set("GLOBALS", fiber.globals().clone());
     fiber.globals().set("env", env::vars().collect::<Table>()); // Isn't that easy?
 
-    // Initialize builtins
-    let builtins_table = builtins::get();
-    for global in builtins_table.keys() {
-        fiber.globals().set(global.clone(), builtins_table.get(global));
-    }
-
     // Run the first bootstrap script
     fiber.execute(None, include_str!("init.rt")).await?;
 

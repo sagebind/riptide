@@ -130,22 +130,39 @@ impl ParsableNode for Statement {
 }
 
 impl ParsableNode for ImportStatement {
-    fn from_pair(pair: Pair<'_, Rule>, _ctx: &mut ParsingContext) -> Result<Self, ParseError> {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         assert_eq!(pair.as_rule(), Rule::import_statement);
 
         let mut pairs = pair.into_inner();
 
-        let path = string_literal(pairs.next().unwrap());
-        let mut imports = Vec::new();
-
-        for pair in pairs {
-            imports.push(string_literal(pair));
-        }
-
         Ok(ImportStatement {
-            path,
-            imports,
+            path: string_literal(pairs.next().unwrap()),
+            clause: from_pair(pairs.next().unwrap(), ctx)?,
         })
+    }
+}
+
+impl ParsableNode for ImportClause {
+    fn from_pair(pair: Pair<'_, Rule>, _ctx: &mut ParsingContext) -> Result<Self, ParseError> {
+        assert_eq!(pair.as_rule(), Rule::import_clause);
+
+        let pair = pair.into_inner().next().unwrap();
+
+        match pair.as_rule() {
+            Rule::import_items => {
+                let mut imports = Vec::new();
+
+                for pair in pair.into_inner() {
+                    imports.push(string_literal(pair));
+                }
+
+                Ok(ImportClause::Items(imports))
+            }
+
+            Rule::import_wildcard => Ok(ImportClause::Wildcard),
+
+            _ => unreachable!()
+        }
     }
 }
 

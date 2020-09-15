@@ -41,7 +41,14 @@ pub struct AssignmentStatement {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ImportStatement {
     pub path: String,
-    pub imports: Vec<String>,
+    pub clause: ImportClause,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ImportClause {
+    Items(Vec<String>),
+    Wildcard,
 }
 
 #[derive(Clone, Debug, PartialEq)]

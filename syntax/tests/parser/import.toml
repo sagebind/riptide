@@ -8,9 +8,9 @@ Block(
     statements: [
         Import(ImportStatement(
             path: "std/lang",
-            imports: [
+            clause: Items([
                 "println",
-            ],
+            ]),
         )),
     ],
 )

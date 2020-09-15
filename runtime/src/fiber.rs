@@ -216,6 +216,11 @@ impl Fiber {
     pub(crate) async fn load_module(&mut self, name: impl AsRef<bstr::BStr>) -> Result<Value, Exception> {
         let name = name.as_ref();
 
+        // The magic name "builtins" always returns the builtins module.
+        if name == "builtins" {
+            return Ok(crate::builtins::get().into());
+        }
+
         match self.globals().get("modules").get("loaded").get(name) {
             Value::Nil => {}
             value => return Ok(value),

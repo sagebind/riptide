@@ -1,4 +1,6 @@
 //! Implementations of built-in global functions that are always available.
+//!
+//! Builtins are exposed via the special `builtins` module name.
 
 use crate::{
     eval,

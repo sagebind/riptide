@@ -1,6 +1,8 @@
 #[tokio::test]
 async fn exit_throws_unrecoverable_exception() {
     match riptide_runtime::eval(r#"
+        import 'builtins' for *
+
         try {
             exit 1
         } {
