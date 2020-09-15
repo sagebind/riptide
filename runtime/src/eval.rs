@@ -38,6 +38,7 @@ fn compile_block(fiber: &mut Fiber, block: Block) -> Result<Closure, Exception> 
     Ok(Closure {
         block,
         scope: fiber.current_scope().cloned(),
+        name: None,
     })
 }
 
@@ -153,7 +154,16 @@ async fn evaluate_statement(fiber: &mut Fiber, statement: Statement) -> Result<V
                     }
                 }
                 AssignmentTarget::Variable(variable) => {
-                    let value = evaluate_expr(fiber, value).await?;
+                    let mut value = evaluate_expr(fiber, value).await?;
+
+                    // Set the name of the closure for debug purposes, if it
+                    // doesn't already have one.
+                    if let Value::Block(closure) = &value {
+                        if closure.name().is_none() {
+                            value = Value::Block(closure.with_name(variable.clone()));
+                        }
+                    }
+
                     fiber.set(variable, value);
                 }
             }

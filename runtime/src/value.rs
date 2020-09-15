@@ -332,6 +332,10 @@ impl fmt::Debug for Value {
             Value::Boolean(boolean) => write!(f, "{}", boolean),
             Value::Number(number) => write!(f, "{}", number),
             Value::String(string) => write!(f, "\"{}\"", string),
+            Value::Block(closure) => match closure.name() {
+                Some(name) => write!(f, "<closure {}>", name),
+                None => write!(f, "<closure>"),
+            },
             _ => write!(f, "<{}>", self.type_name()),
         }
     }
@@ -361,6 +365,10 @@ impl fmt::Display for Value {
                 write!(f, "]")
             }
             Value::Table(table) => write!(f, "{}", table),
+            Value::Block(closure) => match closure.name() {
+                Some(name) => write!(f, "<closure {}>", name),
+                None => write!(f, "<closure>"),
+            },
             _ => write!(f, "<{}>", self.type_name()),
         }
     }
