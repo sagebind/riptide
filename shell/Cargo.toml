@@ -40,7 +40,7 @@ version = "1"
 features = ["derive"]
 
 [dependencies.tokio]
-version = "0.2"
+version = "0.3"
 features = [
     "io-driver",
     "io-util",
