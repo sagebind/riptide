@@ -51,4 +51,4 @@ features = [
 
 [target.'cfg(unix)'.dependencies]
 termios = "0.3"
-vte = "0.8" # parsing user input
+vte = "0.9" # parsing user input
