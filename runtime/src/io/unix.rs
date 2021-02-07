@@ -1,18 +1,13 @@
-use nix::{
-    fcntl::{fcntl, FcntlArg, OFlag},
-    unistd::pipe2,
-};
+use nix::fcntl::{fcntl, FcntlArg, OFlag};
 use std::{
     io,
-    os::unix::io::{AsRawFd, RawFd},
+    os::unix::io::{AsRawFd, FromRawFd},
 };
 
-pub(super) fn pipe() -> io::Result<(RawFd, RawFd)> {
-    pipe2(OFlag::O_CLOEXEC | OFlag::O_NONBLOCK).map_err(nix_err)
-}
-
-pub(super) fn dup(file: impl AsRawFd) -> io::Result<RawFd> {
-    nix::unistd::dup(file.as_raw_fd()).map_err(nix_err)
+pub(super) fn dup<T: AsRawFd, U: FromRawFd>(fd: T) -> io::Result<U> {
+    nix::unistd::dup(fd.as_raw_fd())
+        .map_err(nix_err)
+        .map(|fd| unsafe { U::from_raw_fd(fd) })
 }
 
 pub(super) fn set_nonblocking(file: &mut impl AsRawFd, nonblocking: bool) -> io::Result<()> {

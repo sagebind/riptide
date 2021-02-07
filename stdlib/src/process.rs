@@ -5,7 +5,6 @@ use riptide_runtime::{
     throw,
 };
 use std::time::Duration;
-use tokio::time::delay_for;
 
 pub fn load() -> Result<Value, Exception> {
     Ok(table! {
@@ -74,7 +73,7 @@ async fn sleep(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
         };
 
         log::debug!("sleeping for {}ms", duration.as_millis());
-        delay_for(duration).await;
+        tokio::time::sleep(duration).await;
 
         Ok(Value::Nil)
     } else {

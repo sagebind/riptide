@@ -3,7 +3,7 @@ use super::{
     table::Table, value::Value,
 };
 use crate::{
-    io::{IoContext, PipeReader, PipeWriter},
+    io::{IoContext, Input, Output},
     syntax::source::SourceFile,
 };
 use gc::Gc;
@@ -59,18 +59,18 @@ impl Fiber {
     }
 
     /// Get a handle to this fiber's standard input stream.
-    pub fn stdin(&mut self) -> &mut PipeReader {
-        &mut self.io.stdin
+    pub fn stdin(&mut self) -> &mut dyn Input {
+        self.io.stdin()
     }
 
     /// Get a handle to this fiber's standard output stream.
-    pub fn stdout(&mut self) -> &mut PipeWriter {
-        &mut self.io.stdout
+    pub fn stdout(&mut self) -> &mut dyn Output {
+        self.io.stdout()
     }
 
     /// Get a handle to this fiber's standard error stream.
-    pub fn stderr(&mut self) -> &mut PipeWriter {
-        &mut self.io.stderr
+    pub fn stderr(&mut self) -> &mut dyn Output {
+        self.io.stderr()
     }
 
     /// Create a new fiber with the exact same stack and context as this one.

@@ -79,8 +79,7 @@ fn main() {
 
     // Create a single-threaded Tokio runtime, which drives the async Riptide
     // runtime without threads.
-    let mut rt = tokio::runtime::Builder::new()
-        .basic_scheduler()
+    let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .unwrap();

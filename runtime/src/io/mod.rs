@@ -5,17 +5,16 @@
 
 use std::{
     fmt,
-    fs::File,
     io,
-    os::unix::io::{AsRawFd, FromRawFd, IntoRawFd, RawFd},
-    pin::Pin,
-    task::{Context, Poll},
+    marker::Unpin,
+    os::unix::io::{AsRawFd, FromRawFd, RawFd},
+    process::Stdio,
 };
-use tokio::io::{
-    AsyncRead,
-    AsyncWrite,
-    PollEvented,
+use tokio::{
+    fs::File,
+    io::{AsyncRead, AsyncWrite, Stderr, Stdin, Stdout},
 };
+use tokio_pipe::{pipe, PipeRead, PipeWrite};
 
 pub mod process;
 mod unix;
@@ -24,11 +23,10 @@ mod unix;
 /// of the current process, which allows more than one I/O context to coexist
 /// inside the same process. This is essential in order to implement I/O aware
 /// fibers.
-#[derive(Debug)]
 pub struct IoContext {
-    pub stdin: PipeReader,
-    pub stdout: PipeWriter,
-    pub stderr: PipeWriter,
+    stdin: Box<dyn Input>,
+    stdout: Box<dyn Output>,
+    stderr: Box<dyn Output>,
 }
 
 impl IoContext {
@@ -36,10 +34,31 @@ impl IoContext {
     /// OS process.
     pub fn from_process() -> io::Result<Self> {
         Ok(Self {
-            stdin: unsafe { PipeReader::from_raw_fd(unix::dup(io::stdin())?) },
-            stdout: unsafe { PipeWriter::from_raw_fd(unix::dup(io::stdout())?) },
-            stderr: unsafe { PipeWriter::from_raw_fd(unix::dup(io::stderr())?) },
+            stdin: Box::new({
+                let mut stdin = unix::dup::<_, PipeRead>(tokio::io::stdin())?;
+
+                unix::set_nonblocking(&mut stdin, true)?;
+
+                stdin
+            }),
+            stdout: Box::new(unix::dup::<_, PipeWrite>(tokio::io::stdout())?),
+            stderr: Box::new(unix::dup::<_, PipeWrite>(tokio::io::stderr())?),
+            // stdin: Box::new(tokio::io::stdin()),
+            // stdout: Box::new(tokio::io::stdout()),
+            // stderr: Box::new(tokio::io::stderr()),
         })
+    }
+
+    pub fn stdin(&mut self) -> &mut dyn Input {
+        &mut *self.stdin
+    }
+
+    pub fn stdout(&mut self) -> &mut dyn Output {
+        &mut *self.stdout
+    }
+
+    pub fn stderr(&mut self) -> &mut dyn Output {
+        &mut *self.stderr
     }
 
     pub fn try_clone(&self) -> io::Result<Self> {
@@ -53,16 +72,16 @@ impl IoContext {
     /// Split this context in half, returning two new contexts that have their
     /// standard output and standard input connected with a pipe.
     pub fn split(self) -> io::Result<(IoContext, IoContext)> {
-        let (r, w) = pipe()?;
+        let (stdin, stdout) = pipe()?;
 
         Ok((
             Self {
                 stdin: self.stdin,
-                stdout: w,
+                stdout: Box::new(stdout),
                 stderr: self.stderr.try_clone()?,
             },
             Self {
-                stdin: r,
+                stdin: Box::new(stdin),
                 stdout: self.stdout,
                 stderr: self.stderr,
             },
@@ -87,192 +106,116 @@ impl IoContext {
     }
 }
 
-/// Open a new pipe and return a reader/writer pair.
-pub fn pipe() -> io::Result<(PipeReader, PipeWriter)> {
-    unix::pipe().map(|(read_fd, write_fd)| unsafe {
-        (
-            PipeReader::from_raw_fd(read_fd),
-            PipeWriter::from_raw_fd(write_fd),
-        )
-    })
-}
-
-/// Reading end of an asynchronous pipe.
-#[derive(Debug)]
-pub struct PipeReader(PollEvented<EventedFd>);
-
-impl PipeReader {
-    pub fn set_nonblocking(&mut self, nonblocking: bool) -> io::Result<()> {
-        unix::set_nonblocking(self, nonblocking)
-    }
-
-    pub fn try_clone(&self) -> io::Result<Self> {
-        self.0.get_ref()
-            .try_clone()
-            .and_then(PollEvented::new)
-            .map(PipeReader)
+impl fmt::Debug for IoContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("IoContext").finish()
     }
 }
 
-impl From<PipeReader> for std::process::Stdio {
-    fn from(pipe: PipeReader) -> Self {
-        unsafe {
-            Self::from_raw_fd(pipe.0.into_inner().unwrap().0.into_raw_fd())
-        }
+/// An I/O input port.
+pub trait Input: AsyncRead + AsRawFd + Unpin + Send {
+    fn try_clone(&self) -> io::Result<Box<dyn Input>>;
+
+    /// Create a synchronous clone of this file descriptor for piping with
+    /// external processes.
+    fn create_stdio(&self) -> io::Result<Stdio> {
+        Ok(unix::dup(self.as_raw_fd())?)
+    }
+
+    /// Enable or disable non-blocking mode on this file descriptor. This
+    /// affects all clones of this file descriptor as well, so use with caution.
+    fn set_nonblocking(&mut self, nonblocking: bool) -> io::Result<()> {
+        unix::set_nonblocking(&mut self.as_raw_fd(), nonblocking)
     }
 }
 
-impl FromRawFd for PipeReader {
-    unsafe fn from_raw_fd(fd: RawFd) -> Self {
-        Self(PollEvented::new(EventedFd::from_raw_fd(fd)).unwrap())
-    }
-}
-
-impl AsRawFd for PipeReader {
+impl AsRawFd for Box<dyn Input> {
     fn as_raw_fd(&self) -> RawFd {
-        self.0.get_ref().as_raw_fd()
+        (**self).as_raw_fd()
     }
 }
 
-impl AsyncRead for PipeReader {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
-        unsafe {
-            Pin::new_unchecked(&mut self.0).poll_read(cx, buf)
-        }
+impl Input for Stdin {
+    fn try_clone(&self) -> io::Result<Box<dyn Input>> {
+        Ok(Box::new(tokio::io::stdin()))
+    }
+
+    fn set_nonblocking(&mut self, _nonblocking: bool) -> io::Result<()> {
+        // Tokio implementation is already blocking, enabling non-blocking is
+        // not needed and also breaks stuff.
+        Ok(())
     }
 }
 
-/// Writing end of an asynchronous pipe.
-#[derive(Debug)]
-pub struct PipeWriter(PollEvented<EventedFd>);
-
-impl PipeWriter {
-    pub fn set_nonblocking(&mut self, nonblocking: bool) -> io::Result<()> {
-        unix::set_nonblocking(self, nonblocking)
-    }
-
-    pub fn try_clone(&self) -> io::Result<Self> {
-        self.0.get_ref()
-            .try_clone()
-            .and_then(PollEvented::new)
-            .map(PipeWriter)
+impl Input for PipeRead {
+    fn try_clone(&self) -> io::Result<Box<dyn Input>> {
+        Ok(Box::new(unix::dup::<_, Self>(self.as_raw_fd())?))
     }
 }
 
-impl From<PipeWriter> for std::process::Stdio {
-    fn from(pipe: PipeWriter) -> Self {
-        unsafe {
-            Self::from_raw_fd(pipe.0.into_inner().unwrap().0.into_raw_fd())
-        }
+impl Input for File {
+    fn try_clone(&self) -> io::Result<Box<dyn Input>> {
+        Ok(Box::new(unix::dup::<_, Self>(self.as_raw_fd())?))
     }
 }
 
-impl FromRawFd for PipeWriter {
-    unsafe fn from_raw_fd(fd: RawFd) -> Self {
-        Self(PollEvented::new(EventedFd::from_raw_fd(fd)).unwrap())
+/// An I/O output port.
+pub trait Output: AsyncWrite + AsRawFd + Unpin + Send {
+    fn try_clone(&self) -> io::Result<Box<dyn Output>>;
+
+    /// Create a synchronous clone of this file descriptor for piping with
+    /// external processes.
+    fn create_stdio(&self) -> io::Result<Stdio> {
+        let fd = unix::dup(self.as_raw_fd())?;
+
+        Ok(unsafe { Stdio::from_raw_fd(fd) })
+    }
+
+    /// Enable or disable non-blocking mode on this file descriptor. This
+    /// affects all clones of this file descriptor as well, so use with caution.
+    fn set_nonblocking(&mut self, nonblocking: bool) -> io::Result<()> {
+        unix::set_nonblocking(&mut self.as_raw_fd(), nonblocking)
     }
 }
 
-impl AsRawFd for PipeWriter {
+impl AsRawFd for Box<dyn Output> {
     fn as_raw_fd(&self) -> RawFd {
-        self.0.get_ref().as_raw_fd()
+        (**self).as_raw_fd()
     }
 }
 
-impl AsyncWrite for PipeWriter {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        unsafe {
-            Pin::new_unchecked(&mut self.0).poll_write(cx, buf)
-        }
+impl Output for Stdout {
+    fn try_clone(&self) -> io::Result<Box<dyn Output>> {
+        Ok(Box::new(tokio::io::stdout()))
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        unsafe {
-            Pin::new_unchecked(&mut self.0).poll_flush(cx)
-        }
-    }
-
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        unsafe {
-            Pin::new_unchecked(&mut self.0).poll_shutdown(cx)
-        }
+    fn set_nonblocking(&mut self, _nonblocking: bool) -> io::Result<()> {
+        // Tokio implementation is already blocking, enabling non-blocking is
+        // not needed and also breaks stuff.
+        Ok(())
     }
 }
 
-struct EventedFd(File);
+impl Output for Stderr {
+    fn try_clone(&self) -> io::Result<Box<dyn Output>> {
+        Ok(Box::new(tokio::io::stderr()))
+    }
 
-impl EventedFd {
-    fn try_clone(&self) -> io::Result<Self> {
-        self.0.try_clone().map(EventedFd)
+    fn set_nonblocking(&mut self, _nonblocking: bool) -> io::Result<()> {
+        // Tokio implementation is already blocking, enabling non-blocking is
+        // not needed and also breaks stuff.
+        Ok(())
     }
 }
 
-impl FromRawFd for EventedFd {
-    unsafe fn from_raw_fd(fd: RawFd) -> Self {
-        Self(File::from_raw_fd(fd))
+impl Output for PipeWrite {
+    fn try_clone(&self) -> io::Result<Box<dyn Output>> {
+        Ok(Box::new(unix::dup::<_, Self>(self.as_raw_fd())?))
     }
 }
 
-impl AsRawFd for EventedFd {
-    fn as_raw_fd(&self) -> RawFd {
-        self.0.as_raw_fd()
-    }
-}
-
-impl fmt::Debug for EventedFd {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("EventedFd")
-            .field(&self.as_raw_fd())
-            .finish()
-    }
-}
-
-impl mio::Evented for EventedFd {
-    fn register(
-        &self,
-        poll: &mio::Poll,
-        token: mio::Token,
-        interest: mio::Ready,
-        opts: mio::PollOpt,
-    ) -> io::Result<()> {
-        mio::unix::EventedFd(&self.as_raw_fd()).register(poll, token, interest, opts)
-    }
-
-    fn reregister(
-        &self,
-        poll: &mio::Poll,
-        token: mio::Token,
-        interest: mio::Ready,
-        opts: mio::PollOpt,
-    ) -> io::Result<()> {
-        mio::unix::EventedFd(&self.as_raw_fd()).reregister(poll, token, interest, opts)
-    }
-
-    fn deregister(&self, poll: &mio::Poll) -> io::Result<()> {
-        mio::unix::EventedFd(&self.as_raw_fd()).deregister(poll)
-    }
-}
-
-impl io::Read for EventedFd {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.0.read(buf)
-    }
-}
-
-impl io::Write for EventedFd {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.0.flush()
+impl Output for File {
+    fn try_clone(&self) -> io::Result<Box<dyn Output>> {
+        Ok(Box::new(unix::dup::<_, Self>(self.as_raw_fd())?))
     }
 }

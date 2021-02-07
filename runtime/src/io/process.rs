@@ -17,10 +17,6 @@ use tokio::process::Command;
 /// Cancellation is fully supported. Dropping the returned future will send a
 /// signal to the child process to terminate.
 pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Value]) -> Result<Value, Exception> {
-    // Here we clone the stdin file descriptor, because Command wants to take
-    // ownership of it.
-    let mut stdin = fiber.stdin().try_clone()?;
-
     // Ensure we restore non-blocking once finished. Use a scope guard to ensure
     // that the non-blocking flag is restored even on cancellation.
     let mut fiber = scopeguard::guard(fiber, |fiber| {
@@ -32,14 +28,14 @@ pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Valu
     // Most processes assume standard I/O streams begin life as blocking. Note
     // that this flag affects all file descriptors pointing to the same file
     // description, so we must make sure to restore this when we're done.
-    stdin.set_nonblocking(false)?;
+    fiber.stdin().set_nonblocking(false)?;
 
     let exit_status = Command::new(command)
         .args(args.iter().map(|value| crate::string::RipString::from(value.clone())))
         .current_dir(fiber.current_dir().to_string())
-        .stdin(stdin)
-        .stdout(fiber.stdout().try_clone()?)
-        .stderr(fiber.stderr().try_clone()?)
+        .stdin(fiber.stdin().create_stdio()?)
+        .stdout(fiber.stdout().create_stdio()?)
+        .stderr(fiber.stderr().create_stdio()?)
         .kill_on_drop(true)
         .status()
         .await
