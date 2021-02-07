@@ -49,7 +49,7 @@ impl<I> TerminalInput<I> {
                 }
             }
 
-            fn hook(&mut self, params: &[i64], intermediates: &[u8], ignore: bool, action: char) {
+            fn hook(&mut self, params: &vte::Params, intermediates: &[u8], ignore: bool, action: char) {
                 log::info!("HOOK {:?} / {:?} / {} / {}", params, intermediates, ignore, action);
             }
 
@@ -57,30 +57,28 @@ impl<I> TerminalInput<I> {
                 log::debug!("PUT: {:?}", byte);
             }
 
-            fn unhook(&mut self) {}
-
             fn osc_dispatch(&mut self, params: &[&[u8]], bell_terminated: bool) {
                 log::debug!("OSC: {:?} / {}", params, bell_terminated);
             }
 
             fn csi_dispatch(
                 &mut self,
-                params: &[i64],
+                params: &vte::Params,
                 intermediates: &[u8],
                 ignore: bool,
                 action: char
             ) {
-                match (action, params) {
+                match (action, params.iter().next()) {
                     ('A', _) => self.events.push_back(Event::Up),
                     ('B', _) => self.events.push_back(Event::Down),
                     ('C', _) => self.events.push_back(Event::Right),
                     ('D', _) => self.events.push_back(Event::Left),
-                    ('F', _) | ('~', [4]) | ('~', [8]) => self.events.push_back(Event::End),
-                    ('H', _) | ('~', [1]) | ('~', [7]) => self.events.push_back(Event::Home),
-                    ('~', [2]) => self.events.push_back(Event::Insert),
-                    ('~', [3]) => self.events.push_back(Event::Delete),
-                    ('~', [5]) => self.events.push_back(Event::PageUp),
-                    ('~', [6]) => self.events.push_back(Event::PageDown),
+                    ('F', _) | ('~', Some([4])) | ('~', Some([8])) => self.events.push_back(Event::End),
+                    ('H', _) | ('~', Some([1])) | ('~', Some([7])) => self.events.push_back(Event::Home),
+                    ('~', Some([2])) => self.events.push_back(Event::Insert),
+                    ('~', Some([3])) => self.events.push_back(Event::Delete),
+                    ('~', Some([5])) => self.events.push_back(Event::PageUp),
+                    ('~', Some([6])) => self.events.push_back(Event::PageDown),
                     _ => log::info!("CSI {:?} / {:?} / {} / {}", params, intermediates, ignore, action),
                 }
             }
