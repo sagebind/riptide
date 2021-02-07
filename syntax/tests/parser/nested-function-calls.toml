@@ -2,45 +2,69 @@ source = '''
 println hello ({read} THE) (uppercase World)
 '''
 ast = '''
-Block(
+Block {
+    span: Some(
+        Span(2:1, 2:46),
+    ),
     named_params: None,
     vararg_param: None,
     statements: [
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "println",
-                args: [
-                    Expr("hello"),
-                    Expr(Pipeline([
-                        UnnamedCall(
-                            function: Block(
-                                named_params: None,
-                                vararg_param: None,
-                                statements: [
-                                    Pipeline(Pipeline([
-                                        NamedCall(
-                                            function: "read",
-                                            args: [],
-                                        ),
-                                    ])),
+        Pipeline(
+            [
+                Named {
+                    function: "println",
+                    args: [
+                        Expr(
+                            "hello",
+                        ),
+                        Expr(
+                            Pipeline(
+                                [
+                                    Unnamed {
+                                        function: Block {
+                                            span: Some(
+                                                Span(2:16, 2:22),
+                                            ),
+                                            named_params: None,
+                                            vararg_param: None,
+                                            statements: [
+                                                Pipeline(
+                                                    [
+                                                        Named {
+                                                            function: "read",
+                                                            args: [],
+                                                        },
+                                                    ],
+                                                ),
+                                            ],
+                                        },
+                                        args: [
+                                            Expr(
+                                                "THE",
+                                            ),
+                                        ],
+                                    },
                                 ],
                             ),
-                            args: [
-                                Expr("THE"),
-                            ],
                         ),
-                    ])),
-                    Expr(Pipeline([
-                        NamedCall(
-                            function: "uppercase",
-                            args: [
-                                Expr("World"),
-                            ],
+                        Expr(
+                            Pipeline(
+                                [
+                                    Named {
+                                        function: "uppercase",
+                                        args: [
+                                            Expr(
+                                                "World",
+                                            ),
+                                        ],
+                                    },
+                                ],
+                            ),
                         ),
-                    ])),
-                ],
-            ),
-        ])),
+                    ],
+                },
+            ],
+        ),
     ],
-)
+}
 '''

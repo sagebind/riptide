@@ -8,49 +8,69 @@ source = '''
 }
 '''
 ast = '''
-Block(
+Block {
+    span: Some(
+        Span(8:1, 8:57),
+    ),
     named_params: None,
     vararg_param: None,
     statements: [
-        Pipeline(Pipeline([
-            UnnamedCall(
-                function: Block(
-                    named_params: None,
-                    vararg_param: None,
-                    statements: [
-                        Pipeline(Pipeline([
-                            UnnamedCall(
-                                function: Block(
-                                    named_params: None,
-                                    vararg_param: None,
-                                    statements: [
-                                        Pipeline(Pipeline([
-                                            UnnamedCall(
-                                                function: Block(
-                                                    named_params: None,
-                                                    vararg_param: None,
-                                                    statements: [
-                                                        Pipeline(Pipeline([
-                                                            NamedCall(
-                                                                function: "println",
-                                                                args: [],
-                                                            ),
-                                                        ])),
+        Pipeline(
+            [
+                Unnamed {
+                    function: Block {
+                        span: Some(
+                            Span(8:1, 8:56),
+                        ),
+                        named_params: None,
+                        vararg_param: None,
+                        statements: [
+                            Pipeline(
+                                [
+                                    Unnamed {
+                                        function: Block {
+                                            span: Some(
+                                                Span(8:7, 8:54),
+                                            ),
+                                            named_params: None,
+                                            vararg_param: None,
+                                            statements: [
+                                                Pipeline(
+                                                    [
+                                                        Unnamed {
+                                                            function: Block {
+                                                                span: Some(
+                                                                    Span(8:17, 8:48),
+                                                                ),
+                                                                named_params: None,
+                                                                vararg_param: None,
+                                                                statements: [
+                                                                    Pipeline(
+                                                                        [
+                                                                            Named {
+                                                                                function: "println",
+                                                                                args: [],
+                                                                            },
+                                                                        ],
+                                                                    ),
+                                                                ],
+                                                            },
+                                                            args: [],
+                                                        },
                                                     ],
                                                 ),
-                                                args: [],
-                                            ),
-                                        ])),
-                                    ],
-                                ),
-                                args: [],
+                                            ],
+                                        },
+                                        args: [],
+                                    },
+                                ],
                             ),
-                        ])),
-                    ],
-                ),
-                args: [],
-            ),
-        ])),
+                        ],
+                    },
+                    args: [],
+                },
+            ],
+        ),
     ],
-)
+}
 '''

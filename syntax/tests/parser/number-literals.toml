@@ -5,42 +5,61 @@ println .25
 println -255
 '''
 ast = '''
-Block(
+Block {
+    span: Some(
+        Span(5:1, 5:52),
+    ),
     named_params: None,
     vararg_param: None,
     statements: [
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "println",
-                args: [
-                    Expr(100),
-                ],
-            ),
-        ])),
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "println",
-                args: [
-                    Expr(102.5),
-                ],
-            ),
-        ])),
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "println",
-                args: [
-                    Expr(0.25),
-                ],
-            ),
-        ])),
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "println",
-                args: [
-                    Expr(-255),
-                ],
-            ),
-        ])),
+        Pipeline(
+            [
+                Named {
+                    function: "println",
+                    args: [
+                        Expr(
+                            100.0,
+                        ),
+                    ],
+                },
+            ],
+        ),
+        Pipeline(
+            [
+                Named {
+                    function: "println",
+                    args: [
+                        Expr(
+                            102.5,
+                        ),
+                    ],
+                },
+            ],
+        ),
+        Pipeline(
+            [
+                Named {
+                    function: "println",
+                    args: [
+                        Expr(
+                            0.25,
+                        ),
+                    ],
+                },
+            ],
+        ),
+        Pipeline(
+            [
+                Named {
+                    function: "println",
+                    args: [
+                        Expr(
+                            -255.0,
+                        ),
+                    ],
+                },
+            ],
+        ),
     ],
-)
+}
 '''

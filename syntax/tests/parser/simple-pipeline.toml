@@ -2,20 +2,25 @@ source = '''
 hello | world
 '''
 ast = '''
-Block(
+Block {
+    span: Some(
+        Span(2:1, 2:15),
+    ),
     named_params: None,
     vararg_param: None,
     statements: [
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "hello",
-                args: [],
-            ),
-            NamedCall(
-                function: "world",
-                args: [],
-            ),
-        ])),
+        Pipeline(
+            [
+                Named {
+                    function: "hello",
+                    args: [],
+                },
+                Named {
+                    function: "world",
+                    args: [],
+                },
+            ],
+        ),
     ],
-)
+}
 '''

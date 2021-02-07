@@ -11,67 +11,97 @@ call {
 call{println}
 '''
 ast = '''
-Block(
+Block {
+    span: Some(
+        Span(11:1, 11:98),
+    ),
     named_params: None,
     vararg_param: None,
     statements: [
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "call",
-                args: [
-                    Expr(Block(
-                        named_params: None,
-                        vararg_param: None,
-                        statements: [
-                            Pipeline(Pipeline([
-                                NamedCall(
-                                    function: "println",
-                                    args: [],
+        Pipeline(
+            [
+                Named {
+                    function: "call",
+                    args: [
+                        Expr(
+                            Block {
+                                span: Some(
+                                    Span(11:18, 11:29),
                                 ),
-                            ])),
-                        ],
-                    )),
-                ],
-            ),
-        ])),
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "call",
-                args: [
-                    Expr(Block(
-                        named_params: None,
-                        vararg_param: None,
-                        statements: [
-                            Pipeline(Pipeline([
-                                NamedCall(
-                                    function: "println",
-                                    args: [],
+                                named_params: None,
+                                vararg_param: None,
+                                statements: [
+                                    Pipeline(
+                                        [
+                                            Named {
+                                                function: "println",
+                                                args: [],
+                                            },
+                                        ],
+                                    ),
+                                ],
+                            },
+                        ),
+                    ],
+                },
+            ],
+        ),
+        Pipeline(
+            [
+                Named {
+                    function: "call",
+                    args: [
+                        Expr(
+                            Block {
+                                span: Some(
+                                    Span(11:52, 11:67),
                                 ),
-                            ])),
-                        ],
-                    )),
-                ],
-            ),
-        ])),
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "call",
-                args: [
-                    Expr(Block(
-                        named_params: None,
-                        vararg_param: None,
-                        statements: [
-                            Pipeline(Pipeline([
-                                NamedCall(
-                                    function: "println",
-                                    args: [],
+                                named_params: None,
+                                vararg_param: None,
+                                statements: [
+                                    Pipeline(
+                                        [
+                                            Named {
+                                                function: "println",
+                                                args: [],
+                                            },
+                                        ],
+                                    ),
+                                ],
+                            },
+                        ),
+                    ],
+                },
+            ],
+        ),
+        Pipeline(
+            [
+                Named {
+                    function: "call",
+                    args: [
+                        Expr(
+                            Block {
+                                span: Some(
+                                    Span(11:88, 11:97),
                                 ),
-                            ])),
-                        ],
-                    )),
-                ],
-            ),
-        ])),
+                                named_params: None,
+                                vararg_param: None,
+                                statements: [
+                                    Pipeline(
+                                        [
+                                            Named {
+                                                function: "println",
+                                                args: [],
+                                            },
+                                        ],
+                                    ),
+                                ],
+                            },
+                        ),
+                    ],
+                },
+            ],
+        ),
     ],
-)
+}
 '''

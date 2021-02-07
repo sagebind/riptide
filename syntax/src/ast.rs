@@ -3,12 +3,39 @@
 use crate::source::Span;
 use std::fmt;
 
+macro_rules! derive_debug_enum_transparent {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $(
+                $variant:ident($inner:ty)
+                $(,)*
+            )*
+        }
+    ) => {
+        $(#[$meta])*
+        $vis enum $name {
+            $(
+                $variant($inner),
+            )*
+        }
+
+        impl ::std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                match self {
+                    $(
+                        $name::$variant(ref inner) => ::std::fmt::Debug::fmt(inner, f),
+                    )*
+                }
+            }
+        }
+    };
+}
+
 /// A function block, containing a list of pipelines to execute.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Block {
     /// Where in the source the block is defined.
-    #[serde(skip)]
     pub span: Option<Span>,
 
     /// A list of named parameters.
@@ -22,37 +49,34 @@ pub struct Block {
     pub statements: Vec<Statement>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Statement {
-    Assignment(AssignmentStatement),
-    Import(ImportStatement),
-    Pipeline(Pipeline),
+derive_debug_enum_transparent! {
+    #[derive(Clone, PartialEq)]
+    pub enum Statement {
+        Assignment(AssignmentStatement),
+        Import(ImportStatement),
+        Pipeline(Pipeline),
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AssignmentStatement {
     pub target: AssignmentTarget,
     pub value: Expr,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ImportStatement {
     pub path: String,
     pub clause: ImportClause,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ImportClause {
     Items(Vec<String>),
     Wildcard,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum AssignmentTarget {
     /// Assign a value to the member of an object.
     MemberAccess(MemberAccess),
@@ -63,22 +87,18 @@ pub enum AssignmentTarget {
 
 /// A pipeline of function calls.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Pipeline(pub Vec<Call>);
 
 /// A function call.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Call {
     /// A function call for a named function.
-    #[cfg_attr(feature = "serde", serde(rename = "NamedCall"))]
     Named {
         function: String,
         args: Vec<CallArg>,
     },
 
     /// A function call on a callable object.
-    #[cfg_attr(feature = "serde", serde(rename = "UnnamedCall"))]
     Unnamed {
         function: Box<Expr>,
         args: Vec<CallArg>
@@ -87,7 +107,6 @@ pub enum Call {
 
 /// An argument to a function call.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CallArg {
     /// A single expression.
     Expr(Expr),
@@ -96,40 +115,34 @@ pub enum CallArg {
     Splat(Expr),
 }
 
-/// Abstract representation of an expression.
-///
-/// Contains a variant for each different expression type.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(untagged),
-)]
-pub enum Expr {
-    Block(Block),
-    Pipeline(Pipeline),
-    MemberAccess(MemberAccess),
-    CvarReference(CvarReference),
-    CvarScope(CvarScope),
-    Regex(RegexLiteral),
-    Substitution(Substitution),
-    Table(TableLiteral),
-    List(ListLiteral),
-    Number(f64),
-    InterpolatedString(InterpolatedString),
-    String(String),
+derive_debug_enum_transparent! {
+    /// Abstract representation of an expression.
+    ///
+    /// Contains a variant for each different expression type.
+    #[derive(Clone, PartialEq)]
+    pub enum Expr {
+        Block(Block),
+        Pipeline(Pipeline),
+        MemberAccess(MemberAccess),
+        CvarReference(CvarReference),
+        CvarScope(CvarScope),
+        Regex(RegexLiteral),
+        Substitution(Substitution),
+        Table(TableLiteral),
+        List(ListLiteral),
+        Number(f64),
+        InterpolatedString(InterpolatedString),
+        String(String),
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemberAccess(pub Box<Expr>, pub String);
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CvarReference(pub String);
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CvarScope {
     pub name: CvarReference,
     pub value: Box<Expr>,
@@ -138,7 +151,6 @@ pub struct CvarScope {
 
 /// Value substitution.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Substitution {
     /// A format substitution with a variable and parameters, such as `${foo:.2}`.
     ///
@@ -157,18 +169,15 @@ pub enum Substitution {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TableLiteral(pub Vec<TableEntry>);
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TableEntry {
     pub key: Expr,
     pub value: Expr
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ListLiteral(pub Vec<Expr>);
 
 /// An interpolated string literal.
@@ -176,22 +185,15 @@ pub struct ListLiteral(pub Vec<Expr>);
 /// An interpolated string is made up of a sequence of parts that, when stringified and concatenated in order, form the
 /// desired string value.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InterpolatedString(pub Vec<InterpolatedStringPart>);
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(untagged),
-)]
 pub enum InterpolatedStringPart {
     String(String),
     Substitution(Substitution),
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RegexLiteral(pub String);
 
 impl fmt::Display for RegexLiteral {

@@ -172,7 +172,7 @@ impl AsRef<[u8]> for SourceFile {
 }
 
 /// A byte position in a source file.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub struct Position {
     /// Line number, zero-based.
     line: usize,
@@ -193,13 +193,19 @@ impl Position {
     }
 }
 
+impl fmt::Debug for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.line(), self.column())
+    }
+}
+
 impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.line(), self.column())
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Span {
     /// The file this span belongs to.
     file: SourceFile,
@@ -240,6 +246,12 @@ impl Span {
             end: self.file.get_position(end)?,
             file: self.file.clone(),
         })
+    }
+}
+
+impl fmt::Debug for Span {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Span({:?}, {:?})", self.start, self.end)
     }
 }
 

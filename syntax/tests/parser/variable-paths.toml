@@ -5,34 +5,67 @@ println $mytable
 println $mytable->'key with spaces'->bar
 '''
 ast = '''
-Block(
+Block {
+    span: Some(
+        Span(5:1, 5:92),
+    ),
     named_params: None,
     vararg_param: None,
     statements: [
-        Pipeline(Pipeline([
-            UnnamedCall(
-                function: MemberAccess(MemberAccess(Variable("lang"), "ext"), "panic"),
-                args: [
-                    Expr("hello world"),
-                ],
-            ),
-        ])),
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "println",
-                args: [
-                    Expr(Variable("mytable")),
-                ],
-            ),
-        ])),
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "println",
-                args: [
-                    Expr(MemberAccess(MemberAccess(Variable("mytable"), "key with spaces"), "bar")),
-                ],
-            ),
-        ])),
+        Pipeline(
+            [
+                Unnamed {
+                    function: MemberAccess(
+                        MemberAccess(
+                            Variable(
+                                "lang",
+                            ),
+                            "ext",
+                        ),
+                        "panic",
+                    ),
+                    args: [
+                        Expr(
+                            "hello world",
+                        ),
+                    ],
+                },
+            ],
+        ),
+        Pipeline(
+            [
+                Named {
+                    function: "println",
+                    args: [
+                        Expr(
+                            Variable(
+                                "mytable",
+                            ),
+                        ),
+                    ],
+                },
+            ],
+        ),
+        Pipeline(
+            [
+                Named {
+                    function: "println",
+                    args: [
+                        Expr(
+                            MemberAccess(
+                                MemberAccess(
+                                    Variable(
+                                        "mytable",
+                                    ),
+                                    "key with spaces",
+                                ),
+                                "bar",
+                            ),
+                        ),
+                    ],
+                },
+            ],
+        ),
     ],
-)
+}
 '''

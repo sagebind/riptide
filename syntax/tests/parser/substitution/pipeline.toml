@@ -2,23 +2,34 @@ source = '''
 println $(foo)
 '''
 ast = '''
-Block(
+Block {
+    span: Some(
+        Span(2:1, 2:16),
+    ),
     named_params: None,
     vararg_param: None,
     statements: [
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "println",
-                args: [
-                    Expr(Pipeline(Pipeline([
-                        NamedCall(
-                            function: "foo",
-                            args: [],
+        Pipeline(
+            [
+                Named {
+                    function: "println",
+                    args: [
+                        Expr(
+                            Pipeline(
+                                Pipeline(
+                                    [
+                                        Named {
+                                            function: "foo",
+                                            args: [],
+                                        },
+                                    ],
+                                ),
+                            ),
                         ),
-                    ]))),
-                ],
-            ),
-        ])),
+                    ],
+                },
+            ],
+        ),
     ],
-)
+}
 '''

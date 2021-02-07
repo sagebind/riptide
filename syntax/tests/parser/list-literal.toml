@@ -8,34 +8,49 @@ println [
 ]
 '''
 ast = '''
-Block(
+Block {
+    span: Some(
+        Span(8:1, 8:48),
+    ),
     named_params: None,
     vararg_param: None,
     statements: [
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "println",
-                args: [
-                    Expr(ListLiteral([
-                        "a",
-                        "b",
-                        "c",
-                    ])),
-                ],
-            ),
-        ])),
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "println",
-                args: [
-                    Expr(ListLiteral([
-                        1,
-                        2,
-                        3,
-                    ])),
-                ],
-            ),
-        ])),
+        Pipeline(
+            [
+                Named {
+                    function: "println",
+                    args: [
+                        Expr(
+                            ListLiteral(
+                                [
+                                    "a",
+                                    "b",
+                                    "c",
+                                ],
+                            ),
+                        ),
+                    ],
+                },
+            ],
+        ),
+        Pipeline(
+            [
+                Named {
+                    function: "println",
+                    args: [
+                        Expr(
+                            ListLiteral(
+                                [
+                                    1.0,
+                                    2.0,
+                                    3.0,
+                                ],
+                            ),
+                        ),
+                    ],
+                },
+            ],
+        ),
     ],
-)
+}
 '''

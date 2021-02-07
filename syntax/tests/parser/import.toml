@@ -2,16 +2,21 @@ source = '''
 import 'std/lang' for println
 '''
 ast = '''
-Block(
+Block {
+    span: Some(
+        Span(2:1, 2:31),
+    ),
     named_params: None,
     vararg_param: None,
     statements: [
-        Import(ImportStatement(
+        ImportStatement {
             path: "std/lang",
-            clause: Items([
-                "println",
-            ]),
-        )),
+            clause: Items(
+                [
+                    "println",
+                ],
+            ),
+        },
     ],
-)
+}
 '''

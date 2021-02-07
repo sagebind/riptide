@@ -3,7 +3,6 @@ use riptide_syntax::{
     parse,
     source::*,
 };
-use serde::Serialize;
 use std::{
     env,
     fs,
@@ -57,9 +56,7 @@ fn parser_test(path: &str) {
 }
 
 fn serialize_ast(ast: &ast::Block) -> String {
-    let mut serializer = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), true);
-    ast.serialize(&mut serializer).unwrap();
-    serializer.into_output_string()
+    format!("{:#?}", ast)
 }
 
 fn is_false(b: &bool) -> bool {

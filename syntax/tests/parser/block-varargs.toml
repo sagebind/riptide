@@ -4,29 +4,43 @@ call <...args> {
 }
 '''
 ast = '''
-Block(
+Block {
+    span: Some(
+        Span(4:1, 4:32),
+    ),
     named_params: None,
     vararg_param: None,
     statements: [
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "call",
-                args: [
-                    Expr(Block(
-                        named_params: None,
-                        vararg_param: Some("args"),
-                        statements: [
-                            Pipeline(Pipeline([
-                                NamedCall(
-                                    function: "println",
-                                    args: [],
+        Pipeline(
+            [
+                Named {
+                    function: "call",
+                    args: [
+                        Expr(
+                            Block {
+                                span: Some(
+                                    Span(4:6, 4:31),
                                 ),
-                            ])),
-                        ],
-                    )),
-                ],
-            ),
-        ])),
+                                named_params: None,
+                                vararg_param: Some(
+                                    "args",
+                                ),
+                                statements: [
+                                    Pipeline(
+                                        [
+                                            Named {
+                                                function: "println",
+                                                args: [],
+                                            },
+                                        ],
+                                    ),
+                                ],
+                            },
+                        ),
+                    ],
+                },
+            ],
+        ),
     ],
-)
+}
 '''

@@ -2,18 +2,25 @@ source = '''
 println 'hello world'
 '''
 ast = '''
-Block(
+Block {
+    span: Some(
+        Span(2:1, 2:23),
+    ),
     named_params: None,
     vararg_param: None,
     statements: [
-        Pipeline(Pipeline([
-            NamedCall(
-                function: "println",
-                args: [
-                    Expr("hello world"),
-                ],
-            ),
-        ])),
+        Pipeline(
+            [
+                Named {
+                    function: "println",
+                    args: [
+                        Expr(
+                            "hello world",
+                        ),
+                    ],
+                },
+            ],
+        ),
     ],
-)
+}
 '''

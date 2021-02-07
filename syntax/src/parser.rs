@@ -22,9 +22,9 @@ pub fn parse(source_file: impl Into<SourceFile>) -> Result<Block, ParseError> {
     let mut pair = match grammar::parse(source_file.source_text(), Rule::program) {
         Ok(pair) => pair,
         Err(e) => {
-            let span = match e.line_col {
-                pest::error::LineColLocation::Pos((start, end)) => source_file.slice(start, end).unwrap(),
-                _ => unimplemented!(),
+            let span = match e.location {
+                pest::error::InputLocation::Pos(offset) => source_file.slice(offset, offset).unwrap(),
+                pest::error::InputLocation::Span((start, end)) => source_file.slice(start, end).unwrap(),
             };
 
             return Err(ParseError::from_pest(span, e));
