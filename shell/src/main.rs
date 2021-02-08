@@ -74,7 +74,11 @@ impl Options {
 /// Entrypoint of the program. This just does some boring setup and teardown
 /// around the real main body of the program.
 fn main() {
-    logger::init();
+    // Parse command line args.
+    let options = Options::from_args();
+
+    // Initialize logging.
+    logger::init(options.log_level_filter());
     log_panics::init();
 
     // Create a single-threaded Tokio runtime, which drives the async Riptide
@@ -85,7 +89,7 @@ fn main() {
         .unwrap();
 
     // Run real main and capture the exit code.
-    let exit_code = rt.block_on(real_main());
+    let exit_code = rt.block_on(real_main(options));
 
     // Cleanup the runtime before exiting.
     drop(rt);
@@ -98,13 +102,7 @@ fn main() {
 }
 
 /// Main program body.
-async fn real_main() -> Option<i32> {
-    // Parse command line args.
-    let options = Options::from_args();
-
-    // Adjust logging settings based on args.
-    log::set_max_level(options.log_level_filter());
-
+async fn real_main(options: Options) -> Option<i32> {
     let mut fiber = create_runtime().await;
 
     // If at least one command is given, execute those in order and exit.

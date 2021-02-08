@@ -131,7 +131,7 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin, C: Completer> Editor
                     }
                 }
                 Event::Left | Event::Ctrl('b') => {
-                editor.buffer.move_cursor_relative(-1);
+                    editor.buffer.move_cursor_relative(-1);
                 }
                 Event::Right | Event::Ctrl('f') => {
                     editor.buffer.move_cursor_relative(1);
