@@ -220,15 +220,17 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin, C: Completer> Editor
         if !self.buffer.is_empty() {
             if let Some(suggestion) = self.completer.complete_one(self.buffer.text()) {
                 if let Some(suffix) = suggestion.strip_prefix(self.buffer.text()) {
-                    self.stdout
-                        .write_all(format!("{}", Paint::new(suffix).dimmed()).as_bytes())
-                        .await
-                        .unwrap();
+                    if !suffix.is_empty() {
+                        self.stdout
+                            .write_all(format!("{}", Paint::new(suffix).dimmed()).as_bytes())
+                            .await
+                            .unwrap();
 
-                    self.stdout
-                        .command(Command::MoveCursorLeft(suffix.len()))
-                        .await
-                        .unwrap();
+                        self.stdout
+                            .command(Command::MoveCursorLeft(suffix.len()))
+                            .await
+                            .unwrap();
+                    }
                 }
             }
         }

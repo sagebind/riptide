@@ -5,7 +5,10 @@ use log::{
     Metadata,
     Record,
 };
-use std::net::UdpSocket;
+use std::{
+    net::UdpSocket,
+    thread,
+};
 
 pub fn init(level: LevelFilter) {
     let console_logger: Box<dyn Log> = if atty::is(atty::Stream::Stderr) {
@@ -17,10 +20,7 @@ pub fn init(level: LevelFilter) {
     // Enable debug port for debug builds.
     if cfg!(debug_assertions) {
         log::set_max_level(LevelFilter::Trace);
-        log::set_boxed_logger(Box::new(UdpLogger {
-            socket: UdpSocket::bind("127.0.0.1:0").unwrap(),
-            inner: console_logger,
-        })).unwrap();
+        log::set_boxed_logger(Box::new(UdpLogger::new(console_logger))).unwrap();
     } else {
         log::set_max_level(level);
         log::set_boxed_logger(console_logger).unwrap();
@@ -31,8 +31,26 @@ pub fn init(level: LevelFilter) {
 /// tool like `socat`, this allows you to read even noisy debug logs without
 /// messing up the interactive shell.
 struct UdpLogger<L> {
-    socket: UdpSocket,
+    sender: flume::Sender<String>,
     inner: L,
+}
+
+impl<L> UdpLogger<L> {
+    fn new(inner: L) -> Self {
+        let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
+        let (sender, receiver) = flume::bounded::<String>(1024);
+
+        thread::spawn(move || {
+            for record in receiver.iter() {
+                let _ = socket.send_to(record.as_bytes(), "127.0.0.1:1234");
+            }
+        });
+
+        Self {
+            sender,
+            inner,
+        }
+    }
 }
 
 impl<L: Log> Log for UdpLogger<L> {
@@ -41,10 +59,7 @@ impl<L: Log> Log for UdpLogger<L> {
     }
 
     fn log(&self, record: &Record) {
-        let line = format!("{}: {}\n", record.level(), record.args());
-
-        let _ = self.socket.send_to(line.as_bytes(), "127.0.0.1:1234");
-
+        let _ = self.sender.send(format!("{}: {}\n", record.level(), record.args()));
         self.inner.log(record);
     }
 
