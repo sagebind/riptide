@@ -40,6 +40,10 @@ impl Buffer {
         self.cursor
     }
 
+    pub fn cursor_is_at_end_of_line(&self) -> bool {
+        self.cursor == self.text.len()
+    }
+
     /// Move the cursor to the given position.
     ///
     /// Returns the new cursor position. The actual position may differ if the requested position was beyond the end of

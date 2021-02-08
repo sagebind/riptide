@@ -134,7 +134,21 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin, C: Completer> Editor
                     editor.buffer.move_cursor_relative(-1);
                 }
                 Event::Right | Event::Ctrl('f') => {
-                    editor.buffer.move_cursor_relative(1);
+                    if editor.buffer.cursor_is_at_end_of_line() {
+                        // If the cursor is already at the end of the line, then
+                        // fill in the current suggested command, if any.
+                        // TODO: Only compute suggestion one time each event.
+                        if let Some(suggestion) = editor.completer.complete_one(editor.buffer.text()) {
+                            if let Some(suffix) = suggestion.strip_prefix(editor.buffer.text()) {
+                                if !suffix.is_empty() {
+                                    editor.buffer.insert_str(suffix);
+                                }
+                            }
+                        }
+                    } else {
+                        // Advance the cursor right as normal.
+                        editor.buffer.move_cursor_relative(1);
+                    }
                 }
                 Event::Up => {
                     let history = editor.history.clone();
