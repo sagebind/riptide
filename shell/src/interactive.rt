@@ -3,3 +3,7 @@
 
 import 'builtins' for *
 import 'std/fs' for glob
+
+$GLOBALS->ls = <...args> {
+    command ls -FHl --human-readable --color=always --group-directories-first ...$args
+}
