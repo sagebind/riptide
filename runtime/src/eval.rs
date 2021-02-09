@@ -174,7 +174,7 @@ async fn evaluate_statement(fiber: &mut Fiber, statement: Statement) -> Result<V
 }
 
 async fn evaluate_import_statement(fiber: &mut Fiber, statement: ImportStatement) -> Result<(), Exception> {
-    let module_contents = fiber.load_module(statement.path.as_bytes()).await?;
+    let module_contents = fiber.load_module(statement.path.as_str()).await?;
 
     match statement.clause {
         ImportClause::Items(imports) => {

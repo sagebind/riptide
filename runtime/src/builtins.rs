@@ -11,8 +11,8 @@ use crate::{
 use riptide_syntax::source::SourceFile;
 use std::convert::TryInto;
 
-pub fn get() -> Table {
-    table! {
+pub(crate) fn load_module() -> Result<Value, Exception> {
+    Ok(table! {
         "backtrace" => Value::ForeignFn(backtrace.into()),
         "call" => Value::ForeignFn(call.into()),
         "cd" => Value::ForeignFn(cd.into()),
@@ -25,7 +25,7 @@ pub fn get() -> Table {
         "throw" => Value::ForeignFn(throw.into()),
         "try" => Value::ForeignFn(try_fn.into()),
         "typeof" => Value::ForeignFn(type_of.into()),
-    }
+    }.into())
 }
 
 /// Changes the current working directory of the current process.

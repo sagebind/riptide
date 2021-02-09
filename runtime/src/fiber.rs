@@ -4,10 +4,11 @@ use super::{
 };
 use crate::{
     io::{IoContext, Input, Output},
+    modules::{ModuleIndex, NativeModule},
     syntax::source::SourceFile,
 };
 use gc::Gc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{rc::Rc, sync::atomic::{AtomicUsize, Ordering}};
 
 /// This is the name of the hidden global variable that exit code requests are
 /// stored in.
@@ -23,10 +24,11 @@ fn next_pid() -> usize {
 /// multiple call stacks to be tracked when executing parallel pipelines.
 ///
 /// Fibers are scheduled co-operatively on a single main thread.
-#[derive(Debug)]
 pub struct Fiber {
     /// A short identifier for this fiber, for diagnostic purposes.
     pid: usize,
+
+    module_index: Rc<ModuleIndex>,
 
     /// Table where global values are stored that are not on the stack.
     globals: Table,
@@ -43,6 +45,7 @@ impl Fiber {
     pub(crate) fn new(io_cx: IoContext) -> Self {
         let fiber = Self {
             pid: next_pid(),
+            module_index: Rc::new(ModuleIndex::default()),
             globals: Default::default(),
             stack: Vec::new(),
             io: io_cx,
@@ -77,6 +80,7 @@ impl Fiber {
     pub fn fork(&self) -> Self {
         let fork = Self {
             pid: next_pid(),
+            module_index: self.module_index.clone(),
             globals: self.globals.clone(),
             stack: self.stack.clone(),
             io: self.io.try_clone().unwrap(),
@@ -213,37 +217,17 @@ impl Fiber {
         self.stack.iter().rev()
     }
 
-    pub(crate) async fn load_module(&mut self, name: impl AsRef<bstr::BStr>) -> Result<Value, Exception> {
-        let name = name.as_ref();
+    /// Register a module implemented in native code.
+    pub fn register_native_module<N, M>(&self, name: N, module: M)
+    where
+        N: Into<String>,
+        M: NativeModule + 'static,
+    {
+        self.module_index.register_native_module(name, module);
+    }
 
-        // The magic name "builtins" always returns the builtins module.
-        if name == "builtins" {
-            return Ok(crate::builtins::get().into());
-        }
-
-        match self.globals().get("modules").get("loaded").get(name) {
-            Value::Nil => {}
-            value => return Ok(value),
-        }
-
-        log::debug!("module '{}' not defined, calling loader chain", name);
-
-        if let Some(loaders) = self.globals().get("modules").get("loaders").as_list() {
-            for loader in loaders {
-                let args = [Value::from(name.clone())];
-                match self.invoke(loader, &args).await {
-                    Ok(Value::Nil) => continue,
-                    Err(exception) => return Err(exception),
-                    Ok(value) => {
-                        self.globals().get("modules").get("loaded").as_table().unwrap().set(name.clone(), value.clone());
-
-                        return Ok(value);
-                    }
-                }
-            }
-        }
-
-        throw!("module '{}' not found", name)
+    pub(crate) async fn load_module(&mut self, name: &str) -> Result<Value, Exception> {
+        self.module_index.clone().load(self, name).await
     }
 }
 

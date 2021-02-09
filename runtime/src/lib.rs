@@ -60,10 +60,6 @@ pub async fn init() -> Result<Fiber, Exception> {
     // Run the first bootstrap script
     fiber.execute(None, include_str!("init.rt")).await?;
 
-    // Register predefined module loaders
-    fiber.register_module_loader(modules::relative_loader);
-    fiber.register_module_loader(modules::system_loader);
-
     log::debug!("runtime took {:?} to initialize", start_time.elapsed());
 
     Ok(fiber)
