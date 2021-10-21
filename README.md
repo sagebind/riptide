@@ -14,6 +14,12 @@ Riptide is currently in rough development, so expect many things to not work cor
 - [Guide]: For beginners
 - [Reference]: In-depth language overview
 
+## Sponsors
+
+Special thanks to sponsors of my open-source work!
+
+<!-- sponsors --><a href="https://github.com/da-moon"><img src="https://github.com/da-moon.png" width="60px" alt="da-moon" /></a><!-- sponsors -->
+
 ## License
 
 The Riptide project is licensed under the MIT license. See the [LICENSE](LICENSE) file for details.
