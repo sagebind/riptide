@@ -6,7 +6,7 @@ description = "The Riptide programming language interpreter"
 edition = "2018"
 
 [dependencies]
-async-recursion = "0.3"
+async-recursion = "1.0"
 atty = "0.2"
 bstr = "0.2"
 directories = "3.0"
