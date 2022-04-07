@@ -18,7 +18,7 @@ Riptide is currently in rough development, so expect many things to not work cor
 
 Special thanks to sponsors of my open-source work!
 
-<!-- sponsors --><a href="https://github.com/da-moon"><img src="https://github.com/da-moon.png" width="60px" alt="da-moon" /></a><!-- sponsors -->
+<!-- sponsors --><!-- sponsors -->
 
 ## License
 
