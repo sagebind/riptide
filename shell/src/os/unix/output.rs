@@ -12,6 +12,7 @@ pub struct TerminalOutput<O: AsRawFd> {
     stdout: O,
     normal_termios: Termios,
     raw_termios: Termios,
+    is_alt_buffer: bool,
 }
 
 impl<O: AsRawFd> TerminalOutput<O> {
@@ -24,24 +25,47 @@ impl<O: AsRawFd> TerminalOutput<O> {
             stdout,
             normal_termios,
             raw_termios,
+            is_alt_buffer: false,
         })
     }
 
-    pub fn set_raw_mode(&mut self, raw: bool) -> io::Result<()> {
-        if raw {
-            termios::tcsetattr(self.as_raw_fd(), 0, &self.raw_termios)
-        } else {
-            termios::tcsetattr(self.as_raw_fd(), 0, &self.normal_termios)
+    pub fn enter_raw_mode(&mut self) -> impl Drop {
+        struct RawGuard(RawFd, Termios);
+
+        impl Drop for RawGuard {
+            fn drop(&mut self) {
+                termios::tcsetattr(self.0, 0, &self.1).unwrap();
+            }
         }
+
+        termios::tcsetattr(self.as_raw_fd(), 0, &self.raw_termios).unwrap();
+
+        RawGuard(self.as_raw_fd(), self.normal_termios.clone())
     }
 }
 
 impl<O: AsyncWrite + AsRawFd + Unpin> TerminalOutput<O> {
     pub async fn command(&mut self, command: Command) -> io::Result<()> {
-        self.write_all(match command {
-            Command::ClearAfterCursor => String::from("\x1b[J"),
-            Command::MoveCursorLeft(n) => format!("\x1b[{}D", n),
-        }.as_bytes()).await
+        match command {
+            Command::Clear => self.write_all(b"\x1b[2J").await,
+            Command::ClearAfterCursor => self.write_all(b"\x1b[J").await,
+            Command::MoveCursorLeft(n) => self.write_all(format!("\x1b[{}D", n).as_bytes()).await,
+            Command::MoveCursorToAbsolute(x, y) => self.write_all(format!("\x1b[{};{}H", x, y).as_bytes()).await,
+            Command::EnableAlternateBuffer => {
+                if !self.is_alt_buffer {
+                    self.write_all(b"\x1b[1049h").await?;
+                    self.is_alt_buffer = true;
+                }
+                Ok(())
+            },
+            Command::DisableAlternateBuffer => {
+                if self.is_alt_buffer {
+                    self.write_all(b"\x1b[1049l").await?;
+                    self.is_alt_buffer = false;
+                }
+                Ok(())
+            }
+        }
     }
 }
 
@@ -80,6 +104,6 @@ impl<O: AsRawFd> AsRawFd for TerminalOutput<O> {
 
 impl<O: AsRawFd> Drop for TerminalOutput<O> {
     fn drop(&mut self) {
-        self.set_raw_mode(false).ok();
+        let _ = termios::tcsetattr(self.as_raw_fd(), 0, &self.normal_termios);
     }
 }

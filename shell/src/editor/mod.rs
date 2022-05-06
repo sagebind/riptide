@@ -1,3 +1,5 @@
+//! The Editor is the user interface component of the Riptide shell.
+
 use crate::{
     buffer::Buffer,
     completion::Completer,
@@ -16,7 +18,9 @@ use yansi::Paint;
 
 pub mod command;
 pub mod event;
+mod history_browser;
 pub mod prompt;
+pub mod scene;
 
 /// Controls the interactive command line editor.
 pub struct Editor<I, O: AsRawFd, C> {
@@ -27,6 +31,10 @@ pub struct Editor<I, O: AsRawFd, C> {
     history_cursor: Option<EntryCursor>,
     completer: C,
     buffer: Buffer,
+
+    // A stack of scenes. The topmost scene is the active one and receives all
+    // user input.
+    scene_stack: Vec<Box<dyn scene::Scene>>,
 }
 
 pub enum ReadLine {
@@ -44,12 +52,17 @@ impl<I, O: AsRawFd, C> Editor<I, O, C> {
             history_cursor: None,
             completer,
             buffer: Buffer::new(),
+            scene_stack: Vec::new(),
         }
     }
 
     // TODO: Determine how this is configured.
     fn get_theme(&self) -> Theme {
         Theme::default()
+    }
+
+    fn push_scene<S: scene::Scene + 'static>(&mut self, scene: S) {
+        self.scene_stack.push(Box::new(scene));
     }
 
     async fn get_prompt_str(&self, fiber: &mut Fiber) -> String {
@@ -112,111 +125,165 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin, C: Completer> Editor
         self.stdout.write_all(prompt.as_bytes()).await.unwrap();
         self.stdout.flush().await.unwrap();
 
-        let mut editor = scopeguard::guard(self, |editor| {
-            editor.stdout.set_raw_mode(false).unwrap();
-        });
-
         // Enter raw mode.
-        editor.stdout.set_raw_mode(true).unwrap();
+        let _raw_guard = self.stdout.enter_raw_mode();
 
         // Handle keyboard events.
-        while let Ok(event) = editor.stdin.next_event().await {
+        while let Ok(event) = self.stdin.next_event().await {
             log::trace!("event: {:?}", event);
-            match event {
-                Event::Char('\n') => {
-                    editor.stdout.write_all(b"\r\n").await.unwrap();
 
-                    if !editor.buffer.text().is_empty() {
-                        break;
-                    }
-                }
-                Event::Left | Event::Ctrl('b') => {
-                    editor.buffer.move_cursor_relative(-1);
-                }
-                Event::Right | Event::Ctrl('f') => {
-                    if editor.buffer.cursor_is_at_end_of_line() {
-                        // If the cursor is already at the end of the line, then
-                        // fill in the current suggested command, if any.
-                        // TODO: Only compute suggestion one time each event.
-                        if let Some(suggestion) = editor.completer.complete_one(editor.buffer.text()) {
-                            if let Some(suffix) = suggestion.strip_prefix(editor.buffer.text()) {
-                                if !suffix.is_empty() {
-                                    editor.buffer.insert_str(suffix);
-                                }
-                            }
-                        }
-                    } else {
-                        // Advance the cursor right as normal.
-                        editor.buffer.move_cursor_relative(1);
-                    }
-                }
-                Event::Up => {
-                    let history = editor.history.clone();
+            match self.on_event(event).await {
+                Some(ReadLine::Input(text)) => {
+                    self.history_cursor = None;
 
-                    match editor.history_cursor.get_or_insert_with(|| history.entries()).next() {
-                        Some(entry) => {
-                            // TODO: Save buffer for later if user wants to return to
-                            // what they typed.
-                            editor.buffer.clear();
-                            editor.buffer.insert_str(entry.command());
-                        }
-                        None => {
-                            // TODO
-                        }
-                    }
-                }
-                Event::Down => {
-                    if let Some(mut cursor) = editor.history_cursor.take() {
-                        editor.buffer.clear();
+                    // Record line to history.
+                    self.history_session.add(&text);
 
-                        if let Some(entry) = cursor.prev() {
-                            editor.buffer.insert_str(entry.command());
-                            editor.history_cursor = Some(cursor);
-                        }
-                    }
-
-                    // TODO: Restore original buffer
+                    return ReadLine::Input(text);
                 }
-                Event::Home | Event::Ctrl('a') => {
-                    editor.buffer.move_to_start_of_line();
-                }
-                Event::End | Event::Ctrl('e') => {
-                    editor.buffer.move_to_end_of_line();
-                }
-                Event::Char(c) => {
-                    editor.buffer.insert_char(c);
-                }
-                Event::Backspace => {
-                    editor.buffer.delete_before_cursor();
-                }
-                Event::Delete => {
-                    editor.buffer.delete_after_cursor();
-                }
-                Event::Ctrl('c') => {
-                    editor.buffer.clear();
-                }
-                Event::Ctrl('d') | Event::Eof => {
-                    if editor.buffer.is_empty() {
-                        return ReadLine::Eof;
-                    }
-                }
-                _ => {}
+                Some(r) => return r,
+                None => {}
             }
 
-            editor.redraw(fiber).await;
+            self.render(fiber).await;
         }
 
-        editor.history_cursor = None;
+        panic!()
+    }
 
-        // Record line to history.
-        editor.history_session.add(editor.buffer.text());
+    async fn on_event(&mut self, event: Event) -> Option<ReadLine> {
+        let mut ctx = scene::SceneContext::default();
+        let mut handled = false;
 
-        // Move the command line out of out buffer and return it.
-        ReadLine::Input(editor.buffer.take_text())
+        if let Some(scene) = self.scene_stack.last_mut() {
+            scene.on_input(&mut ctx, event);
+            handled = true;
+        }
+
+        if ctx.close {
+            self.scene_stack.pop();
+        }
+
+        if handled {
+            return None;
+        }
+
+        match event {
+            Event::Char('\n') => {
+                self.stdout.write_all(b"\r\n").await.unwrap();
+
+                if !self.buffer.text().is_empty() {
+                    // Move the command line out of out buffer and return it.
+                    return Some(ReadLine::Input(self.buffer.take_text()));
+                }
+            }
+            Event::Left | Event::Ctrl('b') => {
+                self.buffer.move_cursor_relative(-1);
+            }
+            Event::Right | Event::Ctrl('f') => {
+                if self.buffer.cursor_is_at_end_of_line() {
+                    // If the cursor is already at the end of the line, then
+                    // fill in the current suggested command, if any.
+                    // TODO: Only compute suggestion one time each event.
+                    if let Some(suggestion) = self.completer.complete_one(self.buffer.text()) {
+                        if let Some(suffix) = suggestion.strip_prefix(self.buffer.text()) {
+                            if !suffix.is_empty() {
+                                self.buffer.insert_str(suffix);
+                            }
+                        }
+                    }
+                } else {
+                    // Advance the cursor right as normal.
+                    self.buffer.move_cursor_relative(1);
+                }
+            }
+            Event::Up => {
+                let history = self.history.clone();
+
+                match self.history_cursor.get_or_insert_with(|| history.entries()).next() {
+                    Some(entry) => {
+                        // TODO: Save buffer for later if user wants to return to
+                        // what they typed.
+                        self.buffer.clear();
+                        self.buffer.insert_str(entry.command());
+                    }
+                    None => {
+                        // TODO
+                    }
+                }
+            }
+            Event::Down => {
+                if let Some(mut cursor) = self.history_cursor.take() {
+                    self.buffer.clear();
+
+                    if let Some(entry) = cursor.prev() {
+                        self.buffer.insert_str(entry.command());
+                        self.history_cursor = Some(cursor);
+                    }
+                }
+
+                // TODO: Restore original buffer
+            }
+            Event::Home | Event::Ctrl('a') => {
+                self.buffer.move_to_start_of_line();
+            }
+            Event::End | Event::Ctrl('e') => {
+                self.buffer.move_to_end_of_line();
+            }
+            Event::Char(c) => {
+                self.buffer.insert_char(c);
+            }
+            Event::Backspace => {
+                self.buffer.delete_before_cursor();
+            }
+            Event::Delete => {
+                self.buffer.delete_after_cursor();
+            }
+            Event::Ctrl('c') => {
+                self.buffer.clear();
+            }
+            Event::Ctrl('d') | Event::Eof => {
+                if self.buffer.is_empty() {
+                    return Some(ReadLine::Eof);
+                }
+            }
+            Event::Ctrl('h') => {
+                self.push_scene(history_browser::HistoryBrowser::default());
+            }
+            _ => {}
+        }
+
+        None
     }
 
     /// Redraw the buffer.
-    pub async fn redraw(&mut self, fiber: &mut Fiber) {
+    pub async fn render(&mut self, fiber: &mut Fiber) {
+        if let Some(scene) = self.scene_stack.last() {
+            // TODO: Alt buffer should depend on the scene.
+            self.stdout
+                .command(Command::EnableAlternateBuffer)
+                .await
+                .unwrap();
+            self.stdout
+                .command(Command::Clear)
+                .await
+                .unwrap();
+            self.stdout
+                .command(Command::MoveCursorToAbsolute(1, 1))
+                .await
+                .unwrap();
+
+            let buffer = scene.render();
+            self.stdout.write_all(buffer.as_bytes()).await.unwrap();
+
+            return;
+        } else {
+            self.stdout
+                .command(Command::DisableAlternateBuffer)
+                .await
+                .unwrap();
+        }
+
         let prompt = self.get_prompt_str(fiber).await;
 
         // Render the current buffer text.
