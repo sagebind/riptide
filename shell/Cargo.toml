@@ -16,7 +16,7 @@ lazy_static = "1"
 scopeguard = "1.1"
 structopt = "0.3"
 syslog = "5"
-toml = "0.5"
+toml = "0.7"
 yansi = "0.5"
 
 [dependencies.log]
