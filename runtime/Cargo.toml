@@ -1,19 +1,21 @@
 [package]
 name = "riptide-runtime"
-version = "0.2.0"
-authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "The Riptide programming language interpreter"
-edition = "2021"
 rust-version = "1.70.0"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
 
 [dependencies]
 async-recursion = "1.0"
 bstr = "1.9"
 directories = "3.0"
 futures = "0.3"
-log = "0.4"
+log.workspace = true
 regex = "1.10"
-scopeguard = "1.2"
+riptide-syntax.path = "../syntax"
+scopeguard.workspace = true
 tokio-pipe = "0.2"
 
 [dependencies.gc]
@@ -24,11 +26,8 @@ features = ["derive"]
 version = "0.27"
 features = ["fs", "process"]
 
-[dependencies.riptide-syntax]
-path = "../syntax"
-
 [dependencies.tokio]
-version = "1.2"
+workspace = true
 features = [
     "fs",
     "io-std",

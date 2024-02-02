@@ -1,9 +1,10 @@
 [package]
 name = "riptide-shell"
-version = "0.2.0"
-authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "The Riptide programming language interpreter"
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
 
 [dependencies]
 clipboard = "0.5"
@@ -11,7 +12,9 @@ directories = "3.0"
 exitcode = "1.1"
 flume = "0.11"
 futures = "0.3"
-scopeguard = "1.2"
+riptide-runtime.path = "../runtime"
+riptide-stdlib.path = "../stdlib"
+scopeguard.workspace = true
 syslog = "6"
 toml = "0.8"
 yansi = "0.5"
@@ -21,29 +24,23 @@ version = "4.4"
 features = ["derive"]
 
 [dependencies.log]
-version = "0.4"
+workspace = true
 features = ["std"]
 
 [dependencies.log-panics]
 version = "2.1"
 features = ["with-backtrace"]
 
-[dependencies.riptide-runtime]
-path = "../runtime"
-
-[dependencies.riptide-stdlib]
-path = "../stdlib"
-
 [dependencies.rusqlite]
 version = "0.25"
 features = ["bundled"]
 
 [dependencies.serde]
-version = "1"
+workspace = true
 features = ["derive"]
 
 [dependencies.tokio]
-version = "1.2"
+workspace = true
 features = [
     "io-util",
     "process",

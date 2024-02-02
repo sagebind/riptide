@@ -1,3 +1,17 @@
 [workspace]
 resolver = "2"
 members = ["runtime", "shell", "stdlib", "syntax"]
+default-members = ["shell"]
+
+[workspace.package]
+version = "0.2.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+license = "MIT"
+edition = "2021"
+
+# Dependency versions used by multiple crates.
+[workspace.dependencies]
+log = "0.4"
+scopeguard = "1.2"
+serde = "1"
+tokio = "1.2"

@@ -1,19 +1,18 @@
 [package]
 name = "riptide-stdlib"
-version = "0.2.0"
-authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "The Riptide standard library"
-edition = "2021"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
 
 [dependencies]
 glob = "0.3"
-log = "0.4"
-
-[dependencies.riptide-runtime]
-path = "../runtime"
+log.workspace = true
+riptide-runtime.path = "../runtime"
 
 [dependencies.tokio]
-version = "1.2"
+workspace = true
 features = [
     "fs",
     "io-util",

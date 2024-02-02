@@ -1042,7 +1042,7 @@ dependencies = [
  "syslog",
  "termios",
  "tokio",
- "toml 0.8.9",
+ "toml",
  "vte",
  "yansi",
 ]
@@ -1070,7 +1070,7 @@ dependencies = [
  "serde",
  "stderrlog",
  "test-generator",
- "toml 0.5.11",
+ "toml",
 ]
 
 [[package]]
@@ -1402,15 +1402,6 @@ checksum = "f213a84bffbd61b8fa0ba8a044b4bbe35d471d0b518867181e82bd5c15542784"
 dependencies = [
  "libc",
  "tokio",
-]
-
-[[package]]
-name = "toml"
-version = "0.5.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4f7f0dd8d50a853a531c426359045b1998f04219d88799810762cd4ad314234"
-dependencies = [
- "serde",
 ]
 
 [[package]]
