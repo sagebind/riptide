@@ -115,8 +115,8 @@ impl<I: AsyncRead + Unpin> TerminalInput<I> {
             let count = self.stdin.read(&mut buf).await?;
 
             // Parse any events from the input if any.
-            for i in 0..count {
-                self.parse_input(buf[i]);
+            for &byte in buf.iter().take(count) {
+                self.parse_input(byte);
             }
         }
     }

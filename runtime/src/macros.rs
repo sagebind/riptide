@@ -32,7 +32,7 @@ macro_rules! throw {
 /// closure that takes care of lifetime fiddly bits for you.
 #[macro_export]
 macro_rules! foreign_fn {
-    ($(clone $clone:ident),* |$fiber:pat, $args:pat| $block:expr) => {{
+    ($(clone $clone:ident),* |$fiber:pat, $args:ident| $block:expr) => {{
         type LocalBoxFuture<'a, T> = ::std::pin::Pin<Box<dyn ::std::future::Future<Output = T> + 'a>>;
 
         fn constrain<F>(f: F) -> F

@@ -18,9 +18,10 @@ type Number = f64;
 ///
 /// The "scalar" types are stored inline, while more heavyweight types are stored behind a pointer. This keeps the
 /// memory footprint of a value small so it can be copied cheaply.
-#[derive(Clone, gc::Finalize, gc::Trace)]
+#[derive(Clone, Default, gc::Finalize, gc::Trace)]
 pub enum Value {
     /// The "empty" value. This is equivalent to a unit type or "null" in some languages.
+    #[default]
     Nil,
 
     /// A boolean value.
@@ -74,10 +75,7 @@ impl Value {
     }
 
     pub fn is_nil(&self) -> bool {
-        match self {
-            Value::Nil => true,
-            _ => false,
-        }
+        matches!(self, Value::Nil)
     }
 
     /// Determine if this expression is considered a truthy value.
@@ -149,12 +147,6 @@ impl Value {
             },
             _ => None,
         }
-    }
-}
-
-impl Default for Value {
-    fn default() -> Self {
-        Value::Nil
     }
 }
 

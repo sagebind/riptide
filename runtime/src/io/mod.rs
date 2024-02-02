@@ -119,7 +119,7 @@ pub trait Input: AsyncRead + AsRawFd + Unpin + Send {
     /// Create a synchronous clone of this file descriptor for piping with
     /// external processes.
     fn create_stdio(&self) -> io::Result<Stdio> {
-        Ok(unix::dup(self.as_raw_fd())?)
+        unix::dup(self.as_raw_fd())
     }
 
     /// Enable or disable non-blocking mode on this file descriptor. This

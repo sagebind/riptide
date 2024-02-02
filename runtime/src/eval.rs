@@ -58,7 +58,6 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
         bindings,
         cvars,
         parent: closure.scope.clone(),
-        ..Default::default()
     };
 
     // Before attempting to bind args to named params, first define the implicit
@@ -93,7 +92,7 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
 
     // Evaluate each statement in order.
     for statement in closure.block.statements.clone().into_iter() {
-        match evaluate_statement(&mut *fiber, statement).await {
+        match evaluate_statement(*fiber, statement).await {
             Ok(return_value) => last_return_value = return_value,
 
             // Exception thrown; our scope guard from earlier will ensure that
@@ -128,7 +127,7 @@ async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: Vec<Value>
         fiber.stack.pop();
     });
 
-    function.call(&mut *fiber, args).await.map_err(|mut e| {
+    function.call(*fiber, args).await.map_err(|mut e| {
         if e.backtrace.is_empty() {
             e.backtrace = fiber.backtrace().cloned().collect();
         }

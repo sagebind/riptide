@@ -6,12 +6,13 @@ use log::{
     Record,
 };
 use std::{
+    io::IsTerminal,
     net::UdpSocket,
     thread,
 };
 
 pub fn init(level: LevelFilter) {
-    let console_logger: Box<dyn Log> = if atty::is(atty::Stream::Stderr) {
+    let console_logger: Box<dyn Log> = if std::io::stderr().is_terminal() {
         Box::new(ColorLogger { level })
     } else {
         Box::new(PlainLogger { level })

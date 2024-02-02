@@ -70,6 +70,7 @@ impl SourceFile {
 
     /// Get the file size in bytes.
     #[inline]
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.0.buffer.len()
     }

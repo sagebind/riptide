@@ -14,7 +14,7 @@ pub struct ParseError {
 }
 
 enum Variant {
-    Pest(pest::error::Error<Rule>),
+    Pest(Box<pest::error::Error<Rule>>),
     Message(String),
 }
 
@@ -28,7 +28,7 @@ impl ParseError {
 
     pub(crate) fn from_pest(span: Span, error: pest::error::Error<Rule>) -> Self {
         Self {
-            variant: Variant::Pest(error.with_path(span.source_file().name().as_ref())),
+            variant: Variant::Pest(Box::new(error.with_path(span.source_file().name().as_ref()))),
             span,
         }
     }

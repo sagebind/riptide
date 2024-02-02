@@ -3,7 +3,7 @@ name = "riptide-stdlib"
 version = "0.2.0"
 authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
 description = "The Riptide standard library"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 glob = "0.3"

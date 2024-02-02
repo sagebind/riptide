@@ -79,7 +79,7 @@ impl Buffer {
     /// Insert a string after the cursor.
     pub fn insert_str<S: AsRef<str>>(&mut self, string: S) {
         let string = string.as_ref();
-        self.text.insert_str(self.cursor as usize, string);
+        self.text.insert_str(self.cursor, string);
         self.move_cursor_relative(string.len() as isize);
     }
 

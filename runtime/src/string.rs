@@ -153,7 +153,7 @@ impl PartialEq for RipString {
         let rhs = rhs.as_bytes();
 
         // First compare by address.
-        if lhs as *const _ == rhs as *const _ {
+        if std::ptr::eq(lhs, rhs) {
             return true;
         }
 
@@ -188,7 +188,7 @@ impl PartialEq<String> for RipString {
 
 impl PartialOrd for RipString {
     fn partial_cmp(&self, rhs: &Self) -> Option<Ordering> {
-        self.as_bytes().partial_cmp(rhs.as_bytes())
+        Some(self.cmp(rhs))
     }
 }
 

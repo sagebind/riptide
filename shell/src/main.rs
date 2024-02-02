@@ -3,16 +3,16 @@
 #![allow(dead_code)]
 
 use crate::editor::{Editor, ReadLine};
+use clap::Parser;
 use riptide_runtime::{
     prelude::*,
     syntax::source::SourceFile,
 };
 use std::{
-    io::Read,
+    io::{IsTerminal, Read},
     path::{Path, PathBuf},
     process,
 };
-use structopt::StructOpt;
 use tokio::signal;
 
 mod buffer;
@@ -25,26 +25,26 @@ mod paths;
 mod session;
 mod theme;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
+#[command(author, version, about, long_about = None)]
 struct Options {
     /// Evaluate the specified commands
-    #[structopt(short = "c", long = "command")]
+    #[arg(short = 'c', long = "command")]
     commands: Vec<String>,
 
     /// Run as a login shell
-    #[structopt(short = "l", long = "login")]
+    #[arg(short = 'l', long = "login")]
     login: bool,
 
     /// Set the verbosity level
-    #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
-    verbosity: usize,
+    #[arg(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
+    verbosity: u8,
 
     /// Silence all output
-    #[structopt(short = "q", long = "quiet")]
+    #[arg(short = 'q', long = "quiet")]
     quiet: bool,
 
     /// File to execute
-    #[structopt(parse(from_os_str))]
     file: Option<PathBuf>,
 
     /// Open a session in private mode.
@@ -75,7 +75,7 @@ impl Options {
 /// around the real main body of the program.
 fn main() {
     // Parse command line args.
-    let options = Options::from_args();
+    let options = Options::parse();
 
     // Initialize logging.
     logger::init(options.log_level_filter());
@@ -123,7 +123,7 @@ async fn real_main(options: Options) -> Option<i32> {
         execute_file(&mut fiber, file).await;
     }
     // Interactive mode.
-    else if atty::is(atty::Stream::Stdin) {
+    else if std::io::stdin().is_terminal() {
         interactive_main(&mut fiber, options).await;
     }
     // Execute stdin

@@ -69,10 +69,7 @@ impl Exception {
     /// Get the cause of the exception, if present.
     #[inline]
     pub fn cause(&self) -> Option<&Exception> {
-        match self.cause {
-            Some(ref cause) => Some(cause),
-            None => None,
-        }
+        self.cause.as_ref().map(|x| x as _)
     }
 
     /// Check if this is an unrecoverable exception.

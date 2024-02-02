@@ -25,7 +25,7 @@ async fn spawn(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> 
         Some(arg) if arg.type_name() == "block" => arg.clone(),
         _ => throw!("a block to execute must be provided"),
     };
-    let child_args = args.iter().cloned().skip(1).collect::<Vec<_>>();
+    let child_args = args.iter().skip(1).cloned().collect::<Vec<_>>();
 
     // Create a child fiber to correspond to the child process, otherwise the
     // child will try and share file descriptors with the parent.

@@ -16,7 +16,11 @@ use tokio::process::Command;
 ///
 /// Cancellation is fully supported. Dropping the returned future will send a
 /// signal to the child process to terminate.
-pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Value]) -> Result<Value, Exception> {
+pub async fn command(
+    fiber: &mut Fiber,
+    command: impl AsRef<OsStr>,
+    args: &[Value],
+) -> Result<Value, Exception> {
     // Ensure we restore non-blocking once finished. Use a scope guard to ensure
     // that the non-blocking flag is restored even on cancellation.
     let mut fiber = scopeguard::guard(fiber, |fiber| {
@@ -31,7 +35,10 @@ pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Valu
     fiber.stdin().set_nonblocking(false)?;
 
     let exit_status = Command::new(command)
-        .args(args.iter().map(|value| crate::string::RipString::from(value.clone())))
+        .args(
+            args.iter()
+                .map(|value| crate::string::RipString::from(value.clone())),
+        )
         .current_dir(fiber.current_dir().to_string())
         .stdin(fiber.stdin().create_stdio()?)
         .stdout(fiber.stdout().create_stdio()?)
@@ -47,7 +54,9 @@ pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Valu
     if exit_status.success() {
         Ok(Value::Nil)
     } else {
-        Err(Exception::from(Value::from(exit_status.code().unwrap_or(0) as f64)))
+        Err(Exception::from(Value::from(
+            exit_status.code().unwrap_or(0) as f64,
+        )))
     }
 }
 
@@ -55,7 +64,7 @@ pub async fn command(fiber: &mut Fiber, command: impl AsRef<OsStr>, args: &[Valu
 ///
 /// Returns the PID of the child process.
 pub async fn spawn<F: Future<Output = ()>>(future: F) -> Result<i32, String> {
-    match unistd::fork() {
+    match unsafe { unistd::fork() } {
         Ok(unistd::ForkResult::Child) => {
             // If the given future panics, then ensure that we exit here while
             // unwinding.
@@ -69,9 +78,7 @@ pub async fn spawn<F: Future<Output = ()>>(future: F) -> Result<i32, String> {
             process::exit(0);
         }
 
-        Ok(unistd::ForkResult::Parent {
-            child,
-        }) => Ok(child.into()),
+        Ok(unistd::ForkResult::Parent { child }) => Ok(child.into()),
 
         Err(e) => Err(e.to_string()),
     }
@@ -86,7 +93,10 @@ pub fn exec(command: &str, args: &[&str]) -> Result<(), String> {
         args_c.push(CString::new(*arg).unwrap());
     }
 
-    match unistd::execvp(&command_c, &args_c.iter().map(|s| s.as_c_str()).collect::<Vec<_>>()) {
+    match unistd::execvp(
+        &command_c,
+        &args_c.iter().map(|s| s.as_c_str()).collect::<Vec<_>>(),
+    ) {
         Ok(_) => Ok(()),
         Err(e) => Err(e.to_string()),
     }

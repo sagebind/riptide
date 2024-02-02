@@ -16,7 +16,7 @@ impl ForeignFn {
     }
 
     pub async fn call(&self, runtime: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
-        (&self.0).call(runtime, args).await
+        self.0.call(runtime, args).await
     }
 }
 

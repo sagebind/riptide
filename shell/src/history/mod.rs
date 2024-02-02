@@ -157,7 +157,7 @@ impl History {
         &self,
         prefix: impl Into<String>,
     ) -> Vec<CommandSummary> {
-        let pattern = prefix.into().replace("%", "\\%").replace("\\", "\\\\") + "%";
+        let pattern = prefix.into().replace('%', "\\%").replace('\\', "\\\\") + "%";
 
         let mut stmt = self.db.prepare(r#"
             SELECT command, count(*) AS count FROM command_history

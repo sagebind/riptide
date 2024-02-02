@@ -98,6 +98,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::cmp_owned)]
     fn tables() {
         let table = Table::new();
 
