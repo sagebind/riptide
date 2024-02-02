@@ -32,7 +32,7 @@ pub(crate) fn load_module() -> Result<Value, Exception> {
 async fn cd(_fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
     let dir = match args.first() {
         Some(value) => value.to_string().into(),
-        None => directories::BaseDirs::new().unwrap().home_dir().to_owned(),
+        None => dirs::home_dir().unwrap()
     };
 
     // TODO: Should fibers have independent working directories?

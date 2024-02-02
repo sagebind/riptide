@@ -7,8 +7,7 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-clipboard = "0.5"
-directories = "3.0"
+directories.workspace = true
 exitcode = "1.1"
 flume = "0.11"
 futures = "0.3"
@@ -32,7 +31,7 @@ version = "2.1"
 features = ["with-backtrace"]
 
 [dependencies.rusqlite]
-version = "0.25"
+version = "0.30"
 features = ["bundled"]
 
 [dependencies.serde]

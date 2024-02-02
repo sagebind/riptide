@@ -10,7 +10,7 @@ edition.workspace = true
 [dependencies]
 async-recursion = "1.0"
 bstr = "1.9"
-directories = "3.0"
+dirs.workspace = true
 futures = "0.3"
 log.workspace = true
 regex = "1.10"

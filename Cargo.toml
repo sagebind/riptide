@@ -11,6 +11,8 @@ edition = "2021"
 
 # Dependency versions used by multiple crates.
 [workspace.dependencies]
+dirs = "5.0"
+directories = "5.0"
 log = "0.4"
 scopeguard = "1.2"
 serde = "1"
