@@ -1,6 +1,7 @@
 //! Abstract syntax tree definitions for the language syntax.
 
 use crate::source::Span;
+use regex::bytes::Regex;
 use std::fmt;
 
 macro_rules! derive_debug_enum_transparent {
@@ -193,11 +194,26 @@ pub enum InterpolatedStringPart {
     Substitution(Substitution),
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct RegexLiteral(pub String);
+/// A regular expression literal.
+///
+/// Regular expressions written in source code are always validated and parsed
+/// as part of the syntax parsing routine, and converted into a regular
+/// expression AST as part of the overall program AST.
+///
+/// This also can be used as a runtime optimizations, as regex literals do not
+/// have to be re-parsed every time they are used without any effort from the
+/// user. They can be executed directly from AST memory.
+#[derive(Clone, Debug)]
+pub struct RegexLiteral(pub Regex);
 
 impl fmt::Display for RegexLiteral {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+impl PartialEq for RegexLiteral {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.as_str() == other.0.as_str()
     }
 }

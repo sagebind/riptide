@@ -1017,7 +1017,7 @@ dependencies = [
  "log",
  "pest",
  "pest_derive",
- "regex-syntax",
+ "regex",
  "serde",
  "stderrlog",
  "test-generator",

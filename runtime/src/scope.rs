@@ -21,7 +21,7 @@ pub(crate) struct Scope {
     /// on creation of the scope.
     pub(crate) cvars: Table,
 
-    /// The lexically parent scope to this one.
+    /// The lexical parent scope to this one.
     pub(crate) parent: Option<Gc<Scope>>,
 }
 

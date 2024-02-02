@@ -9,7 +9,7 @@ edition.workspace = true
 [dependencies]
 pest = "2.7"
 pest_derive = "2.7"
-regex-syntax = "0.8"
+regex.workspace = true
 
 [dev-dependencies]
 difference = "2.0"

@@ -21,7 +21,7 @@ pub(crate) fn load_module() -> Result<Value, Exception> {
         "load" => Value::ForeignFn(load.into()),
         "nil" => Value::ForeignFn(nil.into()),
         "nth" => Value::ForeignFn(nth.into()),
-        "pwd" => Value::ForeignFn(pwd.into()),
+        "pass" => Value::ForeignFn(pass.into()),
         "throw" => Value::ForeignFn(throw.into()),
         "try" => Value::ForeignFn(try_fn.into()),
         "typeof" => Value::ForeignFn(type_of.into()),
@@ -91,8 +91,8 @@ async fn nil(_: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
     Ok(Value::Nil)
 }
 
-async fn pwd(fiber: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
-    Ok(fiber.current_dir())
+async fn pass(_fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
+    Ok(args.first().cloned().unwrap_or(Value::Nil))
 }
 
 /// Throw an exception.

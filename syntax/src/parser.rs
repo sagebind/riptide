@@ -5,6 +5,7 @@ use crate::{
     source::{SourceFile, Span},
 };
 use pest::iterators::Pair;
+use regex::bytes::Regex;
 
 /// Attempt to parse a source file into an abstract syntax tree.
 ///
@@ -16,7 +17,6 @@ pub fn parse(source_file: impl Into<SourceFile>) -> Result<Block, ParseError> {
 
     let mut ctx = ParsingContext {
         source_file: source_file.clone(),
-        regex_parser: regex_syntax::Parser::new(),
     };
 
     let mut pair = match grammar::parse(source_file.source_text(), Rule::program) {
@@ -51,9 +51,6 @@ struct ParsingContext {
     /// Source file currently being parsed. This is provided so that the AST
     /// can fetch span information.
     source_file: SourceFile,
-
-    /// Regular expression parser.
-    regex_parser: regex_syntax::Parser,
 }
 
 impl ParsingContext {
@@ -376,11 +373,10 @@ impl ParsableNode for RegexLiteral {
         let regex_str = pair.as_str();
         let regex_str = &regex_str[1..regex_str.len()-1];
 
-        if let Err(e) = ctx.regex_parser.parse(regex_str) {
-            return Err(ParseError::new(ctx.span(&pair), e.to_string()));
+        match Regex::new(regex_str) {
+            Ok(regex) => Ok(RegexLiteral(regex)),
+            Err(e) => Err(ParseError::new(ctx.span(&pair), e.to_string()))
         }
-
-        Ok(RegexLiteral(regex_str.into()))
     }
 }
 

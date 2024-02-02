@@ -33,6 +33,10 @@ pub struct Fiber {
     /// Table where global values are stored that are not on the stack.
     globals: Table,
 
+    /// Default global values for context variables. This holds the values of
+    /// context variables that have not been set by any scope.
+    cvar_globals: Table,
+
     /// Call stack of functions being executed by this fiber.
     pub(crate) stack: Vec<Gc<Scope>>,
 
@@ -47,11 +51,21 @@ impl Fiber {
             pid: next_pid(),
             module_index: Rc::new(ModuleIndex::default()),
             globals: Default::default(),
+            cvar_globals: Default::default(),
             stack: Vec::new(),
             io: io_cx,
         };
 
         log::debug!("root fiber {} created", fiber.pid);
+
+        match std::env::current_dir() {
+            Ok(cwd) => {
+                fiber.cvar_globals.set("cwd", cwd);
+            }
+            Err(e) => {
+                log::warn!("failed to set initial cwd: {}", e);
+            }
+        }
 
         fiber
     }
@@ -82,6 +96,7 @@ impl Fiber {
             pid: next_pid(),
             module_index: self.module_index.clone(),
             globals: self.globals.clone(),
+            cvar_globals: self.cvar_globals.clone(),
             stack: self.stack.clone(),
             io: self.io.try_clone().unwrap(),
         };
@@ -93,17 +108,8 @@ impl Fiber {
 
     /// Get the fiber's current working directory.
     pub fn current_dir(&self) -> Value {
-        // First check the `@cwd` context variable.
-        let mut cwd = self.get_cvar("cwd");
-
-        // If not set, check the process-wide (default) working directory.
-        if cwd.is_nil() {
-            if let Ok(path) = std::env::current_dir() {
-                cwd = path.into();
-            }
-        }
-
-        cwd
+        // The working dir is just implemented as the `@cwd` context variable.
+        self.get_cvar("cwd")
     }
 
     /// Get the current exit code for the runtime. If no exit has been
@@ -199,7 +205,7 @@ impl Fiber {
             }
         }
 
-        Value::Nil
+        self.cvar_globals.get(name)
     }
 
     /// Force the garbage collector to run now.

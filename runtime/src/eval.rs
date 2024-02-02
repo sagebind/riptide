@@ -16,7 +16,6 @@ use super::{
 };
 use gc::Gc;
 use futures::future::try_join_all;
-use regex::bytes::Regex;
 
 /// Compile the given source code as a closure.
 pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>) -> Result<Closure, Exception> {
@@ -25,6 +24,20 @@ pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>) -> Result<
 
     match parse(file) {
         Ok(block) => compile_block(fiber, block),
+        Err(e) => throw!("error parsing {}: {}", file_name, e),
+    }
+}
+
+pub(crate) fn compile_anonymous_closure(file: impl Into<SourceFile>) -> Result<Closure, Exception> {
+    let file = file.into();
+    let file_name = file.name().to_string();
+
+    match parse(file) {
+        Ok(block) => Ok(Closure {
+            block,
+            scope: None,
+            name: None,
+        }),
         Err(e) => throw!("error parsing {}: {}", file_name, e),
     }
 }
@@ -276,7 +289,7 @@ async fn evaluate_expr(fiber: &mut Fiber, expr: Expr) -> Result<Value, Exception
     match expr {
         Expr::Number(number) => Ok(Value::Number(number)),
         Expr::String(string) => Ok(Value::from(string)),
-        Expr::Regex(RegexLiteral(src)) => Ok(Value::Regex(Regex::new(&src).unwrap())),
+        Expr::Regex(RegexLiteral(src)) => Ok(Value::Regex(src)),
         Expr::CvarReference(cvar) => evaluate_cvar(fiber, cvar).await,
         Expr::CvarScope(cvar_scope) => evaluate_cvar_scope(fiber, cvar_scope).await,
         Expr::Substitution(substitution) => evaluate_substitution(fiber, substitution).await,
