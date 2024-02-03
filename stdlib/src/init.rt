@@ -19,7 +19,7 @@ $GLOBALS->eq = $eq
 $GLOBALS->command = $command
 
 # Evaluates a string as code.
-$GLOBALS->eval = <script ...args> {
+$GLOBALS->eval = <script, ...args> {
     $closure = (load $script)
     $closure ...$args
 }

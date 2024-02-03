@@ -1,15 +1,14 @@
 use std::{env, time::Instant};
 
-#[macro_use]
-mod macros;
-
 mod builtins;
 mod closure;
+mod controlflow;
 mod eval;
 mod exceptions;
 mod fiber;
 mod foreign;
 pub mod io;
+mod macros;
 mod modules;
 mod scope;
 mod string;

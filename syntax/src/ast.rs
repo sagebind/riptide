@@ -50,12 +50,20 @@ pub struct Block {
     pub statements: Vec<Statement>,
 }
 
+/// A subroutine is a named block.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Subroutine {
+    pub name: String,
+    pub block: Block,
+}
+
 derive_debug_enum_transparent! {
     #[derive(Clone, PartialEq)]
     pub enum Statement {
         Assignment(AssignmentStatement),
         Import(ImportStatement),
         Pipeline(Pipeline),
+        Return(Option<Expr>),
     }
 }
 
@@ -123,6 +131,7 @@ derive_debug_enum_transparent! {
     #[derive(Clone, PartialEq)]
     pub enum Expr {
         Block(Block),
+        Subroutine(Subroutine),
         Pipeline(Pipeline),
         MemberAccess(MemberAccess),
         CvarReference(CvarReference),

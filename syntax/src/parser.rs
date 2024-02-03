@@ -108,10 +108,32 @@ impl ParsableNode for Block {
     }
 }
 
+impl ParsableNode for Subroutine {
+    fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
+        assert!(pair.as_rule() == Rule::subroutine);
+
+        let mut pairs = pair.into_inner();
+
+        Ok(Subroutine {
+            name: pairs.next().unwrap().as_str().to_owned(),
+            block: from_pair(pairs.next().unwrap(), ctx)?,
+        })
+    }
+}
+
 impl ParsableNode for Statement {
     fn from_pair(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         match pair.as_rule() {
             Rule::import_statement => Ok(Statement::Import(from_pair(pair, ctx)?)),
+            Rule::return_statement => Ok(Statement::Return({
+                let mut pairs = pair.into_inner();
+
+                if let Some(pair) = pairs.next() {
+                    Some(from_pair(pair, ctx)?)
+                } else {
+                    None
+                }
+            })),
             Rule::pipeline_statement => Ok(Statement::Pipeline(from_pair(pair.into_inner().next().unwrap(), ctx)?)),
             Rule::assignment_statement => {
                 let mut pairs = pair.into_inner();
@@ -232,6 +254,7 @@ impl Expr {
     fn from_pair_inner(pair: Pair<'_, Rule>, ctx: &mut ParsingContext) -> Result<Self, ParseError> {
         Ok(match pair.as_rule() {
             Rule::block => Expr::Block(from_pair(pair, ctx)?),
+            Rule::subroutine => Expr::Subroutine(from_pair(pair, ctx)?),
             Rule::pipeline => Expr::Pipeline(from_pair(pair, ctx)?),
             Rule::member_access_expr => from_pair(pair, ctx).map(Expr::MemberAccess)?,
             Rule::cvar => Expr::CvarReference(from_pair(pair, ctx)?),

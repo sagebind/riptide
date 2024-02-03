@@ -13,20 +13,23 @@ block = { block_params? ~ "{" ~ statement_list ~ "}" }
 block_params = { "<" ~ block_params_list ~ ">" }
 block_params_list = _{
     vararg_param_decl
-    | param_decl ~ block_params_list?
+    | param_decl ~ ("," ~ block_params_list)?
 }
 
 param_decl = { symbol }
 vararg_param_decl = { "..." ~ symbol }
+
+// A subroutine is just a block with an explicit name.
+subroutine = { "sub" ~ symbol ~ block }
 
 // Blocks and programs are lists of statements.
 statement_list = { statement_separator* ~ (statement ~ (statement_separator+ ~ statement)*)? ~ statement_separator* }
 statement_separator = _{ NEWLINE | ";" }
 
 // A statement can be either an assignment or a pipeline.
-statement = _{ import_statement | assignment_statement | pipeline_statement }
+statement = _{ import_statement | assignment_statement | return_statement | pipeline_statement }
 
-import_statement = { "import" ~ string_literal ~ "for" ~ import_clause }
+import_statement = { KEYWORD_IMPORT ~ string_literal ~ "for" ~ import_clause }
 import_clause = { import_wildcard | import_items }
 import_items = { string_literal+ }
 import_wildcard = { "*" }
@@ -39,6 +42,8 @@ assignment_target = {
     | &"$" ~ variable_substitution
 }
 
+return_statement = { KEYWORD_RETURN ~ expr? }
+
 pipeline_statement = { pipeline }
 
 // Expression is the main syntax building block.
@@ -48,6 +53,7 @@ expr = {
 }
 unary_expr = _{
     block
+    | subroutine
     | "(" ~ pipeline ~ ")"
     | cvar_scope
     | cvar
@@ -84,7 +90,7 @@ splat_arg = { "..." ~ expr }
 cvar = ${ "@" ~ string_literal }
 
 // Binds a context variable to a value for the duration of a scope.
-cvar_scope = { "let" ~ cvar ~ "=" ~ expr ~ block }
+cvar_scope = { KEYWORD_LET ~ cvar ~ "=" ~ expr ~ block }
 
 // Dollar sign indicates the start of some form of substitution.
 substitution = ${ &"$" ~ (
@@ -128,7 +134,7 @@ symbol = ${ !reserved_words ~ symbol_char ~ (!member_operator ~ symbol_char)* }
 
 // A list of keywords that are not allowed as bare identifiers because they have
 // special meaning.
-reserved_words = _{ "import" | "let" }
+reserved_words = _{ KEYWORD_IMPORT | KEYWORD_LET | KEYWORD_RETURN }
 
 // Operator to access namespaces and table members.
 member_operator = _{ "->" }
@@ -143,3 +149,8 @@ COMMENT = _{ "#" ~ (!NEWLINE ~ ANY)* }
 // Only horizontal whitespace is insignificant; vertical whitespace is used to
 // separate staements in blocks.
 WHITESPACE = _{ " " | "\t" | "\\" ~ NEWLINE }
+
+// All reserved keywords.
+KEYWORD_IMPORT = _{ "import" }
+KEYWORD_LET = _{ "let" }
+KEYWORD_RETURN = _{ "return" }

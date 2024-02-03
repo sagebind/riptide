@@ -1,11 +1,14 @@
-use super::{
-    eval, exceptions::Exception, scope::Scope, string::RipString,
-    table::Table, value::Value,
-};
 use crate::{
+    eval,
+    exceptions::Exception,
     io::{IoContext, Input, Output},
     modules::{ModuleIndex, NativeModule},
+    scope::Scope,
+    string::RipString,
     syntax::source::SourceFile,
+    table,
+    table::Table,
+    value::Value,
 };
 use gc::Gc;
 use std::{rc::Rc, sync::atomic::{AtomicUsize, Ordering}};

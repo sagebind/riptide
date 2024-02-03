@@ -1,4 +1,4 @@
-import 'builtins' for pass
+import 'builtins' for *
 
 $GLOBALS->modules = [
     # A list of module loader functions.
@@ -8,6 +8,6 @@ $GLOBALS->modules = [
     loaded: [:]
 ]
 
-$GLOBALS->pwd = {
-    pass @cwd
+$GLOBALS->pwd = sub pwd {
+    return @cwd
 }

@@ -3,6 +3,7 @@
 use crate::{
     prelude::*,
     syntax::source::SourceFile,
+    throw,
 };
 use std::{
     cell::RefCell,

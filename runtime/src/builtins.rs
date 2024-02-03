@@ -7,6 +7,8 @@ use crate::{
     prelude::*,
     scope::Scope,
     string::RipString,
+    table,
+    throw,
 };
 use riptide_syntax::source::SourceFile;
 use std::convert::TryInto;
@@ -21,7 +23,6 @@ pub(crate) fn load_module() -> Result<Value, Exception> {
         "load" => Value::ForeignFn(load.into()),
         "nil" => Value::ForeignFn(nil.into()),
         "nth" => Value::ForeignFn(nth.into()),
-        "pass" => Value::ForeignFn(pass.into()),
         "throw" => Value::ForeignFn(throw.into()),
         "try" => Value::ForeignFn(try_fn.into()),
         "typeof" => Value::ForeignFn(type_of.into()),
@@ -61,7 +62,7 @@ async fn type_of(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
 
 /// Parse a string as code, returning it as an executable closure.
 async fn load(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
-    let script: RipString = match args.get(0).and_then(Value::as_string) {
+    let script: RipString = match args.first().and_then(Value::as_string) {
         Some(s) => s.clone(),
         None => throw!("first argument must be a string"),
     };
@@ -73,7 +74,7 @@ async fn load(fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
 }
 
 async fn nth(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
-    let list = match args.get(0).and_then(Value::as_list) {
+    let list = match args.first().and_then(Value::as_list) {
         Some(s) => s.to_vec(),
         None => throw!("first argument must be a list"),
     };
@@ -89,10 +90,6 @@ async fn nth(_: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
 /// Function that always returns Nil.
 async fn nil(_: &mut Fiber, _: Vec<Value>) -> Result<Value, Exception> {
     Ok(Value::Nil)
-}
-
-async fn pass(_fiber: &mut Fiber, args: Vec<Value>) -> Result<Value, Exception> {
-    Ok(args.first().cloned().unwrap_or(Value::Nil))
 }
 
 /// Throw an exception.
