@@ -1,0 +1,74 @@
+source: |
+  {
+      {
+          {
+              println
+          }
+      }
+  }
+ast: |-
+  Block {
+      span: Some(
+          Span(5:1, 8:57),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Unnamed {
+                      function: Block {
+                          span: Some(
+                              Span(5:1, 7:56),
+                          ),
+                          named_params: None,
+                          vararg_param: None,
+                          statements: [
+                              Pipeline(
+                                  [
+                                      Unnamed {
+                                          function: Block {
+                                              span: Some(
+                                                  Span(5:7, 7:54),
+                                              ),
+                                              named_params: None,
+                                              vararg_param: None,
+                                              statements: [
+                                                  Pipeline(
+                                                      [
+                                                          Unnamed {
+                                                              function: Block {
+                                                                  span: Some(
+                                                                      Span(5:17, 5:48),
+                                                                  ),
+                                                                  named_params: None,
+                                                                  vararg_param: None,
+                                                                  statements: [
+                                                                      Pipeline(
+                                                                          [
+                                                                              Named {
+                                                                                  function: "println",
+                                                                                  args: [],
+                                                                              },
+                                                                          ],
+                                                                      ),
+                                                                  ],
+                                                              },
+                                                              args: [],
+                                                          },
+                                                      ],
+                                                  ),
+                                              ],
+                                          },
+                                          args: [],
+                                      },
+                                  ],
+                              ),
+                          ],
+                      },
+                      args: [],
+                  },
+              ],
+          ),
+      ],
+  }

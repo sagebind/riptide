@@ -1,0 +1,54 @@
+source: |
+  println [a b c]
+
+  println [
+      1
+      2
+      3
+  ]
+ast: |-
+  Block {
+      span: Some(
+          Span(5:1, 8:48),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              ListLiteral(
+                                  [
+                                      "a",
+                                      "b",
+                                      "c",
+                                  ],
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              ListLiteral(
+                                  [
+                                      1.0,
+                                      2.0,
+                                      3.0,
+                                  ],
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }

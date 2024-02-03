@@ -1,0 +1,35 @@
+source: |
+  println "hello $foo"
+ast: |-
+  Block {
+      span: Some(
+          Span(2:1, 2:22),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              InterpolatedString(
+                                  [
+                                      String(
+                                          "hello ",
+                                      ),
+                                      Substitution(
+                                          Variable(
+                                              "foo",
+                                          ),
+                                      ),
+                                  ],
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }

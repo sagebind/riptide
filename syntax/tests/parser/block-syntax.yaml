@@ -1,0 +1,105 @@
+source: |
+  # One-liner
+  call { println }
+
+  # With newlines
+  call {
+      println
+  }
+
+  # Scrunched up
+  call{println}
+ast: |-
+  Block {
+      span: Some(
+          Span(6:1, 11:98),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "call",
+                      args: [
+                          Expr(
+                              Block {
+                                  span: Some(
+                                      Span(6:18, 6:29),
+                                  ),
+                                  named_params: None,
+                                  vararg_param: None,
+                                  statements: [
+                                      Pipeline(
+                                          [
+                                              Named {
+                                                  function: "println",
+                                                  args: [],
+                                              },
+                                          ],
+                                      ),
+                                  ],
+                              },
+                          ),
+                      ],
+                  },
+              ],
+          ),
+          Pipeline(
+              [
+                  Named {
+                      function: "call",
+                      args: [
+                          Expr(
+                              Block {
+                                  span: Some(
+                                      Span(6:52, 9:67),
+                                  ),
+                                  named_params: None,
+                                  vararg_param: None,
+                                  statements: [
+                                      Pipeline(
+                                          [
+                                              Named {
+                                                  function: "println",
+                                                  args: [],
+                                              },
+                                          ],
+                                      ),
+                                  ],
+                              },
+                          ),
+                      ],
+                  },
+              ],
+          ),
+          Pipeline(
+              [
+                  Named {
+                      function: "call",
+                      args: [
+                          Expr(
+                              Block {
+                                  span: Some(
+                                      Span(11:88, 11:97),
+                                  ),
+                                  named_params: None,
+                                  vararg_param: None,
+                                  statements: [
+                                      Pipeline(
+                                          [
+                                              Named {
+                                                  function: "println",
+                                                  args: [],
+                                              },
+                                          ],
+                                      ),
+                                  ],
+                              },
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }

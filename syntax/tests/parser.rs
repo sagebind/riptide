@@ -21,15 +21,15 @@ struct ParserTest {
 
 impl ParserTest {
     fn load(path: impl AsRef<Path>) -> Result<Self, Box<dyn Error>> {
-        Ok(toml::from_str(&fs::read_to_string(path)?)?)
+        Ok(serde_yaml::from_str(&fs::read_to_string(path)?)?)
     }
 
     fn save(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn Error>> {
-        Ok(fs::write(path, toml::to_string_pretty(self)?)?)
+        Ok(fs::write(path, serde_yaml::to_string(self)?)?)
     }
 }
 
-#[test_generator::test_resources("syntax/tests/parser/**/*.toml")]
+#[test_generator::test_resources("syntax/tests/parser/**/*.yaml")]
 fn parser_test(path: &str) {
     let path = &path[7..];
     let mut test = ParserTest::load(path).unwrap();

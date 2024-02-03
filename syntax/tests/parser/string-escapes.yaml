@@ -1,0 +1,36 @@
+source: |
+  println foo 'bar\'' "baz' a \" b"
+ast: |-
+  Block {
+      span: Some(
+          Span(2:1, 2:35),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              "foo",
+                          ),
+                          Expr(
+                              "bar'",
+                          ),
+                          Expr(
+                              InterpolatedString(
+                                  [
+                                      String(
+                                          "baz' a \" b",
+                                      ),
+                                  ],
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }

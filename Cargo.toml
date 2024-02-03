@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = ["runtime", "shell", "stdlib", "syntax"]
-default-members = ["shell"]
 
 [workspace.package]
 version = "0.2.0"

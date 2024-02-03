@@ -1,0 +1,69 @@
+source: |
+  $lang->ext->panic 'hello world'
+
+  println $mytable
+  println $mytable->'key with spaces'->bar
+ast: |-
+  Block {
+      span: Some(
+          Span(3:1, 5:92),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Unnamed {
+                      function: MemberAccess(
+                          MemberAccess(
+                              Variable(
+                                  "lang",
+                              ),
+                              "ext",
+                          ),
+                          "panic",
+                      ),
+                      args: [
+                          Expr(
+                              "hello world",
+                          ),
+                      ],
+                  },
+              ],
+          ),
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              Variable(
+                                  "mytable",
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              MemberAccess(
+                                  MemberAccess(
+                                      Variable(
+                                          "mytable",
+                                      ),
+                                      "key with spaces",
+                                  ),
+                                  "bar",
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }

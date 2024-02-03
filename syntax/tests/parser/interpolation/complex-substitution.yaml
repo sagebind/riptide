@@ -1,0 +1,60 @@
+source: |
+  println "hello $({
+      whoami
+  })"
+ast: |-
+  Block {
+      span: Some(
+          Span(3:1, 4:35),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              InterpolatedString(
+                                  [
+                                      String(
+                                          "hello ",
+                                      ),
+                                      Substitution(
+                                          Pipeline(
+                                              Pipeline(
+                                                  [
+                                                      Unnamed {
+                                                          function: Block {
+                                                              span: Some(
+                                                                  Span(3:18, 3:32),
+                                                              ),
+                                                              named_params: None,
+                                                              vararg_param: None,
+                                                              statements: [
+                                                                  Pipeline(
+                                                                      [
+                                                                          Named {
+                                                                              function: "whoami",
+                                                                              args: [],
+                                                                          },
+                                                                      ],
+                                                                  ),
+                                                              ],
+                                                          },
+                                                          args: [],
+                                                      },
+                                                  ],
+                                              ),
+                                          ),
+                                      ),
+                                  ],
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }

@@ -1,0 +1,54 @@
+source: |
+  println [:]
+
+  println [
+      foo: bar
+      baz: 1234
+  ]
+ast: |-
+  Block {
+      span: Some(
+          Span(4:1, 7:53),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              TableLiteral(
+                                  [],
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              TableLiteral(
+                                  [
+                                      TableEntry {
+                                          key: "foo",
+                                          value: "bar",
+                                      },
+                                      TableEntry {
+                                          key: "baz",
+                                          value: 1234.0,
+                                      },
+                                  ],
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }

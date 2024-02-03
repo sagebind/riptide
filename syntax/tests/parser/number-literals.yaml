@@ -1,0 +1,63 @@
+source: |
+  println 100
+  println 102.5
+  println .25
+  println -255
+ast: |-
+  Block {
+      span: Some(
+          Span(3:1, 5:52),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              100.0,
+                          ),
+                      ],
+                  },
+              ],
+          ),
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              102.5,
+                          ),
+                      ],
+                  },
+              ],
+          ),
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              0.25,
+                          ),
+                      ],
+                  },
+              ],
+          ),
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              -255.0,
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }

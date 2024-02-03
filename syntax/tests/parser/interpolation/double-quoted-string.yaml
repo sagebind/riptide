@@ -1,0 +1,30 @@
+source: |
+  println "hello world"
+ast: |-
+  Block {
+      span: Some(
+          Span(2:1, 2:23),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              InterpolatedString(
+                                  [
+                                      String(
+                                          "hello world",
+                                      ),
+                                  ],
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }

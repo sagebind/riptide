@@ -1,0 +1,24 @@
+source: |
+  hello | world
+ast: |-
+  Block {
+      span: Some(
+          Span(2:1, 2:15),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "hello",
+                      args: [],
+                  },
+                  Named {
+                      function: "world",
+                      args: [],
+                  },
+              ],
+          ),
+      ],
+  }

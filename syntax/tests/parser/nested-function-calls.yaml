@@ -1,0 +1,68 @@
+source: |
+  println hello ({read} THE) (uppercase World)
+ast: |-
+  Block {
+      span: Some(
+          Span(2:1, 2:46),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              "hello",
+                          ),
+                          Expr(
+                              Pipeline(
+                                  [
+                                      Unnamed {
+                                          function: Block {
+                                              span: Some(
+                                                  Span(2:16, 2:22),
+                                              ),
+                                              named_params: None,
+                                              vararg_param: None,
+                                              statements: [
+                                                  Pipeline(
+                                                      [
+                                                          Named {
+                                                              function: "read",
+                                                              args: [],
+                                                          },
+                                                      ],
+                                                  ),
+                                              ],
+                                          },
+                                          args: [
+                                              Expr(
+                                                  "THE",
+                                              ),
+                                          ],
+                                      },
+                                  ],
+                              ),
+                          ),
+                          Expr(
+                              Pipeline(
+                                  [
+                                      Named {
+                                          function: "uppercase",
+                                          args: [
+                                              Expr(
+                                                  "World",
+                                              ),
+                                          ],
+                                      },
+                                  ],
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }

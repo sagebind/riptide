@@ -1,0 +1,33 @@
+source: |
+  println $(foo)
+ast: |-
+  Block {
+      span: Some(
+          Span(2:1, 2:16),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "println",
+                      args: [
+                          Expr(
+                              Pipeline(
+                                  Pipeline(
+                                      [
+                                          Named {
+                                              function: "foo",
+                                              args: [],
+                                          },
+                                      ],
+                                  ),
+                              ),
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }

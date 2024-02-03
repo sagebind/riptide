@@ -1,0 +1,47 @@
+source: |
+  call <left, right> {
+      println
+  }
+ast: |-
+  Block {
+      span: Some(
+          Span(3:1, 4:36),
+      ),
+      named_params: None,
+      vararg_param: None,
+      statements: [
+          Pipeline(
+              [
+                  Named {
+                      function: "call",
+                      args: [
+                          Expr(
+                              Block {
+                                  span: Some(
+                                      Span(3:6, 3:35),
+                                  ),
+                                  named_params: Some(
+                                      [
+                                          "left",
+                                          "right",
+                                      ],
+                                  ),
+                                  vararg_param: None,
+                                  statements: [
+                                      Pipeline(
+                                          [
+                                              Named {
+                                                  function: "println",
+                                                  args: [],
+                                              },
+                                          ],
+                                      ),
+                                  ],
+                              },
+                          ),
+                      ],
+                  },
+              ],
+          ),
+      ],
+  }
