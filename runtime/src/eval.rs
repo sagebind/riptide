@@ -2,7 +2,7 @@
 
 use crate::{
     closure::Closure,
-    controlflow::{throw_cf, BreakAction, ControlFlow},
+    controlflow::{break_return, throw_cf, BreakAction, ControlFlow},
     exceptions::Exception,
     fiber::Fiber,
     foreign::ForeignFn,
@@ -15,15 +15,14 @@ use crate::{
 };
 use futures::future::try_join_all;
 use gc::Gc;
-use riptide_syntax::{
-    parse,
-    ast::*,
-    source::*,
-};
+use riptide_syntax::{ast::*, parse, source::*};
 use std::ops::ControlFlow::Continue;
 
 /// Compile the given source code as a closure.
-pub(crate) fn compile(fiber: &mut Fiber, file: impl Into<SourceFile>) -> Result<Closure, Exception> {
+pub(crate) fn compile(
+    fiber: &mut Fiber,
+    file: impl Into<SourceFile>,
+) -> Result<Closure, Exception> {
     let file = file.into();
     let file_name = file.name().to_string();
 
@@ -47,16 +46,27 @@ fn compile_block(fiber: &mut Fiber, block: Block) -> Closure {
 }
 
 /// Invoke the given value as a function with the given arguments.
-pub(crate) async fn invoke(fiber: &mut Fiber, value: &Value, args: Vec<Value>) -> Result<Value, Exception> {
+pub(crate) async fn invoke(
+    fiber: &mut Fiber,
+    value: &Value,
+    args: Vec<Value>,
+) -> ControlFlow<Value> {
     match value {
-        Value::Block(closure) => invoke_closure(fiber, closure, args, table!(), table!()).await,
+        Value::Block(closure) => invoke_closure(fiber, closure, args, table!(), table!(), false).await,
         Value::ForeignFn(function) => invoke_native(fiber, function, args).await,
-        value => throw!("cannot invoke '{:?}' as a function", value),
+        value => throw_cf!("cannot invoke '{:?}' as a function", value),
     }
 }
 
 /// Invoke a block with an array of arguments.
-pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: Vec<Value>, bindings: Table, cvars: Table) -> Result<Value, Exception> {
+pub(crate) async fn invoke_closure(
+    fiber: &mut Fiber,
+    closure: &Closure,
+    args: Vec<Value>,
+    bindings: Table,
+    cvars: Table,
+    bubble_up_return: bool,
+) -> ControlFlow<Value> {
     let scope = Scope {
         name: format!("<closure:{}>", closure.block.span.as_ref().unwrap()),
         bindings,
@@ -73,7 +83,7 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
     // Bind arguments to any named params.
     if let Some(named_params) = closure.block.named_params.as_ref() {
         for named_param in named_params.iter() {
-            scope.set(named_param.as_bytes(), args.next().unwrap_or(Value::Nil));
+            scope.set(named_param.as_bytes(), args.next().unwrap_or_default());
         }
     }
 
@@ -100,7 +110,11 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
             Continue(return_value) => last_return_value = return_value,
 
             // Stop block execution and return the given value.
-            ControlFlow::Break(BreakAction::Return(value)) => return Ok(value),
+            ControlFlow::Break(BreakAction::Return(value)) => if bubble_up_return {
+                break_return!(value);
+            } else {
+                return Continue(value);
+            },
 
             // Exception thrown; our scope guard from earlier will ensure that
             // the stack is unwound.
@@ -109,16 +123,20 @@ pub(crate) async fn invoke_closure(fiber: &mut Fiber, closure: &Closure, args: V
                     exception.backtrace = fiber.backtrace().cloned().collect();
                 }
 
-                return Err(exception);
-            },
+                return ControlFlow::Break(BreakAction::Throw(exception));
+            }
         }
     }
 
-    Ok(last_return_value)
+    Continue(last_return_value)
 }
 
 /// Invoke a native function.
-async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: Vec<Value>) -> Result<Value, Exception> {
+async fn invoke_native(
+    fiber: &mut Fiber,
+    function: &ForeignFn,
+    args: Vec<Value>,
+) -> ControlFlow<Value> {
     // Push the scope onto the stack.
     fiber.stack.push(Gc::new(Scope {
         name: String::from("<native>"),
@@ -134,12 +152,12 @@ async fn invoke_native(fiber: &mut Fiber, function: &ForeignFn, args: Vec<Value>
         fiber.stack.pop();
     });
 
-    function.call(*fiber, args).await.map_err(|mut e| {
+    result_to_control_flow(function.call(*fiber, args).await.map_err(|mut e| {
         if e.backtrace.is_empty() {
             e.backtrace = fiber.backtrace().cloned().collect();
         }
         e
-    })
+    }))
 }
 
 #[async_recursion::async_recursion(?Send)]
@@ -148,14 +166,14 @@ async fn evaluate_statement(fiber: &mut Fiber, statement: Statement) -> ControlF
         Statement::Import(statement) => {
             evaluate_import_statement(fiber, statement).await?;
             Continue(Default::default())
-        },
-        Statement::Return(None) => ControlFlow::Break(BreakAction::Return(Value::Nil)),
+        }
+        Statement::Return(None) => break_return!(),
         Statement::Return(Some(expr)) => {
             let value = evaluate_expr(fiber, expr).await?;
-            ControlFlow::Break(BreakAction::Return(value))
-        },
+            break_return!(value)
+        }
         Statement::Pipeline(pipeline) => evaluate_pipeline(fiber, pipeline).await,
-        Statement::Assignment(AssignmentStatement {target, value}) => {
+        Statement::Assignment(AssignmentStatement { target, value }) => {
             match target {
                 AssignmentTarget::MemberAccess(member_access) => {
                     if let Some(table) = evaluate_expr(fiber, *member_access.0).await?.as_table() {
@@ -180,11 +198,14 @@ async fn evaluate_statement(fiber: &mut Fiber, statement: Statement) -> ControlF
             }
 
             Continue(Value::Nil)
-        },
+        }
     }
 }
 
-async fn evaluate_import_statement(fiber: &mut Fiber, statement: ImportStatement) -> ControlFlow<()> {
+async fn evaluate_import_statement(
+    fiber: &mut Fiber,
+    statement: ImportStatement,
+) -> ControlFlow<()> {
     let module_contents = result_to_control_flow(fiber.load_module(statement.path.as_str()).await)?;
 
     match statement.clause {
@@ -246,8 +267,8 @@ async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: Pipeline) -> ControlFlow
 
 #[async_recursion::async_recursion(?Send)]
 async fn evaluate_call(fiber: &mut Fiber, call: Call) -> ControlFlow<Value> {
-    result_to_control_flow(match call {
-        Call::Named {function, args} => {
+    match call {
+        Call::Named { function, args } => {
             let name = function;
             let function = fiber.get(&name);
             let arg_values = evaluate_call_args(fiber, args).await?;
@@ -255,16 +276,16 @@ async fn evaluate_call(fiber: &mut Fiber, call: Call) -> ControlFlow<Value> {
             if !function.is_nil() {
                 invoke(fiber, &function, arg_values).await
             } else {
-                crate::io::process::command(fiber, &name, &arg_values).await
+                result_to_control_flow(crate::io::process::command(fiber, &name, &arg_values).await)
             }
-        },
-        Call::Unnamed {function, args} => {
+        }
+        Call::Unnamed { function, args } => {
             let function = evaluate_expr(fiber, *function).await?;
             let arg_values = evaluate_call_args(fiber, args).await?;
 
             invoke(fiber, &function, arg_values).await
-        },
-    })
+        }
+    }
 }
 
 async fn evaluate_call_args(fiber: &mut Fiber, args: Vec<CallArg>) -> ControlFlow<Vec<Value>> {
@@ -281,7 +302,10 @@ async fn evaluate_call_args(fiber: &mut Fiber, args: Vec<CallArg>) -> ControlFlo
                         arg_values.push(item.clone());
                     }
                 } else if !splat_items.is_nil() {
-                    throw_cf!("cannot expand a {} value as function arguments", splat_items.type_name());
+                    throw_cf!(
+                        "cannot expand a {} value as function arguments",
+                        splat_items.type_name()
+                    );
                 }
             }
         }
@@ -302,7 +326,9 @@ async fn evaluate_expr(fiber: &mut Fiber, expr: Expr) -> ControlFlow<Value> {
         Expr::Table(literal) => evaluate_table_literal(fiber, literal).await,
         Expr::List(list) => evaluate_list_literal(fiber, list).await,
         Expr::InterpolatedString(string) => evaluate_interpolated_string(fiber, string).await,
-        Expr::MemberAccess(MemberAccess(lhs, rhs)) => evaluate_member_access(fiber, *lhs, rhs).await,
+        Expr::MemberAccess(MemberAccess(lhs, rhs)) => {
+            evaluate_member_access(fiber, *lhs, rhs).await
+        }
         Expr::Block(block) => evaluate_block(fiber, block),
         Expr::Subroutine(subroutine) => evaluate_subroutine(fiber, subroutine),
         Expr::Pipeline(pipeline) => evaluate_pipeline(fiber, pipeline).await,
@@ -338,10 +364,13 @@ async fn evaluate_cvar_scope(fiber: &mut Fiber, cvar_scope: CvarScope) -> Contro
         cvar_scope.name.0 => evaluate_expr(fiber, *cvar_scope.value).await?,
     };
 
-    result_to_control_flow(invoke_closure(fiber, &closure, vec![], cvars, table!()).await)
+    invoke_closure(fiber, &closure, vec![], cvars, table!(), false).await
 }
 
-async fn evaluate_substitution(fiber: &mut Fiber, substitution: Substitution) -> ControlFlow<Value> {
+async fn evaluate_substitution(
+    fiber: &mut Fiber,
+    substitution: Substitution,
+) -> ControlFlow<Value> {
     match substitution {
         Substitution::Variable(name) => Continue(fiber.get(name)),
         Substitution::Pipeline(pipeline) => evaluate_pipeline(fiber, pipeline).await,
@@ -372,14 +401,22 @@ async fn evaluate_list_literal(fiber: &mut Fiber, list: ListLiteral) -> ControlF
     Continue(Value::List(values))
 }
 
-async fn evaluate_interpolated_string(fiber: &mut Fiber, string: InterpolatedString) -> ControlFlow<Value> {
+async fn evaluate_interpolated_string(
+    fiber: &mut Fiber,
+    string: InterpolatedString,
+) -> ControlFlow<Value> {
     let mut rendered = String::new();
 
     for part in string.0.into_iter() {
-        rendered.push_str(match part {
-            InterpolatedStringPart::String(part) => part,
-            InterpolatedStringPart::Substitution(sub) => evaluate_substitution(fiber, sub).await?.to_string(),
-        }.as_str());
+        rendered.push_str(
+            match part {
+                InterpolatedStringPart::String(part) => part,
+                InterpolatedStringPart::Substitution(sub) => {
+                    evaluate_substitution(fiber, sub).await?.to_string()
+                }
+            }
+            .as_str(),
+        );
     }
 
     Continue(Value::from(rendered))

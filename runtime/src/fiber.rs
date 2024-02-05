@@ -1,4 +1,5 @@
 use crate::{
+    controlflow::Resolve,
     eval,
     exceptions::Exception,
     io::{IoContext, Input, Output},
@@ -168,12 +169,12 @@ impl Fiber {
     ) -> Result<Value, Exception> {
         let closure = eval::compile(self, file)?;
 
-        eval::invoke_closure(self, &closure, vec![], scope, Default::default()).await
+        eval::invoke_closure(self, &closure, vec![], scope, Default::default(), false).await.resolve()
     }
 
     /// Invoke the given value as a function with the given arguments.
     pub async fn invoke(&mut self, value: &Value, args: &[Value]) -> Result<Value, Exception> {
-        eval::invoke(self, value, args.to_vec()).await
+        eval::invoke(self, value, args.to_vec()).await.resolve()
     }
 
     /// Lookup a normal variable name in the current scope.
