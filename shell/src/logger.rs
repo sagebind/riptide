@@ -1,13 +1,8 @@
-use log::{
-    Level,
-    LevelFilter,
-    Log,
-    Metadata,
-    Record,
-};
+use log::{Level, LevelFilter, Log, Metadata, Record};
 use std::{
     io::IsTerminal,
     net::UdpSocket,
+    sync::mpsc::{sync_channel, SyncSender},
     thread,
 };
 
@@ -32,14 +27,14 @@ pub fn init(level: LevelFilter) {
 /// tool like `socat`, this allows you to read even noisy debug logs without
 /// messing up the interactive shell.
 struct UdpLogger<L> {
-    sender: flume::Sender<String>,
+    sender: SyncSender<String>,
     inner: L,
 }
 
 impl<L> UdpLogger<L> {
     fn new(inner: L) -> Self {
         let socket = UdpSocket::bind("127.0.0.1:0").unwrap();
-        let (sender, receiver) = flume::bounded::<String>(1024);
+        let (sender, receiver) = sync_channel::<String>(1024);
 
         thread::spawn(move || {
             for record in receiver.iter() {
@@ -47,10 +42,7 @@ impl<L> UdpLogger<L> {
             }
         });
 
-        Self {
-            sender,
-            inner,
-        }
+        Self { sender, inner }
     }
 }
 
@@ -60,7 +52,9 @@ impl<L: Log> Log for UdpLogger<L> {
     }
 
     fn log(&self, record: &Record) {
-        let _ = self.sender.send(format!("{}: {}\n", record.level(), record.args()));
+        let _ = self
+            .sender
+            .send(format!("{}: {}\n", record.level(), record.args()));
         self.inner.log(record);
     }
 

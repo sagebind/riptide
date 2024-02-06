@@ -13,10 +13,10 @@ use crate::{
     throw,
     value::Value,
 };
-use futures::future::try_join_all;
 use gc::Gc;
 use riptide_syntax::{ast::*, parse, source::*};
 use std::ops::ControlFlow::Continue;
+use tokio::task::JoinSet;
 
 /// Compile the given source code as a closure.
 pub(crate) fn compile(
@@ -239,28 +239,32 @@ async fn evaluate_pipeline(fiber: &mut Fiber, pipeline: Pipeline) -> ControlFlow
         // pipes between them for their I/O context, and then execute each call
         // in the pipeline in their respective fibers concurrently.
         count => {
-            let mut futures = Vec::new();
+            let mut values = Vec::with_capacity(count);
+            let mut futures = JoinSet::new();
+
             let mut ios = match fiber.io.try_clone().and_then(|io| io.split_n(count)) {
                 Ok(io) => io.into_iter(),
                 Err(e) => return ControlFlow::Break(BreakAction::Throw(e.into())),
             };
 
-            for call in pipeline.0.iter() {
+            for call in pipeline.0 {
                 let mut fiber = fiber.fork();
                 fiber.io = ios.next().unwrap();
 
-                futures.push(async move {
-                    match evaluate_call(&mut fiber, call.clone()).await {
-                        Continue(value) => Ok(value),
-                        ControlFlow::Break(action) => Err(action),
-                    }
+                futures.spawn_local(async move {
+                    evaluate_call(&mut fiber, call).await
                 });
             }
 
-            match try_join_all(futures).await {
-                Ok(values) => Continue(Value::List(values)),
-                Err(action) => ControlFlow::Break(action),
+            while let Some(result) = futures.join_next().await {
+                match result {
+                    Ok(Continue(value)) => values.push(value),
+                    Ok(ControlFlow::Break(action)) => return ControlFlow::Break(action),
+                    Err(e) => throw_cf!("{}", e),
+                }
             }
+
+            Continue(Value::List(values))
         }
     }
 }

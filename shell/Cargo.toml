@@ -9,14 +9,11 @@ edition.workspace = true
 [dependencies]
 directories.workspace = true
 exitcode = "1.1"
-flume = "0.11"
-futures = "0.3"
+owo-colors = "4"
 riptide-runtime.path = "../runtime"
 riptide-stdlib.path = "../stdlib"
 scopeguard.workspace = true
-syslog = "6"
 toml = "0.8"
-yansi = "0.5"
 
 [dependencies.clap]
 version = "4.4"

@@ -1,9 +1,7 @@
 use crate::prelude::*;
-use futures::future::{FutureExt, LocalBoxFuture};
-use std::{
-    future::Future,
-    rc::Rc,
-};
+use std::{future::Future, pin::Pin, rc::Rc};
+
+type LocalBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
 
 /// A native function that can be invoked by scripts through a runtime as well
 /// as in native code.
@@ -30,15 +28,23 @@ mod private {
     use super::*;
 
     pub trait ForeignFnTrait: 'static {
-        fn call<'a>(&self, fiber: &'a mut Fiber, args: Vec<Value>) -> LocalBoxFuture<'a, Result<Value, Exception>>;
+        fn call<'a>(
+            &self,
+            fiber: &'a mut Fiber,
+            args: Vec<Value>,
+        ) -> LocalBoxFuture<'a, Result<Value, Exception>>;
     }
 
     impl<F> ForeignFnTrait for F
     where
-        F: for<'a> AsyncFn2<&'a mut Fiber, Vec<Value>, Output = Result<Value, Exception>> + 'static
+        F: for<'a> AsyncFn2<&'a mut Fiber, Vec<Value>, Output = Result<Value, Exception>> + 'static,
     {
-        fn call<'a>(&self, fiber: &'a mut Fiber, args: Vec<Value>) -> LocalBoxFuture<'a, Result<Value, Exception>> {
-            self.call(fiber, args).boxed_local()
+        fn call<'a>(
+            &self,
+            fiber: &'a mut Fiber,
+            args: Vec<Value>,
+        ) -> LocalBoxFuture<'a, Result<Value, Exception>> {
+            Box::pin(self.call(fiber, args))
         }
     }
 

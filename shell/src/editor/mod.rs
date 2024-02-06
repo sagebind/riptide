@@ -6,13 +6,13 @@ use crate::{
     os::{TerminalInput, TerminalOutput},
     theme::Theme,
 };
+use owo_colors::OwoColorize;
 use riptide_runtime::{Fiber, Value};
 use std::{
     fmt::Write,
     os::unix::io::AsRawFd,
 };
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
-use yansi::Paint;
 
 pub mod command;
 pub mod event;
@@ -89,7 +89,7 @@ impl<I, O: AsRawFd, C> Editor<I, O, C> {
         write!(
             &mut buf,
             "{}{}",
-            Paint::blue(theme.prompt.as_ref().unwrap().item_format.as_ref().unwrap().replace("%s", &cwd)),
+            theme.prompt.as_ref().unwrap().item_format.as_ref().unwrap().replace("%s", &cwd).blue(),
             theme.prompt.as_ref().unwrap().item_separator.as_ref().unwrap(),
         ).unwrap();
 
@@ -236,7 +236,7 @@ impl<I: AsyncRead + Unpin, O: AsyncWrite + AsRawFd + Unpin, C: Completer> Editor
                 if let Some(suffix) = suggestion.strip_prefix(self.buffer.text()) {
                     if !suffix.is_empty() {
                         self.stdout
-                            .write_all(format!("{}", Paint::new(suffix).dimmed()).as_bytes())
+                            .write_all(format!("{}", suffix.dimmed()).as_bytes())
                             .await
                             .unwrap();
 
