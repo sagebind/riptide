@@ -28,7 +28,7 @@ version = "2.1"
 features = ["with-backtrace"]
 
 [dependencies.rusqlite]
-version = "0.30"
+version = "0.31"
 features = ["bundled"]
 
 [dependencies.serde]
