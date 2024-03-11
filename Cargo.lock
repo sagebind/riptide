@@ -229,6 +229,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap-verbosity-flag"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb9b20c0dd58e4c2e991c8d203bbeb76c11304d1011659686b5b644bc29aa478"
+dependencies = [
+ "clap",
+ "log",
+]
+
+[[package]]
 name = "clap_builder"
 version = "4.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -800,6 +810,7 @@ name = "riptide-shell"
 version = "0.2.0"
 dependencies = [
  "clap",
+ "clap-verbosity-flag",
  "directories",
  "exitcode",
  "log",

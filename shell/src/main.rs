@@ -37,8 +37,8 @@ struct Options {
     login: bool,
 
     /// Set the verbosity level
-    #[arg(short = 'v', long = "verbose", action = clap::ArgAction::Count)]
-    verbosity: u8,
+    #[command(flatten)]
+    verbose: clap_verbosity_flag::Verbosity,
 
     /// Silence all output
     #[arg(short = 'q', long = "quiet")]
@@ -52,23 +52,8 @@ struct Options {
     /// In private mode, session history is kept independent from other sessions
     /// and is stored only in memory. All history generated during a private
     /// session will be forgotten when the session terminates.
-    #[structopt(long = "private")]
+    #[arg(long = "private")]
     private: bool,
-}
-
-impl Options {
-    fn log_level_filter(&self) -> log::LevelFilter {
-        if self.quiet {
-            log::LevelFilter::Off
-        } else {
-            match self.verbosity {
-                0 => log::LevelFilter::Warn,
-                1 => log::LevelFilter::Info,
-                2 => log::LevelFilter::Debug,
-                _ => log::LevelFilter::Trace,
-            }
-        }
-    }
 }
 
 /// Entrypoint of the program. This just does some boring setup and teardown
@@ -78,7 +63,7 @@ fn main() {
     let options = Options::parse();
 
     // Initialize logging.
-    logger::init(options.log_level_filter());
+    logger::init(options.verbose.log_level_filter());
     log_panics::init();
 
     // Create a single-threaded Tokio runtime, which drives the async Riptide
