@@ -11,7 +11,7 @@ use riptide_runtime::{
 use std::{
     io::{IsTerminal, Read},
     path::{Path, PathBuf},
-    process,
+    process::ExitCode,
 };
 use tokio::signal;
 
@@ -58,7 +58,7 @@ struct Options {
 
 /// Entrypoint of the program. This just does some boring setup and teardown
 /// around the real main body of the program.
-fn main() {
+fn main() -> ExitCode {
     // Parse command line args.
     let options = Options::parse();
 
@@ -73,21 +73,12 @@ fn main() {
         .build()
         .unwrap();
 
-    // Run real main and capture the exit code.
-    let exit_code = rt.block_on(real_main(options));
-
-    // Cleanup the runtime before exiting.
-    drop(rt);
-
-    // End this process with a particular exit code if specified.
-    if let Some(exit_code) = exit_code.filter(|&i| i != 0) {
-        log::trace!("exit({})", exit_code);
-        process::exit(exit_code);
-    }
+    // Run real main and return the exit code.
+    rt.block_on(real_main(options)).unwrap_or_default()
 }
 
 /// Main program body.
-async fn real_main(options: Options) -> Option<i32> {
+async fn real_main(options: Options) -> Option<ExitCode> {
     let mut fiber = create_runtime().await;
 
     // If at least one command is given, execute those in order and exit.
@@ -117,7 +108,13 @@ async fn real_main(options: Options) -> Option<i32> {
         execute_stdin(&mut fiber).await;
     }
 
-    fiber.exit_code()
+    fiber.exit_code().map(|exit_code| {
+        if let Ok(exit_code) = u8::try_from(exit_code) {
+            exit_code.into()
+        } else {
+            ExitCode::FAILURE
+        }
+    })
 }
 
 async fn execute_file(fiber: &mut Fiber, path: impl AsRef<Path>) {
