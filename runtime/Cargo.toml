@@ -9,7 +9,7 @@ edition.workspace = true
 
 [dependencies]
 async-recursion = "1.0"
-bstr = "1.9"
+bstr = "1.10"
 dirs.workspace = true
 log.workspace = true
 regex.workspace = true
